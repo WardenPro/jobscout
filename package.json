@@ -1,6 +1,6 @@
 {
   "name": "jobscout",
-  "version": "3.4.9",
+  "version": "3.4.10",
   "private": true,
   "engines": {
     "node": ">=22.13"
@@ -60,6 +60,9 @@
   "overrides": {
     "docx": {
       "nanoid": "^5.1.16"
+    },
+    "next": {
+      "postcss": "^8.5.28"
     }
   }
 }

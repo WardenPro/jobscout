@@ -16,6 +16,10 @@ Tout tourne sur votre machine : base SQLite locale, serveur limité à `127.0.0.
 
 ## Installation
 
+> **Première installation ? Suivez le [guide pas à pas](INSTALL.md)** : prérequis, durée de chaque étape (mesurée), messages normaux, ordinateur à laisser allumé ou non, problèmes fréquents.
+>
+> En résumé : **20 à 35 minutes au total, dont 10 à 15 devant l'écran**. `npm ci` prend environ 1 minute et le premier scan 10 à 20 minutes, pendant lesquels l'ordinateur doit rester allumé (hors veille), le terminal ouvert.
+
 Requiert **Node ≥ 22.13** (module `node:sqlite` sans drapeau expérimental ; Node 24 convient). Au démarrage, Node affiche `ExperimentalWarning: SQLite is an experimental feature` : c'est normal et sans effet.
 
 ```bash
@@ -32,6 +36,8 @@ L'app démarre sur http://127.0.0.1:3000 (écoute limitée à la machine locale,
 **LinkedIn (optionnel)** : c'est la seule source qui a besoin d'un navigateur Chromium. Activez-la dans Profil › Sources, puis cliquez « Installer le moteur LinkedIn » (~100 Mo à télécharger, ~265 Mo sur le disque). En ligne de commande : `npm run playwright:install`.
 
 **Mises à jour** : `git pull` puis `npm ci`.
+
+**Messages npm normaux** : `npm warn deprecated node-domexception`, « packages are looking for funding », et, avec npm récent, le script d'installation de `tesseract.js` ignoré (il n'affiche qu'un appel aux dons). `npm audit` doit afficher `found 0 vulnerabilities` (le PostCSS embarqué par Next.js est forcé en version corrigée via `overrides`). **Ne lancez jamais `npm audit fix --force`** : il installerait Next.js 16, incompatible.
 
 ## Paquet Windows
 
