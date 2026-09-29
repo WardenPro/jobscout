@@ -3,6 +3,14 @@
 Chaîne de fabrication de `JobScout_Setup_vX.Y.Z.exe` : un installeur autonome
 qui tourne sur un PC Windows vierge, sans Node ni Python.
 
+## Prérequis (poste de build)
+
+- Windows 10 ou 11.
+- Node ≥ 22.13 (`node:sqlite` sans drapeau).
+- Inno Setup 6, avec `ISCC.exe` sous `C:\Program Files (x86)\Inno Setup 6\` ou `C:\Program Files\Inno Setup 6\`.
+- .NET Framework 4 (`csc.exe`, présent d'origine sur Windows 10/11) pour compiler le launcher.
+- Avant `--from-db`, déclarez vos propres termes d'identité dans `installer/leak-needles.operator.txt` (jamais versionné, un terme par ligne, `#` pour commenter) : nom, prénom, pseudo, nom de votre dossier de travail. Le contrôle anti-fuite refusera toute distribution qui les contient.
+
 ## Fabriquer une release
 
 ```powershell

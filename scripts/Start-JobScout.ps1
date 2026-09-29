@@ -11,7 +11,8 @@
 
 $ErrorActionPreference = "SilentlyContinue"
 
-$Url = "http://localhost:3000"
+# 127.0.0.1 et non « localhost » : le serveur n'écoute que sur l'IPv4 locale (npm run dev -H 127.0.0.1).
+$Url = "http://127.0.0.1:3000"
 $ProjectDir = Split-Path -Parent $PSScriptRoot
 
 function Test-ServerUp {

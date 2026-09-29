@@ -34,7 +34,7 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
         <StatCard label="Offres disponibles" value={counts.total} sub={`${counts.today} aujourd'hui`} href="/offres" />
         <StatCard label="Candidatures envoyées" value={candCounts.total} sub={`${candCounts.upcoming} échéances`} href="/candidatures" />
-        <StatCard label="V.I.E disponibles" value={counts.vie} sub="Civiweb / Business France" href="/offres?vie=1" />
+        <StatCard label="V.I.E disponibles" value={counts.vie} sub="Détectés dans toutes les sources" href="/offres?vie=1" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

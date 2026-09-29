@@ -212,8 +212,9 @@ export function PreferencesForm() {
       <Card>
         <h2 className="text-h3 mb-1">Sources de scan</h2>
         <p className="text-small text-textSecondary mb-4">
-          Plateformes scannées à chaque recherche. 7 sources disponibles — les sources
-          directes sont activées par défaut.
+          Plateformes scannées à chaque recherche. 6 sources actives (Civiweb est suspendue :
+          Business France exige désormais une authentification) — les sources directes sont
+          activées par défaut.
         </p>
         <EngineNotice
           active={profile.sources_enabled.includes("linkedin")}

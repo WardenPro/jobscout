@@ -24,8 +24,13 @@ import { getSetting } from "@/lib/db";
  * `ANTHROPIC_BASE_URL` qui traînerait dans l'environnement du poste.
  */
 
-/** URL du proxy JobScout — placeholder tant que l'hébergement n'est pas arrêté. */
-export const DEFAULT_PROXY_URL = "https://api.jobscout.app";
+/**
+ * URL du proxy JobScout : AUCUNE par défaut. Le mode « Pack » n'existe que si
+ * une URL est fournie par l'environnement (JOBSCOUT_PROXY_URL, build Pro).
+ * Une URL par défaut vers un domaine que le projet ne contrôle pas enverrait
+ * la clé de licence et le texte du CV à son propriétaire.
+ */
+export const DEFAULT_PROXY_URL = "";
 
 /** API Anthropic directe (mode BYOK). Surcharge test/debug uniquement. */
 const ANTHROPIC_API_URL = "https://api.anthropic.com";
@@ -56,10 +61,15 @@ export function normalizeProxyUrl(raw: string): string {
   return url;
 }
 
-/** URL effective du proxy : constante en dur, surchargeable par l'environnement. */
+/** URL effective du proxy (environnement, sinon défaut) — chaîne vide si aucune. */
 export function proxyBaseUrl(): string {
   const fromEnv = process.env.JOBSCOUT_PROXY_URL?.trim();
   return normalizeProxyUrl(fromEnv || DEFAULT_PROXY_URL);
+}
+
+/** Le mode « Pack JobScout » n'est proposé que si un proxy est configuré. */
+export function packAvailable(): boolean {
+  return proxyBaseUrl().length > 0;
 }
 
 /** URL de l'API Anthropic (BYOK). `JOBSCOUT_ANTHROPIC_BASE_URL` sert aux tests (mock local). */
@@ -91,7 +101,7 @@ export function getLlmConfig(): LlmConfig {
   const licenseKey = clean(getSetting(LLM_SETTING_KEYS.licenseKey));
   const byokKey = clean(getSetting(LLM_SETTING_KEYS.byokKey));
 
-  if (mode === "pack" && licenseKey) {
+  if (mode === "pack" && licenseKey && packAvailable()) {
     return { mode: "pack", apiKey: licenseKey, baseURL: proxyBaseUrl(), source: "settings" };
   }
   if (mode === "byok" && byokKey) {
@@ -103,12 +113,13 @@ export function getLlmConfig(): LlmConfig {
   // utilisateur serait utilisée sans son consentement).
   if (process.env.NODE_ENV !== "production") {
     const envKey = clean(process.env.ANTHROPIC_API_KEY);
-    if (envKey) {
+    // « sk-ant-... » recopié tel quel depuis .env.example n'est pas une clé.
+    if (envKey && !envKey.includes("...")) {
       return { mode: "byok", apiKey: envKey, baseURL: anthropicBaseUrl(), source: "env" };
     }
   }
 
-  return { mode: "unset", apiKey: null, baseURL: proxyBaseUrl(), source: null };
+  return { mode: "unset", apiKey: null, baseURL: anthropicBaseUrl(), source: null };
 }
 
 /** État sûr pour l'UI : jamais de clé en clair, hints masqués (4 derniers symboles). */
@@ -118,7 +129,8 @@ export type LlmState = {
   source: "settings" | "env" | null;
   licenseHint: string | null;
   byokHint: string | null;
-  proxyUrl: string;
+  /** Le mode « Pack » est-il proposé (proxy configuré) ? */
+  packAvailable: boolean;
 };
 
 const hint = (key: string | null): string | null =>
@@ -132,7 +144,7 @@ export function getLlmState(): LlmState {
     source: cfg.source,
     licenseHint: hint(clean(getSetting(LLM_SETTING_KEYS.licenseKey))),
     byokHint: hint(clean(getSetting(LLM_SETTING_KEYS.byokKey))),
-    proxyUrl: proxyBaseUrl(),
+    packAvailable: packAvailable(),
   };
 }
 
@@ -176,8 +188,8 @@ export function resetClaude(): void {
 // pour ne pas avoir à redéployer si Anthropic publie une nouvelle version.
 // En mode pack, le proxy FORCE de toute façon le modèle côté serveur.
 export const MODELS = {
-  // Heavy: extraction CV, génération CV/LM
+  // Lourd : extraction CV, génération CV, lettre et message V.I.E
   opus: process.env.JOBSCOUT_MODEL_OPUS || "claude-opus-4-8",
-  // Volumique: scoring offres, MSG V.I.E
+  // Léger : relecture, traduction, réparation ciblée de la lettre
   sonnet: process.env.JOBSCOUT_MODEL_SONNET || "claude-sonnet-5",
 } as const;

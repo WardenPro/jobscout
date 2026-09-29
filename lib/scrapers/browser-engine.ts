@@ -1,5 +1,6 @@
 import "server-only";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { browsersDir, ensureDir } from "@/lib/paths";
@@ -34,10 +35,14 @@ export function applyBrowsersPath(): string {
   return dir;
 }
 
-/** Registre Playwright par défaut (installations faites par `npx playwright install`). */
+/** Registre Playwright par défaut (installations faites par `npx playwright install`), selon le système. */
 function defaultRegistryDir(): string {
-  const base = process.env.LOCALAPPDATA || path.join(process.env.USERPROFILE || "", "AppData", "Local");
-  return path.join(base, "ms-playwright");
+  if (process.platform === "win32") {
+    const base = process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local");
+    return path.join(base, "ms-playwright");
+  }
+  if (process.platform === "darwin") return path.join(os.homedir(), "Library", "Caches", "ms-playwright");
+  return path.join(process.env.XDG_CACHE_HOME || path.join(os.homedir(), ".cache"), "ms-playwright");
 }
 
 function hasCompleteChromium(dir: string): boolean {

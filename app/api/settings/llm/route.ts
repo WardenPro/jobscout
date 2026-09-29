@@ -6,6 +6,7 @@ import {
   anthropicBaseUrl,
   getLlmConfig,
   getLlmState,
+  packAvailable,
   proxyBaseUrl,
   resetClaude,
 } from "@/lib/ai/client";
@@ -187,6 +188,14 @@ export async function POST(req: NextRequest) {
 
   if (mode !== "pack" && mode !== "byok") {
     return NextResponse.json({ error: "Choisissez un mode : Pack JobScout ou clé API." }, { status: 400 });
+  }
+  // Sans proxy configuré, le mode Pack n'existe pas : aucune clé de licence ne
+  // doit partir vers un hôte que personne ne contrôle.
+  if (mode === "pack" && !packAvailable()) {
+    return NextResponse.json(
+      { error: "Le Pack JobScout n'est pas disponible dans cette version — utilisez votre clé API Anthropic." },
+      { status: 400 }
+    );
   }
 
   if (action === "verify") {

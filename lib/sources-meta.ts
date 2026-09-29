@@ -14,6 +14,8 @@ export type SourceMeta = {
    * à la demande et non embarqué dans l'installeur. Décochée par défaut.
    */
   requiresEngine?: boolean;
+  /** Source actuellement hors service côté site tiers : décochée par défaut. */
+  unavailable?: boolean;
 };
 
 export const SOURCES_META: SourceMeta[] = [
@@ -25,7 +27,13 @@ export const SOURCES_META: SourceMeta[] = [
     scope: "world",
     requiresEngine: true,
   },
-  { id: "civiweb", label: "Civiweb — V.I.E", sublabel: "Business France (international)", scope: "world" },
+  {
+    id: "civiweb",
+    label: "Civiweb — V.I.E",
+    sublabel: "Suspendue : Business France exige désormais une authentification",
+    scope: "world",
+    unavailable: true,
+  },
   { id: "apec", label: "APEC", sublabel: "Offres cadres (France)", scope: "fr" },
   { id: "hellowork", label: "HelloWork", sublabel: "Ex-RegionsJob (France)", scope: "fr" },
   { id: "francetravail", label: "France Travail", sublabel: "Ex-Pôle Emploi (France)", scope: "fr" },
@@ -36,9 +44,10 @@ export const SOURCE_IDS = SOURCES_META.map((s) => s.id);
 
 /**
  * Sources cochées par défaut : toutes sauf celles qui exigent un téléchargement
- * supplémentaire. Une installation neuve ne télécharge donc rien de plus.
+ * supplémentaire et celles qui sont hors service. Une installation neuve ne
+ * télécharge donc rien de plus.
  */
-export const DEFAULT_SOURCE_IDS = SOURCES_META.filter((s) => !s.requiresEngine).map(
+export const DEFAULT_SOURCE_IDS = SOURCES_META.filter((s) => !s.requiresEngine && !s.unavailable).map(
   (s) => s.id
 );
 

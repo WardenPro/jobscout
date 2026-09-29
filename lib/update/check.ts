@@ -8,9 +8,10 @@ import path from "node:path";
  * hors-ligne). Aucune donnée utilisateur n'est envoyée : c'est un simple GET.
  */
 
-// L'hébergement définitif n'est pas encore arrêté : URL surchargeable par
-// l'environnement, avec ce placeholder par défaut.
-export const DEFAULT_UPDATE_URL = "https://updates.jobscout.app/version.json";
+// Aucun flux par défaut : la vérification n'a lieu que si JOBSCOUT_UPDATE_URL
+// est fournie (build Pro). Un flux par défaut vers un domaine que le projet ne
+// contrôle pas permettrait à son propriétaire d'annoncer une fausse mise à jour.
+export const DEFAULT_UPDATE_URL = "";
 const FETCH_TIMEOUT_MS = 4000;
 
 /**
@@ -33,20 +34,20 @@ export type UpdateStatus = {
 };
 
 /**
- * Supply-chain : le feed de mise à jour est servi par le
- * proxy et traité comme DONNÉE NON FIABLE. Un lien de téléchargement n'est
- * accepté que vers un hôte de cette allowlist EN DUR — un feed compromis ne
- * peut pas rediriger l'utilisateur vers un binaire arbitraire. Jamais
- * d'auto-exécution : notification seule.
+ * Supply-chain : le feed de mise à jour est traité comme DONNÉE NON FIABLE.
+ * Un lien de téléchargement n'est accepté que vers les releases GitHub du
+ * projet (préfixe EN DUR) — un feed compromis ne peut pas rediriger
+ * l'utilisateur vers un binaire arbitraire, ni vers le dépôt d'un tiers.
+ * Jamais d'auto-exécution : notification seule.
  */
-const ALLOWED_DOWNLOAD_HOSTS = ["github.com", "updates.jobscout.app"];
+const ALLOWED_DOWNLOAD_PREFIX = "https://github.com/latenightsbeats1208-pixel/jobscout/releases/";
 
 export function sanitizeDownloadUrl(raw: unknown): string | null {
   if (typeof raw !== "string" || !raw.trim()) return null;
   try {
     const url = new URL(raw.trim());
-    if (url.protocol !== "https:") return null;
-    if (!ALLOWED_DOWNLOAD_HOSTS.includes(url.hostname.toLowerCase())) return null;
+    if (url.protocol !== "https:" || url.hostname.toLowerCase() !== "github.com") return null;
+    if (!url.toString().startsWith(ALLOWED_DOWNLOAD_PREFIX)) return null;
     return url.toString();
   } catch {
     return null;
@@ -136,6 +137,7 @@ export async function getUpdateStatus(): Promise<UpdateStatus> {
   if (process.env.JOBSCOUT_DISABLE_UPDATE_CHECK === "1") return offlineStatus();
 
   const url = process.env.JOBSCOUT_UPDATE_URL?.trim() || DEFAULT_UPDATE_URL;
+  if (!url) return offlineStatus();
 
   inFlight = (async (): Promise<UpdateStatus> => {
     const controller = new AbortController();

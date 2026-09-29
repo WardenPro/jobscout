@@ -19,6 +19,8 @@ type LlmStatus = {
   source: "settings" | "env" | null;
   licenseHint: string | null;
   byokHint: string | null;
+  /** Mode « Pack » proposé seulement si un proxy est configuré (build Pro). */
+  packAvailable: boolean;
   quota: Quota | null;
 };
 
@@ -34,7 +36,7 @@ export function AiSettings({
   onStatusChange?: (status: { configured: boolean }) => void;
 }) {
   const [status, setStatus] = useState<LlmStatus | null>(null);
-  const [mode, setMode] = useState<"pack" | "byok">("pack");
+  const [mode, setMode] = useState<"pack" | "byok">("byok");
   const [licenseKey, setLicenseKey] = useState("");
   const [byokKey, setByokKey] = useState("");
   const [loading, setLoading] = useState(false);
@@ -48,7 +50,7 @@ export function AiSettings({
       const data = (await res.json().catch(() => null)) as LlmStatus | null;
       if (!data) return;
       setStatus(data);
-      if (data.mode === "pack" || data.mode === "byok") setMode(data.mode);
+      if (data.mode === "byok" || (data.mode === "pack" && data.packAvailable)) setMode(data.mode);
       onStatusChange?.({ configured: !!data.configured });
     } catch {
       // hors-ligne : la carte reste utilisable, le gate reste fermé
@@ -135,23 +137,25 @@ export function AiSettings({
         )}
       </div>
       <p className="text-small text-textSecondary mb-4">
-        L'extraction de CV et la génération des documents utilisent l'IA. Choisissez le pack
-        inclus avec votre licence JobScout, ou votre propre clé API Anthropic (facturée à
-        l'usage, à vos frais).
+        {status?.packAvailable
+          ? "L'extraction de CV et la génération des documents utilisent l'IA. Choisissez le pack inclus avec votre licence JobScout, ou votre propre clé API Anthropic (facturée à l'usage, à vos frais)."
+          : "L'extraction de CV et la génération des documents utilisent l'IA, via votre propre clé API Anthropic (facturée à l'usage, à vos frais). La clé est nécessaire dès l'import du CV."}
       </p>
 
-      {/* Choix du mode : deux chips */}
+      {/* Choix du mode : le Pack n'est proposé que si un proxy est configuré (build Pro) */}
       <div className="flex flex-wrap gap-2 mb-4">
-        <ModeChip
-          active={mode === "pack"}
-          onClick={() => {
-            setMode("pack");
-            setError(null);
-            setInfo(null);
-          }}
-        >
-          Pack JobScout (licence)
-        </ModeChip>
+        {status?.packAvailable && (
+          <ModeChip
+            active={mode === "pack"}
+            onClick={() => {
+              setMode("pack");
+              setError(null);
+              setInfo(null);
+            }}
+          >
+            Pack JobScout (licence)
+          </ModeChip>
+        )}
         <ModeChip
           active={mode === "byok"}
           onClick={() => {
@@ -196,7 +200,7 @@ export function AiSettings({
             {status?.byokHint ? (
               <>Clé API enregistrée : <code>{status.byokHint}</code></>
             ) : (
-              <>Créez une clé sur console.anthropic.com — elle reste sur cette machine.</>
+              <>Créez une clé sur platform.claude.com (console Anthropic) — elle reste sur cette machine.</>
             )}
           </p>
         </>

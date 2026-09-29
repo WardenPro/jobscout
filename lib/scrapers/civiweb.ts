@@ -201,6 +201,7 @@ export const civiwebScraper: Scraper = {
     const allOffers: CiviwebOffer[] = [];
     let skip = 0;
     let consecutiveEmpty = 0;
+    let lastError: string | null = null;
     while (allOffers.length < max && consecutiveEmpty < 2) {
       try {
         const batch = await fetchPage(skip, PAGE_SIZE);
@@ -212,9 +213,17 @@ export const civiwebScraper: Scraper = {
         allOffers.push(...batch);
         if (batch.length < PAGE_SIZE) break; // last page
         skip += PAGE_SIZE;
-      } catch {
+      } catch (e) {
+        lastError = e instanceof Error ? e.message : String(e);
         consecutiveEmpty++;
       }
+    }
+    // Échec total : le dire dans le journal du scan au lieu de rendre « 0 offre »
+    // en silence (l'API Business France répond 401 sans authentification).
+    if (allOffers.length === 0 && lastError) {
+      throw new Error(
+        `Civiweb indisponible (${lastError}) — Business France exige désormais une authentification ; désactivez cette source dans Profil › Sources.`
+      );
     }
 
     // 2. Filter by user country (if specified) and sectors (if specified)
