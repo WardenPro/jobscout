@@ -379,10 +379,11 @@ function ModeChip({
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
         "h-9 px-4 rounded-full border text-small font-medium transition-colors",
         active
-          ? "border-accent bg-accent/10 text-accent"
+          ? "border-accent bg-accent text-onAccent hover:bg-accentHover"
           : "border-border bg-surface text-textSecondary hover:text-text hover:bg-surfaceHover"
       )}
     >

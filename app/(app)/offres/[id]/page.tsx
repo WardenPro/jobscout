@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { DescriptionRenderer } from "@/components/app/description-renderer";
 import { ActionsPanel } from "./actions";
 import { formatRelativeDate, scoreColor } from "@/lib/utils";
+import { CONTRACT_LABELS } from "@/lib/contracts";
+import { SOURCES_META } from "@/lib/sources-meta";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,10 @@ export default async function OffreDetailPage({ params }: { params: Promise<{ id
   const msgDoc = docs.find((d) => d.type === "msg") ?? null;
   const existingApplication = getDb().prepare("SELECT status FROM candidatures WHERE offre_id = ? LIMIT 1").get(offre.id) as { status: string } | undefined;
   const score = scoreColor(offre.score ?? 0);
+  const sourceLabel = SOURCES_META.find((source) => source.id === offre.source)?.label ?? offre.source;
+  const contractLabel = offre.contract_category !== "autre" ? CONTRACT_LABELS[offre.contract_category] : null;
+  // Le libellé brut de la source n'est répété que s'il apporte une précision (« Temps plein »…).
+  const rawContract = offre.contract_type && offre.contract_type.trim().toLowerCase() !== contractLabel?.toLowerCase() ? offre.contract_type : null;
 
   return (
     <div>
@@ -34,12 +40,12 @@ export default async function OffreDetailPage({ params }: { params: Promise<{ id
       <header className="glass-panel focus-card mb-8 p-5 sm:mb-9 sm:p-7">
         <div className="flex items-start gap-4">
           <div className="min-w-0 flex-1">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">{offre.company}</p>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">{offre.company || "Entreprise non précisée"}</p>
             <h1 className="font-display text-h1 text-balance">{offre.title}</h1>
           </div>
-          <div className="score-badge flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-lg sm:h-[76px] sm:w-[76px]" aria-label={`Adéquation ${offre.score ?? 0} sur 100, ${score.label}`}>
+          <div className="score-badge flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-lg sm:h-[76px] sm:w-[76px]" data-tone={score.tone} aria-label={`Adéquation ${offre.score ?? 0} sur 100, ${score.label.toLowerCase()}`}>
             <span className="text-[26px] font-bold leading-none tabular-nums sm:text-[30px]">{offre.score ?? 0}</span>
-            <span className="mt-1 text-[10px] font-semibold uppercase tracking-wide">/ 100</span>
+            <span className="mt-1 text-[11px] font-semibold uppercase tracking-wide">/ 100</span>
           </div>
         </div>
         <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-small text-textSecondary">
@@ -48,9 +54,9 @@ export default async function OffreDetailPage({ params }: { params: Promise<{ id
           <span className="font-medium">Score {score.label.toLowerCase()}</span>
         </div>
         <div className="mt-5 flex flex-wrap items-center gap-2">
-          <Badge>{offre.source}</Badge>
-          {offre.is_vie ? <Badge variant="info">V.I.E</Badge> : null}
-          {offre.contract_type && <Badge>{offre.contract_type}</Badge>}
+          <Badge>{sourceLabel}</Badge>
+          {contractLabel && <Badge variant={offre.contract_category === "vie" ? "info" : "default"}>{contractLabel}</Badge>}
+          {rawContract && <Badge>{rawContract}</Badge>}
           <a href={offre.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-small font-semibold text-accent hover:underline sm:ml-auto">
             Voir l'annonce d'origine <ArrowUpRight className="h-4 w-4" />
           </a>
@@ -62,7 +68,7 @@ export default async function OffreDetailPage({ params }: { params: Promise<{ id
           <ActionsPanel
             offreId={offre.id}
             offreUrl={offre.url}
-            isVie={!!offre.is_vie}
+            isVie={offre.contract_category === "vie"}
             initial={{ cv_pdf_id: cvPdf?.id ?? null, cv_docx_id: cvDocx?.id ?? null, lm_pdf_id: lmPdf?.id ?? null, lm_docx_id: lmDocx?.id ?? null, msg_id: msgDoc?.id ?? null }}
             initialTrackingStatus={existingApplication?.status ?? null}
             initialFolder={docs.length > 0 ? offreFolderPath(offre.id, offre.company, offre.title) : null}

@@ -14,7 +14,7 @@ export function ProfileSwitcher({ currentName }: { currentName: string | null })
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [saveName, setSaveName] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [confirmLoad, setConfirmLoad] = useState<string | null>(null);
 
@@ -41,21 +41,26 @@ export function ProfileSwitcher({ currentName }: { currentName: string | null })
       });
       const data = await res.json();
       if (!res.ok) {
-        setMessage(data.error ?? "Erreur");
+        setMessage({ text: data.error ?? "Erreur", error: true });
         return;
       }
-      if (action === "save") setMessage(`Profil sauvegardé sous « ${name} ».`);
+      if (action === "save") setMessage({ text: `Profil sauvegardé sous « ${name} ».` });
       if (action === "load") {
-        setMessage(`Profil « ${name} » chargé. Le classement des offres a été mis à jour.`);
+        // Nombre d'offres re-scorées renvoyé par l'API (comme en 3.4.10).
+        const rescored = typeof data.rescored === "number" ? data.rescored : null;
+        setMessage({ text: `Profil « ${name} » chargé${rescored != null ? ` : ${rescored.toLocaleString("fr-FR")} offre${rescored > 1 ? "s" : ""} re-scorée${rescored > 1 ? "s" : ""}` : ""}.` });
         router.refresh();
       }
-      if (action === "delete") setMessage(`« ${name} » supprimé.`);
+      if (action === "delete") setMessage({ text: `« ${name} » supprimé.` });
       setSaveName("");
       await refresh();
     } catch {
-      setMessage("L'action n'a pas abouti. Vérifiez la connexion puis réessayez.");
+      setMessage({ text: "L'action n'a pas abouti. Vérifiez la connexion puis réessayez.", error: true });
     } finally {
       setBusy(null);
+      // La confirmation reste affichée (bouton désactivé) pendant l'action, puis se referme.
+      setConfirmDelete(null);
+      setConfirmLoad(null);
     }
   }
 
@@ -64,7 +69,7 @@ export function ProfileSwitcher({ currentName }: { currentName: string | null })
       <details className="group">
         <summary className="flex min-h-20 list-none items-center gap-3 px-5 py-4 sm:px-6">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surfaceHover text-accent"><Users className="h-5 w-5" /></span>
-          <span className="min-w-0 flex-1"><span className="block text-h3">Profils enregistrés</span><span className="block text-small text-textSecondary">{snapshots.length ? `${snapshots.length} profil${snapshots.length > 1 ? "s" : ""} sauvegardé${snapshots.length > 1 ? "s" : ""}` : "Gérez plusieurs profils de recherche"}</span></span>
+          <span className="min-w-0 flex-1"><span className="block text-h3">Profils enregistrés</span><span className="block text-small text-textSecondary">{snapshots.length ? `${snapshots.length} profil${snapshots.length > 1 ? "s" : ""} sauvegardé${snapshots.length > 1 ? "s" : ""}` : "Aucun profil sauvegardé"}</span></span>
           <ChevronDown className="h-5 w-5 shrink-0 text-textSecondary transition-transform group-open:rotate-180" />
         </summary>
         <div className="border-t border-border px-5 py-5 sm:px-6">
@@ -75,7 +80,7 @@ export function ProfileSwitcher({ currentName }: { currentName: string | null })
           {snapshots.map((s) => (
             <div
               key={s.name}
-              className="flex items-center justify-between gap-3 rounded-md border border-border p-3"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-3"
             >
               <div className="min-w-0">
                 <p className="text-body font-medium truncate">{s.name}</p>
@@ -84,31 +89,33 @@ export function ProfileSwitcher({ currentName }: { currentName: string | null })
                   {s.saved_at ? ` · sauvegardé le ${s.saved_at.slice(0, 10)}` : ""}
                 </p>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-2">
                 {confirmDelete === s.name ? (
-                  <span className="flex flex-wrap items-center gap-2 text-small">
+                  <span className="flex flex-wrap items-center justify-end gap-2 text-small">
                     <span>Supprimer ?</span>
-                    <button type="button" onClick={() => setConfirmDelete(null)} className="font-semibold text-textSecondary hover:underline">Annuler</button>
-                    <button type="button" onClick={() => { setConfirmDelete(null); void act("delete", s.name); }} className="font-semibold text-danger hover:underline">Confirmer</button>
+                    <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(null)} disabled={busy !== null}>Annuler</Button>
+                    <Button size="sm" variant="danger" onClick={() => void act("delete", s.name)} disabled={busy !== null}>
+                      {busy === `delete:${s.name}` && <Spinner size={14} />}
+                      Confirmer
+                    </Button>
                   </span>
                 ) : confirmLoad === s.name ? (
-                  <span className="flex flex-wrap items-center gap-2 text-small">
+                  <span className="flex flex-wrap items-center justify-end gap-2 text-small">
                     <span>Charger ce profil ?</span>
-                    <button type="button" onClick={() => setConfirmLoad(null)} className="font-semibold text-textSecondary hover:underline">Annuler</button>
-                    <button type="button" onClick={() => { setConfirmLoad(null); void act("load", s.name); }} className="font-semibold text-accent hover:underline">Confirmer</button>
+                    <Button size="sm" variant="ghost" onClick={() => setConfirmLoad(null)} disabled={busy !== null}>Annuler</Button>
+                    <Button size="sm" onClick={() => void act("load", s.name)} disabled={busy !== null}>
+                      {busy === `load:${s.name}` && <Spinner size={14} className="text-onAccent" />}
+                      {busy === `load:${s.name}` ? "Chargement…" : "Confirmer"}
+                    </Button>
                   </span>
                 ) : <>
                 <Button
                   size="sm"
                   variant="secondary"
                   disabled={busy !== null}
-                  onClick={() => setConfirmLoad(s.name)}
+                  onClick={() => { setConfirmDelete(null); setConfirmLoad(s.name); }}
                 >
-                  {busy === `load:${s.name}` ? (
-                    <Spinner size={14} />
-                  ) : (
-                    <ArrowRightLeft className="h-3.5 w-3.5" />
-                  )}
+                  <ArrowRightLeft className="h-3.5 w-3.5" />
                   Charger
                 </Button>
                 <button
@@ -154,7 +161,7 @@ export function ProfileSwitcher({ currentName }: { currentName: string | null })
         </Button>
       </div>
 
-      {message && <p role="status" className="mt-3 text-small text-accent">{message}</p>}
+      {message && <p role={message.error ? "alert" : "status"} className={message.error ? "mt-3 rounded-md border border-danger bg-surface px-3 py-2 text-small text-text" : "mt-3 text-small text-text"}>{message.text}</p>}
         </div>
       </details>
     </Card>

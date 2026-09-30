@@ -206,6 +206,7 @@ export async function run() {
       "JobScout.exe",
       "jobscout.ico",
       "LISEZ-MOI.txt",
+      "THIRD_PARTY_NOTICES.txt",
       ...(isTest ? [INFO_FILE_NAME] : []),
       path.join("runtime", "node.exe"),
       path.join("app", "server.js"),

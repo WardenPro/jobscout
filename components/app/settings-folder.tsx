@@ -100,14 +100,14 @@ export function SettingsFolder() {
         <h2 className="text-h3">Dossier des documents</h2>
       </div>
       <p className="text-small text-textSecondary mb-4">
-        Tous les CV, lettres de motivation et messages générés par Job Scout sont sauvegardés
+        Tous les CV, lettres de motivation et messages générés par JobScout sont sauvegardés
         dans ce dossier, chacun dans un sous-dossier dédié à l'offre. Word (.docx) et PDF côte à côte.
       </p>
 
       <Input
         value={folder}
         onChange={(e) => setFolder(e.target.value)}
-        placeholder="C:\Users\votre-nom\Documents\Job Scout"
+        placeholder="C:\Users\votre-nom\Documents\JobScout"
         spellCheck={false}
       />
       <p className="text-caption text-textSecondary mt-1.5">
@@ -140,13 +140,13 @@ export function SettingsFolder() {
       </div>
 
       {info && (
-        <div className="mt-3 flex items-start gap-2 p-3 rounded-md bg-[rgba(48,209,88,0.08)] text-success text-small">
-          <Check className="h-4 w-4 mt-0.5" /> {info}
+        <div role="status" className="mt-3 flex items-start gap-2 rounded-md border border-border bg-surface p-3 text-small text-text">
+          <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" /> {info}
         </div>
       )}
       {error && (
-        <div className="mt-3 flex items-start gap-2 p-3 rounded-md bg-[rgba(255,59,48,0.08)] text-danger text-small">
-          <AlertCircle className="h-4 w-4 mt-0.5" /> {error}
+        <div role="alert" className="mt-3 flex items-start gap-2 rounded-md border border-danger bg-surface p-3 text-small text-text">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger" aria-hidden="true" /> {error}
         </div>
       )}
     </Card>

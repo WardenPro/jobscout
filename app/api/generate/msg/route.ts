@@ -15,7 +15,8 @@ export async function POST(req: NextRequest) {
     if (!profile) return NextResponse.json({ error: "Profil introuvable" }, { status: 400 });
     const offre = getOffre(Number(offreId));
     if (!offre) return NextResponse.json({ error: "Offre introuvable" }, { status: 404 });
-    if (!offre.is_vie) return NextResponse.json({ error: "Offre non V.I.E" }, { status: 400 });
+    // Même règle que le badge et le filtre V.I.E (détection stricte, pas la colonne figée au scan).
+    if (offre.contract_category !== "vie") return NextResponse.json({ error: "Offre non V.I.E" }, { status: 400 });
 
     const text = await generateMsgVie(profile, offre);
     const meta = { company: offre.company, title: offre.title };

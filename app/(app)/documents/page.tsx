@@ -29,18 +29,23 @@ export default async function DocumentsPage() {
     if (!dossierMap.has(key)) dossierMap.set(key, {
       key,
       offreId: offer?.id ?? null,
-      title: offer?.title ?? path.basename(doc.file_path),
-      company: offer?.company ?? null,
+      title: offer?.title || path.basename(doc.file_path),
+      // `||` et non `??` : des offres ont une entreprise vide (chaîne ""), pas NULL.
+      company: offer?.company || null,
       docs: [],
       latest: doc.generated_at,
     });
     dossierMap.get(key)!.docs.push(doc);
   }
   const dossiers = [...dossierMap.values()].sort((a, b) => b.latest.localeCompare(a.latest));
+  // Sous-titre daté plutôt qu'un slogan ; les compteurs sont dans le bandeau juste en dessous.
+  const subtitle = dossiers.length
+    ? `Classés par offre, du plus récent au plus ancien · dernière génération le ${displayDate(dossiers[0].latest)}`
+    : "Aucun document généré pour l'instant.";
 
   return (
     <>
-      <PageHeader eyebrow="Préparer" title="Vos dossiers" subtitle="Vos CV, lettres et messages. Chaque candidature trouve sa place." />
+      <PageHeader eyebrow="Préparer" title="Vos dossiers" subtitle={subtitle} />
       <div className="glass-panel mb-7 flex flex-wrap items-center gap-x-5 gap-y-2 px-5 py-4 text-small text-textSecondary">
         <span className="brand-mark mr-1 h-10 w-10 rounded-[14px]"><FolderOpen className="h-5 w-5" strokeWidth={1.5} /></span>
         <span><strong className="text-text tabular-nums">{dossiers.length}</strong> dossier{dossiers.length > 1 ? "s" : ""}</span>
@@ -70,7 +75,7 @@ function DossierCard({ dossier }: { dossier: Dossier }) {
     <article className="glass-panel overflow-hidden">
       <div className="relative border-b border-border px-5 py-6 sm:px-6">
         <span className="brand-mark mb-5 h-12 w-12 rounded-[16px]"><FolderOpen className="h-6 w-6" strokeWidth={1.25} /></span>
-        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-textSecondary">{dossier.company ?? "Document indépendant"}</p>
+        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-textSecondary">{dossier.offreId != null ? dossier.company || "Entreprise non précisée" : "Document indépendant"}</p>
         {dossier.offreId ? (
           <Link href={`/offres/${dossier.offreId}`} className="group inline-flex items-start gap-2 font-display text-[22px] font-semibold leading-tight hover:text-accent">
             {dossier.title}<ArrowUpRight className="mt-1 h-4 w-4 shrink-0 opacity-50 group-hover:opacity-100" />

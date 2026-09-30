@@ -287,8 +287,8 @@ export function AddCVFlow() {
           )}
 
           {error && (
-            <div className="mt-4 flex items-start gap-2 p-3 rounded-md bg-[rgba(255,59,48,0.08)] text-danger text-small">
-              <AlertCircle className="h-4 w-4 mt-0.5" /> {error}
+            <div role="alert" className="mt-4 flex items-start gap-2 rounded-md border border-danger bg-surface p-3 text-small text-text">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger" aria-hidden="true" /> {error}
             </div>
           )}
 
@@ -361,8 +361,8 @@ export function AddCVFlow() {
         </div>
 
         {error && (
-          <div className="mt-4 flex items-start gap-2 p-3 rounded-md bg-[rgba(255,59,48,0.08)] text-danger text-small">
-            <AlertCircle className="h-4 w-4 mt-0.5" /> {error}
+          <div role="alert" className="mt-4 flex items-start gap-2 rounded-md border border-danger bg-surface p-3 text-small text-text">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger" aria-hidden="true" /> {error}
           </div>
         )}
       </Card>

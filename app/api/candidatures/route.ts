@@ -15,6 +15,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
+  if (body?.status != null && !STATUS.includes(body.status)) {
+    return NextResponse.json({ error: "statut invalide" }, { status: 400 });
+  }
   const id = createCandidature(body);
   return NextResponse.json({ id, ok: true });
 }

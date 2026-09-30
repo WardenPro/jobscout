@@ -126,6 +126,10 @@ export function deleteCandidature(id: number) {
   getDb().prepare("DELETE FROM candidatures WHERE id = ?").run(id);
 }
 
+// Même règle pour le compteur « N échéances à venir » et la liste de l'accueil :
+// une échéance illisible par SQLite (date(...) NULL) n'apparaît ni dans l'un ni dans l'autre.
+const UPCOMING_WHERE = "c.deadline IS NOT NULL AND date(c.deadline) >= date('now')";
+
 export function candidaturesCounts() {
   const db = getDb();
   const rows = db
@@ -133,11 +137,36 @@ export function candidaturesCounts() {
     .all() as { status: string; c: number }[];
   const total = (db.prepare("SELECT COUNT(*) AS c FROM candidatures").get() as { c: number }).c;
   const upcoming = (
-    db
-      .prepare(
-        "SELECT COUNT(*) AS c FROM candidatures WHERE deadline IS NOT NULL AND date(deadline) >= date('now')"
-      )
-      .get() as { c: number }
+    db.prepare(`SELECT COUNT(*) AS c FROM candidatures c WHERE ${UPCOMING_WHERE}`).get() as { c: number }
   ).c;
   return { total, upcoming, byStatus: rows };
+}
+
+export type UpcomingDeadline = {
+  id: number;
+  offre_id: number | null;
+  deadline: string;
+  status: string;
+  title: string | null;
+  company: string | null;
+};
+
+/**
+ * Prochaines échéances avec l'intitulé de la candidature (poste + entreprise).
+ * Les chaînes vides comptent comme absentes : certaines sources n'ont pas d'entreprise.
+ */
+export function upcomingDeadlines(limit = 5): UpcomingDeadline[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT c.id, c.offre_id, c.deadline, c.status,
+              COALESCE(NULLIF(TRIM(o.title), ''), NULLIF(TRIM(c.ext_title), '')) AS title,
+              COALESCE(NULLIF(TRIM(o.company), ''), NULLIF(TRIM(c.ext_company), '')) AS company
+       FROM candidatures c
+       LEFT JOIN offres o ON o.id = c.offre_id
+       WHERE ${UPCOMING_WHERE}
+       ORDER BY date(c.deadline) ASC, c.id ASC
+       LIMIT ?`
+    )
+    .all(Math.max(1, Math.min(20, Math.trunc(limit)))) as UpcomingDeadline[];
+  return plainAll(rows);
 }

@@ -13,21 +13,28 @@ export async function GET(req: NextRequest) {
     onlySource && VALID_SOURCES.includes(onlySource) ? onlySource : null;
 
   const encoder = new TextEncoder();
+  // Client parti (onglet fermé, bouton « Précédent ») : on n'écrit plus dans le
+  // flux, mais le scan va au bout — sinon la source en cours reste à moitié
+  // scannée, les suivantes jamais, et scan_runs reste figé à « running ».
+  let clientGone = false;
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (data: unknown) =>
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+      const write = (chunk: string) => {
+        if (clientGone) return;
+        try {
+          controller.enqueue(encoder.encode(chunk));
+        } catch {
+          clientGone = true;
+        }
+      };
+      const send = (data: unknown) => write(`data: ${JSON.stringify(data)}\n\n`);
       const log = (line: string) => send({ kind: "log", line });
 
       // 1. Force-flush 2KB of SSE comment so Next.js / proxies stop buffering immediately.
       //    Comments (lines starting with ":") are ignored by EventSource clients.
-      controller.enqueue(encoder.encode(`: ${" ".repeat(2048)}\n\n`));
+      write(`: ${" ".repeat(2048)}\n\n`);
       // 2. Heartbeat ping every 10s so the client knows we're alive even if scrapers are slow.
-      const heartbeat = setInterval(() => {
-        try {
-          controller.enqueue(encoder.encode(`: ping\n\n`));
-        } catch {}
-      }, 10000);
+      const heartbeat = setInterval(() => write(`: ping\n\n`), 10000);
 
       // 3. Immediate "scan-started" event so the UI shows progress instantly
       send({
@@ -47,8 +54,17 @@ export async function GET(req: NextRequest) {
       } finally {
         clearInterval(heartbeat);
         send({ kind: "close" });
-        controller.close();
+        if (!clientGone) {
+          try {
+            controller.close();
+          } catch {
+            // flux déjà annulé par le client
+          }
+        }
       }
+    },
+    cancel() {
+      clientGone = true;
     },
   });
 

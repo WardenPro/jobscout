@@ -54,6 +54,8 @@ export type OffreSummary = Pick<
   score_reason: string | null;
 };
 
+export type OffersSort = "smart" | "newest" | "oldest" | "score";
+
 export type OffersSearch = {
   offers: OffreSummary[];
   total: number;
@@ -70,24 +72,154 @@ export type OffersSearch = {
 const OFFER_PAGE_SIZE = 24;
 // Même classement pour la liste, l’API paginée et les suggestions de l’accueil.
 // Le bonus de fraîcheur reste volontairement léger face au score du profil.
+// Départage final par id : sans lui, l’ordre des ex æquo dépend du plan de
+// requête et « Afficher davantage » peut répéter ou sauter des offres.
 const SMART_ORDER = `score + CASE
   WHEN posted_at IS NULL THEN 0
   WHEN julianday('now') - julianday(posted_at) <= 1 THEN 6
   WHEN julianday('now') - julianday(posted_at) <= 3 THEN 4
   WHEN julianday('now') - julianday(posted_at) <= 7 THEN 2
   ELSE 0
-END DESC, score DESC, posted_at DESC`;
+END DESC, score DESC, posted_at DESC, o.id DESC`;
 
 function normalizeSearch(value: string): string {
   return value.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
 }
 
-type SearchRow = Pick<
+// ----------- Cache mémoire de la recherche -----------
+// Sans cache, chaque requête relisait les 4 623 lignes, reclassait chaque contrat
+// (normalisation des descriptions) et, avec un mot-clé, renormalisait 14 Mo de
+// texte : ~250 ms par clic de filtre, ~600 ms par recherche. Les lignes prêtes à
+// filtrer restent en mémoire et sont reconstruites dès que la base change.
+
+type CachedOffre = Omit<OffreSummary, "description_text" | "score_reason"> & {
+  /** 1 000 premiers caractères : tout ce que l’aperçu affiche. */
+  excerpt: string;
+  /** JSON brut, lu seulement pour les offres de la page renvoyée. */
+  score_breakdown: string | null;
+};
+
+type OffresCache = {
+  fingerprint: string;
+  byId: Map<number, CachedOffre>;
+  /** Ordre SMART_ORDER, relu chaque minute (le bonus de fraîcheur dépend de l’heure). */
+  smart: CachedOffre[];
+  orderedAt: number;
+  /** Titre, entreprise, pays, lieu et description complète, sans accents ; construit à la première recherche. */
+  haystacks: Map<number, string> | null;
+  facets: OffersSearch["facets"];
+};
+
+const ORDER_TTL_MS = 60_000;
+let offresCache: OffresCache | null = null;
+
+/**
+ * Empreinte de la base, lue à chaque appel (deux lectures de quelques microsecondes) :
+ * - `PRAGMA data_version` change dès qu’une AUTRE connexion valide une écriture
+ *   (autre instance du module, script de scan quotidien, autre processus) ;
+ * - `total_changes()` compte les lignes écrites par CETTE connexion (scan, re-score,
+ *   documents générés, suppressions…), y compris les écritures sans date comme le re-score.
+ * Toute écriture invalide donc le cache ; aucune ne peut le laisser périmé.
+ */
+function dbFingerprint(): string {
+  const db = getDb();
+  const version = (db.prepare("PRAGMA data_version").get() as { data_version: number }).data_version;
+  const changes = (db.prepare("SELECT total_changes() AS n").get() as { n: number }).n;
+  return `${version}:${changes}`;
+}
+
+type CacheRow = Pick<
   OffreRow,
   "id" | "source" | "url" | "title" | "company" | "country" | "location" |
-  "contract_type" | "description_text" | "description_status" | "posted_at" |
-  "score" | "is_vie"
-> & { score_breakdown: string | null; has_cv: number; has_lm: number; contract_category: ContractCategory };
+  "contract_type" | "description_status" | "posted_at" | "score" | "is_vie"
+> & { head: string | null; excerpt: string | null; score_breakdown: string | null; has_cv: number; has_lm: number };
+
+function buildOffresCache(fingerprint: string): OffresCache {
+  // La description entière ne remonte pas : 4 000 caractères suffisent à classer le
+  // contrat (detectVie en lit 4 000, classifyContract 1 500 ; résultat identique sur
+  // les 4 623 offres de référence) et l’aperçu en affiche 1 000.
+  const rows = getDb().prepare(`
+    SELECT o.id, o.source, o.url, o.title, o.company, o.country, o.location,
+      o.contract_type, o.description_status, o.posted_at, o.score, o.score_breakdown, o.is_vie,
+      substr(o.description_text, 1, 4000) AS head,
+      substr(o.description_text, 1, 1000) AS excerpt,
+      EXISTS(SELECT 1 FROM documents WHERE offre_id = o.id AND type = 'cv') AS has_cv,
+      EXISTS(SELECT 1 FROM documents WHERE offre_id = o.id AND type = 'lm') AS has_lm
+    FROM offres o ORDER BY ${SMART_ORDER}
+  `).all() as CacheRow[];
+
+  const contractCounts = Object.fromEntries(CONTRACT_ORDER.map((contract) => [contract, 0])) as Record<ContractCategory, number>;
+  const countries = new Set<string>();
+  const sources = new Set<string>();
+  const byId = new Map<number, CachedOffre>();
+  const smart: CachedOffre[] = [];
+  for (const row of rows) {
+    const contract_category = classifyContract({ ...row, description_text: row.head ?? "" });
+    contractCounts[contract_category]++;
+    if (row.country) countries.add(row.country);
+    sources.add(row.source);
+    const offer: CachedOffre = {
+      id: row.id, source: row.source, url: row.url, title: row.title,
+      company: row.company, country: row.country, location: row.location,
+      posted_at: row.posted_at, score: row.score, is_vie: row.is_vie,
+      description_status: row.description_status, contract_category,
+      has_cv: !!row.has_cv, has_lm: !!row.has_lm,
+      // substr() compte des caractères, slice() des unités UTF-16 (émojis) : on
+      // recoupe pour rendre exactement l’extrait d’avant.
+      excerpt: (row.excerpt ?? "").slice(0, 1000), score_breakdown: row.score_breakdown,
+    };
+    byId.set(offer.id, offer);
+    smart.push(offer);
+  }
+  return {
+    fingerprint, byId, smart, orderedAt: Date.now(), haystacks: null,
+    facets: {
+      total: rows.length,
+      countries: [...countries].sort((a, b) => a.localeCompare(b, "fr")),
+      sources: [...sources].sort(),
+      contractCounts,
+      hasVie: contractCounts.vie > 0,
+    },
+  };
+}
+
+function getOffresCache(): OffresCache {
+  const fingerprint = dbFingerprint();
+  if (!offresCache || offresCache.fingerprint !== fingerprint) {
+    offresCache = buildOffresCache(fingerprint);
+  } else if (Date.now() - offresCache.orderedAt > ORDER_TTL_MS) {
+    // Seul l’ordre bouge avec l’heure : on relit les identifiants triés, pas les lignes.
+    const cache = offresCache;
+    const ids = getDb().prepare(`SELECT o.id FROM offres o ORDER BY ${SMART_ORDER}`).all() as { id: number }[];
+    cache.smart = ids.map(({ id }) => cache.byId.get(id)).filter((offer): offer is CachedOffre => !!offer);
+    cache.orderedAt = Date.now();
+  }
+  return offresCache;
+}
+
+function getHaystacks(cache: OffresCache): Map<number, string> {
+  if (cache.haystacks) return cache.haystacks;
+  const rows = getDb().prepare(
+    "SELECT id, title, company, country, location, description_text FROM offres"
+  ).all() as Pick<OffreRow, "id" | "title" | "company" | "country" | "location" | "description_text">[];
+  const haystacks = new Map<number, string>();
+  for (const row of rows) {
+    haystacks.set(row.id, normalizeSearch([row.title, row.company, row.country, row.location, row.description_text].filter(Boolean).join(" ")));
+  }
+  cache.haystacks = haystacks;
+  return haystacks;
+}
+
+/** Comparaison binaire, comme ORDER BY sur du texte en SQLite (pas de collation locale). */
+function compareText(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/** Seuil de score lu dans une URL (?score=70, ?minScore=60) : entier de 1 à 100, sinon aucun filtre. */
+export function parseMinScore(raw: string | null | undefined): number {
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 && n <= 100 ? n : 0;
+}
 
 /** Filtrage côté serveur : seules les cartes de la page courante sont envoyées au navigateur. */
 export function searchOffres(opts: {
@@ -95,46 +227,38 @@ export function searchOffres(opts: {
   source?: string;
   country?: string;
   contracts?: ContractCategory[];
-  minScore?: boolean;
+  /** Score minimal (true = 60, seuil de la puce « Score 60+ »). */
+  minScore?: boolean | number;
+  /** Raccourci de ?vie=1 : même règle que la puce contrat « V.I.E » (contract_category). */
   vieOnly?: boolean;
-  sortBy?: "smart" | "newest" | "score";
+  sortBy?: OffersSort;
   page?: number;
 } = {}): OffersSearch {
-  const rows = getDb().prepare(`
-    SELECT o.id, o.source, o.url, o.title, o.company, o.country, o.location,
-      o.contract_type, o.description_text, o.description_status, o.posted_at,
-      o.score, o.score_breakdown, o.is_vie,
-      EXISTS(SELECT 1 FROM documents WHERE offre_id = o.id AND type = 'cv') AS has_cv,
-      EXISTS(SELECT 1 FROM documents WHERE offre_id = o.id AND type = 'lm') AS has_lm
-    FROM offres o ORDER BY ${SMART_ORDER}
-  `).all() as SearchRow[];
-
-  const contractCounts = Object.fromEntries(CONTRACT_ORDER.map((contract) => [contract, 0])) as Record<ContractCategory, number>;
-  const countries = new Set<string>();
-  const sources = new Set<string>();
-  let hasVie = false;
-  for (const row of rows) {
-    row.contract_category = classifyContract(row);
-    contractCounts[row.contract_category]++;
-    if (row.country) countries.add(row.country);
-    sources.add(row.source);
-    if (row.is_vie) hasVie = true;
-  }
-
+  const cache = getOffresCache();
   const query = normalizeSearch((opts.query ?? "").trim());
+  const haystacks = query ? getHaystacks(cache) : null;
   const contracts = new Set(opts.contracts ?? []);
-  const filtered = rows.filter((row) => {
-    if (query && !normalizeSearch([row.title, row.company, row.country, row.location, row.description_text].filter(Boolean).join(" ")).includes(query)) return false;
+  const minScore = opts.minScore === true ? 60 : typeof opts.minScore === "number" ? opts.minScore : 0;
+  const filtered = cache.smart.filter((row) => {
+    if (haystacks && !(haystacks.get(row.id) ?? "").includes(query)) return false;
     if (opts.source && row.source !== opts.source) return false;
     if (opts.country && row.country !== opts.country) return false;
     if (contracts.size && !contracts.has(row.contract_category)) return false;
-    if (opts.minScore && (row.score ?? 0) < 60) return false;
-    if (opts.vieOnly && !row.is_vie) return false;
+    if (minScore > 0 && (row.score ?? 0) < minScore) return false;
+    if (opts.vieOnly && row.contract_category !== "vie") return false;
     return true;
   });
 
+  // Tris stables : les ex æquo gardent l’ordre intelligent, lui-même départagé par id.
   if (opts.sortBy === "score") filtered.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-  if (opts.sortBy === "newest") filtered.sort((a, b) => (b.posted_at ?? "").localeCompare(a.posted_at ?? ""));
+  if (opts.sortBy === "newest") filtered.sort((a, b) => compareText(b.posted_at ?? "", a.posted_at ?? ""));
+  if (opts.sortBy === "oldest") {
+    // Dates inconnues en fin de liste, comme en 3.4.10.
+    filtered.sort((a, b) => {
+      if (!a.posted_at || !b.posted_at) return Number(!a.posted_at) - Number(!b.posted_at);
+      return compareText(a.posted_at, b.posted_at);
+    });
+  }
   const page = Math.max(1, Math.min(10000, Math.trunc(opts.page ?? 1) || 1));
   const visible = filtered.slice((page - 1) * OFFER_PAGE_SIZE, page * OFFER_PAGE_SIZE);
   return {
@@ -143,18 +267,14 @@ export function searchOffres(opts: {
       company: row.company, country: row.country, location: row.location,
       posted_at: row.posted_at, score: row.score, is_vie: row.is_vie,
       description_status: row.description_status,
-      description_text: row.description_text.slice(0, 1000),
+      description_text: row.excerpt,
       score_reason: parseJson<{ reason?: string } | null>(row.score_breakdown, null)?.reason ?? null,
       contract_category: row.contract_category,
-      has_cv: !!row.has_cv, has_lm: !!row.has_lm,
+      has_cv: row.has_cv, has_lm: row.has_lm,
     })),
     total: filtered.length,
     pageSize: OFFER_PAGE_SIZE,
-    facets: {
-      total: rows.length,
-      countries: [...countries].sort((a, b) => a.localeCompare(b, "fr")),
-      sources: [...sources].sort(), contractCounts, hasVie,
-    },
+    facets: cache.facets,
   };
 }
 
@@ -327,6 +447,8 @@ export function offresCounts() {
       c: number;
     }
   ).c;
+  // Colonne is_vie figée au scan : pour un chiffre qui corresponde à /offres?vie=1,
+  // lire searchOffres().facets.contractCounts.vie (page /offres) ou vieFigure() (accueil).
   const vie = (db.prepare("SELECT COUNT(*) as c FROM offres WHERE is_vie = 1").get() as { c: number }).c;
   return { total, today, vie };
 }

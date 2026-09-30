@@ -26,10 +26,11 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
 
   return (
     <button
+      type="button"
       onClick={toggle}
       aria-label={dark ? "Passer en clair" : "Passer en sombre"}
       className={compact
-        ? "flex h-10 w-10 items-center justify-center rounded-md text-textSecondary transition-colors hover:bg-surfaceHover hover:text-text"
+        ? "flex h-11 w-11 items-center justify-center rounded-md text-textSecondary transition-colors hover:bg-surfaceHover hover:text-text"
         : "flex h-10 w-full items-center gap-3 rounded-md px-3 text-body text-textSecondary transition-colors hover:bg-surfaceHover hover:text-text"}
     >
       {mounted && dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}

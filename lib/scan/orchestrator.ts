@@ -1,5 +1,6 @@
 import "server-only";
 import { getEnabledScrapers } from "@/lib/scrapers/registry";
+import { DEFAULT_SOURCE_IDS } from "@/lib/sources-meta";
 import { upsertOffreFromSource, setOffreScore } from "@/lib/db/offres";
 import { scoreOffresLocal } from "@/lib/scoring/local";
 import { getProfile } from "@/lib/db/queries";
@@ -22,16 +23,25 @@ export async function* runScan(
   const profile = getProfile();
   if (!profile) throw new Error("Aucun profil — terminez d'abord l'onboarding.");
 
-  // Respecte toujours la sélection enregistrée : une liste vide ne doit pas
-  // relancer silencieusement les sources par défaut.
-  const allEnabled = profile.sources_enabled ?? [];
+  // Repli : les sources qui ne demandent aucun téléchargement supplémentaire
+  // (LinkedIn exige le moteur Chromium et reste donc opt-in). Un profil
+  // enregistré sans source (profil 3.4.x, profil restauré) scanne ainsi
+  // toujours quelque chose, scan quotidien compris — l'éditeur de profil
+  // empêche par ailleurs d'enregistrer une liste vide.
+  const allEnabled = profile.sources_enabled?.length
+    ? profile.sources_enabled
+    : DEFAULT_SOURCE_IDS;
   // If onlySource is set, restrict to it (whether or not it's in the user's enabled list).
   const enabled = opts.onlySource
     ? [opts.onlySource]
     : allEnabled;
   const scrapers = getEnabledScrapers(enabled);
   if (scrapers.length === 0) {
-    throw new Error(`Aucun scraper actif pour la source "${opts.onlySource ?? "(défaut)"}".`);
+    throw new Error(
+      opts.onlySource
+        ? `Aucun scraper actif pour la source "${opts.onlySource}".`
+        : "Aucune source reconnue dans le profil : cochez-en au moins une dans Profil › Recherche."
+    );
   }
 
   const db = getDb();

@@ -30,12 +30,12 @@ describe("configuration IA", () => {
 
   it("installation ≤ 3.4.10 (llm:mode=byok + llm:byok_key, sans fournisseur) → Anthropic, sans rien refaire", () => {
     setSetting("llm:mode", "byok");
-    setSetting("llm:byok_key", "sk-ant-ancienne-cle-1234");
+    setSetting("llm:byok_key", "fausse-cle-ancienne-1234");
     const cfg = getLlmConfig();
     expect(cfg.mode).toBe("byok");
     expect(cfg.provider).toBe("anthropic");
     expect(cfg.kind).toBe("anthropic");
-    expect(cfg.apiKey).toBe("sk-ant-ancienne-cle-1234");
+    expect(cfg.apiKey).toBe("fausse-cle-ancienne-1234");
     expect(cfg.models).toEqual({ writer: MODELS.opus, reviewer: MODELS.sonnet });
   });
 
@@ -89,7 +89,7 @@ describe("configuration IA", () => {
     setSetting("llm:mode", "byok");
     setSetting("llm:provider", "gemini");
     setSetting(providerKeySetting("gemini"), "AIzaSECRETSECRETSECRET1234");
-    setSetting(providerKeySetting("anthropic"), "sk-ant-SECRETSECRET5678");
+    setSetting(providerKeySetting("anthropic"), "fausse-cle-SECRETSECRET5678");
     const state = getLlmState();
     const json = JSON.stringify(state);
     expect(json).not.toContain("SECRET");

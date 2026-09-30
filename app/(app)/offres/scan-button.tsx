@@ -1,11 +1,12 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Search, X, ChevronDown, Globe, Briefcase, Plane, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-import { SOURCES_META } from "@/lib/sources-meta";
+import { SOURCES_META, sourceLabel } from "@/lib/sources-meta";
 
 type SourceProgress = {
   total: number;
@@ -47,8 +48,55 @@ export function ScanButton() {
   const [sources, setSources] = useState<Record<string, SourceProgress>>({});
   const esRef = useRef<EventSource | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const titleId = useId();
 
   useEffect(() => () => esRef.current?.close(), []);
+
+  // Le scan vit dans la connexion SSE : quitter ou recharger la page la ferme
+  // et coupe le scan côté serveur (sources suivantes jamais scannées). On
+  // demande donc confirmation au navigateur tant qu'il tourne.
+  useEffect(() => {
+    if (!running) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [running]);
+
+  // Modale bloquante : tout le reste de la page devient inerte (ni clic ni
+  // tabulation vers la navigation, qui démonterait ce composant et couperait
+  // le scan). Le focus entre dans la modale puis revient au bouton.
+  useEffect(() => {
+    if (!open) return;
+    const overlay = overlayRef.current;
+    const made: Element[] = [];
+    for (const el of Array.from(document.body.children)) {
+      if (el === overlay || el.hasAttribute("inert")) continue;
+      el.setAttribute("inert", "");
+      made.push(el);
+    }
+    dialogRef.current?.focus();
+    const trigger = triggerRef.current;
+    return () => {
+      for (const el of made) el.removeAttribute("inert");
+      trigger?.focus();
+    };
+  }, [open]);
+
+  // Échap ferme la modale, seulement une fois le scan terminé.
+  useEffect(() => {
+    if (!open || running) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, running]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -135,12 +183,13 @@ export function ScanButton() {
       {/* Split button: main action = scan all, chevron = pick a specific source */}
       <div ref={menuRef} className="relative inline-flex">
         <Button
-          onClick={() => running ? setOpen(true) : start("all")}
+          ref={triggerRef}
+          onClick={() => start("all")}
+          disabled={running}
           className="rounded-r-none pr-3"
-          aria-expanded={open}
         >
           <Search className="h-4 w-4" />
-          {running ? "Scan en cours · suivre" : "Lancer un scan"}
+          {running ? "Scan en cours…" : "Lancer un scan"}
         </Button>
         <Button
           onClick={() => setMenuOpen((o) => !o)}
@@ -180,57 +229,84 @@ export function ScanButton() {
         )}
       </div>
 
-      {open && (
-        <div role="status" aria-live="polite" className="fixed bottom-24 left-4 right-4 z-40 max-h-[70dvh] overflow-y-auto rounded-xl border border-border bg-bg p-5 shadow-elevated animate-slideUp sm:left-auto sm:w-[420px] lg:bottom-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h2 className="text-h3">{targetLabel}</h2>
-                <p className="text-small text-textSecondary">
-                  {running ? "Recherche en cours. Vous pouvez réduire ce panneau." : hasError ? "Terminé avec des alertes" : "Recherche terminée"}
-                </p>
-              </div>
-              <button
-                onClick={() => setOpen(false)}
-                aria-label={running ? "Réduire la progression" : "Fermer la progression"}
-                className="text-textSecondary hover:text-text"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 mb-4">
-              {Object.entries(sources).map(([name, p]) => (
-                <div key={name}>
-                  <div className="flex items-center justify-between text-small mb-1">
-                    <span className="font-medium capitalize">{name}</span>
-                    <span className="text-textSecondary">
-                      {p.done}/{p.total} {p.failed > 0 && `· ${p.failed} échecs`}
-                    </span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-surface overflow-hidden">
-                    <div
-                      className="h-full bg-accent transition-all duration-300"
-                      style={{ width: `${p.total ? (p.done / p.total) * 100 : 0}%` }}
-                    />
-                  </div>
+      {/* Rendue dans <body> : aucun parent transformé (animation d'entrée de
+          page, carte vitrée…) ne peut déplacer cette couche « fixed ». */}
+      {open &&
+        createPortal(
+          <div
+            ref={overlayRef}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 backdrop-blur-sm animate-fadeIn sm:items-center"
+          >
+            <div
+              ref={dialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={titleId}
+              tabIndex={-1}
+              className="max-h-[85dvh] w-full max-w-[560px] overflow-y-auto rounded-t-xl border border-border bg-bg p-5 shadow-elevated outline-none animate-slideUp sm:m-4 sm:rounded-xl sm:p-6"
+            >
+              <div className="mb-4 flex items-start justify-between gap-4">
+                <div>
+                  <h2 id={titleId} className="text-h3">{targetLabel}</h2>
+                  <p role="status" aria-live="polite" className="text-small text-textSecondary">
+                    {running
+                      ? "Recherche en cours. Gardez cette page ouverte : la quitter interromprait le scan."
+                      : hasError
+                      ? "Terminé avec des alertes"
+                      : "Recherche terminée"}
+                  </p>
                 </div>
-              ))}
-              {!Object.keys(sources).length && running && (
-                <div className="flex items-center gap-2 text-small text-textSecondary">
-                  <Spinner size={14} /> Démarrage…
+                <button
+                  onClick={() => !running && setOpen(false)}
+                  disabled={running}
+                  aria-label={running ? "Fermeture possible à la fin du scan" : "Fermer la progression"}
+                  className="shrink-0 rounded-md p-1 text-textSecondary hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="mb-4 space-y-3">
+                {Object.entries(sources).map(([name, p]) => (
+                  <div key={name}>
+                    <div className="mb-1 flex items-center justify-between text-small">
+                      <span className="font-medium">{sourceLabel(name)}</span>
+                      <span className="text-textSecondary">
+                        {p.done}/{p.total} {p.failed > 0 && `· ${p.failed} échec${p.failed > 1 ? "s" : ""}`}
+                      </span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-surface">
+                      <div
+                        className="h-full bg-accent transition-all duration-300"
+                        style={{ width: `${p.total ? (p.done / p.total) * 100 : 0}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+                {!Object.keys(sources).length && running && (
+                  <div className="flex items-center gap-2 text-small text-textSecondary">
+                    <Spinner size={14} /> Démarrage…
+                  </div>
+                )}
+              </div>
+
+              {logs.length > 0 && (
+                <div className="max-h-32 overflow-y-auto rounded-md bg-surface p-3 font-mono text-caption text-textSecondary">
+                  {logs.map((l, i) => (
+                    <div key={i}>{l}</div>
+                  ))}
+                </div>
+              )}
+
+              {!running && (
+                <div className="mt-4 flex justify-end">
+                  <Button variant="secondary" onClick={() => setOpen(false)}>Fermer</Button>
                 </div>
               )}
             </div>
-
-            {logs.length > 0 && (
-              <div className="bg-surface rounded-md p-3 max-h-32 overflow-y-auto font-mono text-caption text-textSecondary">
-                {logs.map((l, i) => (
-                  <div key={i}>{l}</div>
-                ))}
-              </div>
-            )}
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </>
   );
 }

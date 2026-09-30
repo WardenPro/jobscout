@@ -25,7 +25,7 @@ export function Chip({
       className={cn(
         "inline-flex h-11 items-center gap-1.5 rounded-full border px-3.5 text-small font-medium transition-colors duration-200",
         active
-          ? "bg-accent/[.08] border-accent/40 text-accent"
+          ? "border-accent bg-accent text-onAccent hover:bg-accentHover"
           : "border-border bg-transparent text-textSecondary hover:bg-surfaceHover hover:text-text",
         className
       )}

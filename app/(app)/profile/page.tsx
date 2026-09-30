@@ -15,13 +15,17 @@ export const dynamic = "force-dynamic";
 export default async function ProfilePage() {
   const profile = getProfile();
   if (!profile) redirect("/onboarding/upload");
+  // 0 source cochée : le scan se replie sur les sources par défaut (orchestrateur).
+  const sources = profile.sources_enabled.length;
+  const countries = profile.target_countries.length;
+  const sectors = profile.sectors.length;
 
   return (
     <>
       <PageHeader
         eyebrow="Vous connaître"
         title="Votre profil"
-        subtitle="Les informations de ce profil guident le classement des offres et la préparation de vos documents."
+        subtitle={`${sectors} secteur${sectors > 1 ? "s" : ""} · ${countries} pays ciblé${countries > 1 ? "s" : ""} · ${sources ? `${sources} source${sources > 1 ? "s" : ""} de recherche` : "sources par défaut"}. Ces informations guident le classement des offres et vos documents.`}
         actions={
           <>
             <Button asChild variant="primary">
@@ -41,9 +45,10 @@ export default async function ProfilePage() {
 
       <ProfileEditor initial={profile} />
 
-      <section id="parametres" className="mt-12 border-t border-border pt-8">
+      {/* Ancre #parametres : cible des liens « Profil › Génération IA » ; la carte IA est la première de la section. */}
+      <section id="parametres" aria-labelledby="parametres-title" className="mt-12 scroll-mt-28 border-t border-border pt-8">
         <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-textSecondary">Configuration</p>
-        <h2 className="font-display text-h2">Paramètres et données</h2>
+        <h2 id="parametres-title" className="font-display text-h2">Paramètres et données</h2>
         <p className="mt-1 max-w-[65ch] text-body text-textSecondary">Choisissez votre mode de génération et l'emplacement des fichiers. Vous pouvez aussi nettoyer ou remplacer le profil.</p>
         <div className="mt-6 space-y-5"><AiSettings /><SettingsFolder /></div>
         <div className="mt-5 flex flex-wrap items-center gap-2">

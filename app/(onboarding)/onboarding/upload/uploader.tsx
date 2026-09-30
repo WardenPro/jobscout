@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Upload, FileText, AlertCircle } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
@@ -7,10 +7,20 @@ import { cn } from "@/lib/utils";
 
 const SAFE_TYPES = [".pdf", ".docx", ".txt", ".png", ".jpg", ".jpeg"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
+// Les erreurs IA du serveur renvoient vers « Profil › Génération IA » : ici,
+// ces réglages sont sur la page même (bloc au-dessus).
+const AI_SETTINGS_HINT = /Génération IA/;
 
-export function CVUploader({ disabled = false }: { disabled?: boolean }) {
+export function CVUploader({
+  disabled = false,
+  onOpenAiSettings,
+}: {
+  disabled?: boolean;
+  onOpenAiSettings?: () => void;
+}) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const hintId = useId();
   const [dragOver, setDragOver] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,11 +91,12 @@ export function CVUploader({ disabled = false }: { disabled?: boolean }) {
         role="button"
         tabIndex={disabled || loading ? -1 : 0}
         aria-label="Sélectionner un CV à importer"
+        aria-describedby={loading || (filename && !error) ? undefined : hintId}
         aria-disabled={disabled}
         className={cn(
-          "border-2 border-dashed rounded-xl p-12 flex flex-col items-center justify-center gap-3 transition-all",
+          "flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-9 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 sm:py-10",
           disabled
-            ? "border-border bg-surface opacity-50 cursor-not-allowed"
+            ? "border-border bg-surface cursor-not-allowed [&>svg]:opacity-50"
             : loading
             ? "border-border bg-surface cursor-default"
             : dragOver
@@ -98,6 +109,9 @@ export function CVUploader({ disabled = false }: { disabled?: boolean }) {
           type="file"
           accept={SAFE_TYPES.join(",")}
           className="hidden"
+          // Le clic programmatique remonterait jusqu'à la zone et la
+          // redéclencherait : on l'arrête ici.
+          onClick={(e) => e.stopPropagation()}
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) handleFile(file);
@@ -118,19 +132,33 @@ export function CVUploader({ disabled = false }: { disabled?: boolean }) {
           <>
             <Upload className="h-8 w-8 text-textSecondary" />
             <p className="text-body text-text font-medium">Glissez votre CV ici</p>
-            <p className="text-small text-textSecondary">ou cliquez pour sélectionner — PDF, DOCX, TXT, image</p>
-            {disabled && (
-              <p className="text-small text-textSecondary mt-1">
-                Configurez d'abord la génération IA ci-dessus pour débloquer l'import.
-              </p>
-            )}
+            <p id={hintId} className="text-small text-textSecondary">
+              ou cliquez pour sélectionner — PDF, DOCX, TXT ou image, 10 Mo au plus
+              {disabled && (
+                <span className="mt-1 block font-medium text-text">Configurez d'abord la génération IA ci-dessus pour débloquer l'import.</span>
+              )}
+            </p>
           </>
         )}
       </div>
       {error && (
-        <div role="alert" className="flex items-start gap-2 p-4 rounded-md bg-[rgba(255,59,48,0.08)] text-danger text-small">
-          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-          <span>{error}</span>
+        <div role="alert" className="flex items-start gap-2 rounded-md bg-[rgba(255,59,48,0.08)] p-4 text-small text-danger">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>
+            {error}
+            {onOpenAiSettings && AI_SETTINGS_HINT.test(error) && (
+              <>
+                {" "}
+                <button
+                  type="button"
+                  onClick={onOpenAiSettings}
+                  className="font-semibold underline underline-offset-2 hover:no-underline"
+                >
+                  Ouvrir les réglages de génération IA
+                </button>
+              </>
+            )}
+          </span>
         </div>
       )}
     </div>

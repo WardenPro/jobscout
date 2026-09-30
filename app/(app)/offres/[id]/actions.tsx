@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { Check, FileText, Mail, MessageSquare, Download, Sparkles, FolderOpen, ArrowUpRight, BookmarkPlus } from "lucide-react";
+import Link from "next/link";
+import { Check, FileText, Mail, MessageSquare, Download, Sparkles, FolderOpen, ArrowUpRight, BookmarkPlus, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
@@ -13,6 +14,18 @@ type DocsState = {
   lm_docx_id: number | null;
   msg_id: number | null;
 };
+
+// Mêmes libellés que la page Candidatures.
+const STATUS_LABELS: Record<string, string> = {
+  envoyee: "Envoyée",
+  en_cours: "En cours",
+  entretien: "Entretien",
+  acceptee: "Acceptée",
+  refusee: "Refusée",
+};
+
+// Les messages d'erreur IA renvoient à « Profil › Génération IA » : on y mène d'un clic.
+const AI_SETTINGS_HINT = /Génération IA/;
 
 async function openFolder(path: string) {
   try {
@@ -53,6 +66,8 @@ export function ActionsPanel({
   const [error, setError] = useState<string | null>(null);
   const [msgPreview, setMsgPreview] = useState<{ text: string; length: number } | null>(null);
   const [trackLoading, setTrackLoading] = useState(false);
+  const [applyLoading, setApplyLoading] = useState(false);
+  const [justApplied, setJustApplied] = useState(false);
   const [trackingStatus, setTrackingStatus] = useState<string | null>(initialTrackingStatus);
   const [folder, setFolder] = useState<string | null>(initialFolder);
 
@@ -61,6 +76,10 @@ export function ActionsPanel({
   // quand même apparaître avec le seul lien réellement disponible.
   const hasCV = !!(docs.cv_docx_id || docs.cv_pdf_id);
   const hasLM = !!(docs.lm_docx_id || docs.lm_pdf_id);
+  const docsReady = hasCV && hasLM;
+  // « Postuler » reste proposé tant que la candidature n'est pas partie (absente ou « En cours »).
+  const applied = !!trackingStatus && trackingStatus !== "en_cours";
+  const busy = applyLoading || trackLoading;
 
   async function generateAll() {
     setAllLoading(true);
@@ -102,6 +121,7 @@ export function ActionsPanel({
       }));
       if (data.folder) {
         setFolder(data.folder);
+        openFolder(data.folder);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau");
@@ -134,11 +154,61 @@ export function ActionsPanel({
       if (data.text) setMsgPreview({ text: data.text, length: data.length });
       if (data.folder) {
         setFolder(data.folder);
+        openFolder(data.folder);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau");
     } finally {
       setMsgLoading(false);
+    }
+  }
+
+  // Geste unique de la 3.4.10 : ouvrir l'annonce ET enregistrer la candidature « Envoyée ».
+  async function apply() {
+    if (!/^https?:\/\//i.test(offreUrl)) {
+      setError("Le lien de l'annonce est invalide : retrouvez-la sur le site d'origine.");
+      return;
+    }
+    // Ouverture synchrone, dans le geste de l'utilisateur : sinon le navigateur la bloque.
+    window.open(offreUrl, "_blank", "noopener,noreferrer");
+    setApplyLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/candidatures", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          offre_id: offreId,
+          cv_doc_id: docs.cv_docx_id ?? docs.cv_pdf_id,
+          lm_doc_id: docs.lm_docx_id ?? docs.lm_pdf_id,
+          msg_doc_id: docs.msg_id,
+          status: "envoyee",
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.id) {
+        setError(data?.error || "L'annonce est ouverte, mais la candidature n'a pas pu être enregistrée.");
+        return;
+      }
+      // Déjà « En cours » dans le suivi : la création dédoublonnée garde l'ancien
+      // statut, on le fait donc passer explicitement à « Envoyée ».
+      if (trackingStatus === "en_cours") {
+        const patch = await fetch("/api/candidatures", {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ id: data.id, status: "envoyee" }),
+        });
+        if (!patch.ok) {
+          setError("L'annonce est ouverte, mais le statut n'a pas pu passer à « Envoyée » : changez-le depuis Candidatures.");
+          return;
+        }
+      }
+      setTrackingStatus("envoyee");
+      setJustApplied(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur réseau");
+    } finally {
+      setApplyLoading(false);
     }
   }
 
@@ -180,24 +250,19 @@ export function ActionsPanel({
         </p>
       </div>
 
-      {/* Single combined generation button */}
+      {/* Un seul bouton principal à la fois : générer tant que le dossier est
+          incomplet, puis postuler. */}
       <Button
         onClick={generateAll}
         size="lg"
-        variant={hasCV && hasLM ? "secondary" : "primary"}
+        variant={docsReady ? "secondary" : "primary"}
         className="w-full"
         disabled={allLoading}
       >
-        {allLoading ? (
-          <Spinner size={16} className="text-current" />
-        ) : hasCV && hasLM ? (
-          <Sparkles className="h-4 w-4" />
-        ) : (
-          <Sparkles className="h-4 w-4" />
-        )}
+        {allLoading ? <Spinner size={16} className="text-current" /> : <Sparkles className="h-4 w-4" />}
         {allLoading
           ? "Génération en cours…"
-          : hasCV && hasLM
+          : docsReady
           ? "Régénérer les documents"
           : "Générer les documents"}
       </Button>
@@ -258,21 +323,52 @@ export function ActionsPanel({
       )}
 
       <div className="space-y-2 border-t border-border pt-4">
-        <Button asChild variant={hasCV && hasLM ? "primary" : "secondary"} className="w-full" size="lg">
-          <a href={offreUrl} target="_blank" rel="noopener noreferrer">
-            Voir l'annonce et postuler <ArrowUpRight className="h-4 w-4" />
-          </a>
-        </Button>
-        <Button onClick={addToTracking} className="w-full" size="md" variant="secondary" disabled={trackLoading || !!trackingStatus}>
-          {trackLoading ? <Spinner size={16} /> : trackingStatus ? <Check className="h-4 w-4" /> : <BookmarkPlus className="h-4 w-4" />}
-          {trackingStatus ? "Dans votre suivi" : "Ajouter au suivi"}
-        </Button>
+        {applied ? (
+          <Button asChild variant="secondary" className="w-full" size="md">
+            <a href={offreUrl} target="_blank" rel="noopener noreferrer">
+              Revoir l'annonce <ArrowUpRight className="h-4 w-4" />
+            </a>
+          </Button>
+        ) : (
+          <Button onClick={apply} variant={docsReady ? "primary" : "secondary"} className="w-full" size="lg" disabled={busy}>
+            {applyLoading ? <Spinner size={16} className="text-current" /> : <Send className="h-4 w-4" />}
+            Postuler
+          </Button>
+        )}
+        {trackingStatus ? (
+          <div role="status" className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-success/30 bg-success/[.06] px-3 py-2.5 text-small">
+            <Check className="h-4 w-4 shrink-0 text-success" />
+            <span><span className="font-semibold">Dans votre suivi</span> · {STATUS_LABELS[trackingStatus] ?? trackingStatus}</span>
+            <Link href="/candidatures" className="ml-auto font-semibold text-accent hover:underline">Candidatures</Link>
+          </div>
+        ) : (
+          <Button onClick={addToTracking} className="w-full" size="md" variant="ghost" disabled={busy}>
+            {trackLoading ? <Spinner size={16} /> : <BookmarkPlus className="h-4 w-4" />}
+            Ajouter au suivi
+          </Button>
+        )}
         <p className="text-caption text-textSecondary">
-          {trackingStatus ? <>Retrouvez cette offre dans <a href="/candidatures" className="font-semibold text-accent hover:underline">Candidatures</a> pour mettre son statut à jour.</> : "Le suivi commence « En cours ». Passez à « Envoyée » après avoir soumis votre candidature."}
+          {justApplied
+            ? "L'annonce s'est ouverte dans un nouvel onglet et la candidature est enregistrée « Envoyée »."
+            : applied
+            ? "Mettez son statut à jour depuis Candidatures (entretien, réponse…)."
+            : trackingStatus === "en_cours"
+            ? "« Postuler » ouvre l'annonce et fait passer la candidature à « Envoyée »."
+            : "« Postuler » ouvre l'annonce et enregistre la candidature « Envoyée ». « Ajouter au suivi » la garde « En cours » le temps de préparer le dossier."}
         </p>
       </div>
 
-      {error && <p role="alert" className="pt-2 text-small text-danger">{error}</p>}
+      {error && (
+        <p role="alert" className="pt-2 text-small text-danger">
+          {error}
+          {AI_SETTINGS_HINT.test(error) && (
+            <>
+              {" "}
+              <Link href="/profile#parametres" className="font-semibold underline">Ouvrir les réglages IA</Link>
+            </>
+          )}
+        </p>
+      )}
     </Card>
   );
 }

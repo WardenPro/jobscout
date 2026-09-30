@@ -13,7 +13,7 @@ export function ScoreOrbit({ score }: { score: number }) {
       </svg>
       <span className="score-orbit-core" aria-hidden="true">
         <span className="font-display text-[34px] font-light leading-none tabular-nums sm:text-[58px]">{value}</span>
-        <span className="mt-1.5 text-[10px] font-medium tracking-[.08em] text-textSecondary sm:mt-2 sm:text-[11px]">SUR 100</span>
+        <span className="mt-1.5 text-[11px] font-medium tracking-[.08em] text-textSecondary sm:mt-2 sm:text-[12px]">SUR 100</span>
       </span>
     </div>
   );

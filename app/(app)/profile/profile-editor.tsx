@@ -13,6 +13,7 @@ import {
   Globe,
   User,
   ChevronDown,
+  Check,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
@@ -28,6 +29,34 @@ import type { ProfileFull, Experience, Education, Skill, Language } from "@/lib/
 
 const SOURCES = SOURCES_META;
 const PROFILE_SECTIONS = [["#identite", "Identité"], ["#recherche", "Recherche"], ["#experiences", "Expériences"], ["#formations", "Formations"], ["#competences", "Compétences"], ["#langues", "Langues"], ["#parametres", "Paramètres"]] as const;
+const NO_SOURCE_MESSAGE = "Aucune source cochée : cochez au moins une source dans Recherche › Sources, puis enregistrez.";
+
+/**
+ * Section visible à l'écran, pour la pastille active de la navigation.
+ * Bande d'observation : sous l'en-tête et la barre d'enregistrement collantes (~120 px),
+ * jusqu'à mi-hauteur de la fenêtre ; la première section de la bande l'emporte.
+ */
+function useActiveSection(): [string, (href: string) => void] {
+  const [active, setActive] = useState<string>(PROFILE_SECTIONS[0][0]);
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
+    const visible = new Set<string>();
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) visible.add(`#${entry.target.id}`);
+        else visible.delete(`#${entry.target.id}`);
+      }
+      const first = PROFILE_SECTIONS.find(([href]) => visible.has(href));
+      if (first) setActive(first[0]);
+    }, { rootMargin: "-120px 0px -50% 0px" });
+    for (const [href] of PROFILE_SECTIONS) {
+      const element = document.getElementById(href.slice(1));
+      if (element) observer.observe(element);
+    }
+    return () => observer.disconnect();
+  }, []);
+  return [active, setActive];
+}
 
 export function ProfileEditor({ initial }: { initial: ProfileFull }) {
   const router = useRouter();
@@ -37,6 +66,7 @@ export function ProfileEditor({ initial }: { initial: ProfileFull }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedTick, setSavedTick] = useState(false);
+  const [activeSection, setActiveSection] = useActiveSection();
 
   const dirty = useMemo(
     () => JSON.stringify(profile) !== JSON.stringify(baseline),
@@ -66,8 +96,10 @@ export function ProfileEditor({ initial }: { initial: ProfileFull }) {
   const update = (patch: Partial<ProfileFull>) => setProfile((p) => ({ ...p, ...patch }));
 
   async function save() {
+    // U9 : garde-fou « aucune source cochée ». L'orchestrateur se replierait sur les sources
+    // par défaut, mais un profil enregistré sans source ne dit plus ce qui sera parcouru.
     if (profile.sources_enabled.length === 0) {
-      setError("Sélectionnez au moins une source de recherche avant d'enregistrer.");
+      setError(NO_SOURCE_MESSAGE);
       document.getElementById("recherche")?.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
@@ -104,18 +136,18 @@ export function ProfileEditor({ initial }: { initial: ProfileFull }) {
     <div className="lg:grid lg:grid-cols-[176px_minmax(0,1fr)] lg:gap-7">
       <nav aria-label="Sections du profil" className="glass-panel sticky top-6 hidden self-start p-2 lg:flex lg:flex-col">
         <p className="px-3 pb-2 pt-2 text-caption font-semibold uppercase tracking-[0.12em] text-textSecondary">Votre profil</p>
-        {PROFILE_SECTIONS.map(([href, label]) => <a key={href} href={href} className="rounded-md px-3 py-2.5 text-small font-semibold text-textSecondary transition-colors hover:bg-surfaceHover hover:text-accent">{label}</a>)}
+        {PROFILE_SECTIONS.map(([href, label]) => <a key={href} href={href} onClick={() => setActiveSection(href)} aria-current={activeSection === href ? "location" : undefined} className={cn("rounded-md px-3 py-2.5 text-small font-semibold transition-colors", activeSection === href ? "bg-accent text-onAccent" : "text-textSecondary hover:bg-surfaceHover hover:text-text")}>{label}</a>)}
       </nav>
       <div className="min-w-0">
       <nav aria-label="Sections du profil" className="mb-6 flex gap-2 overflow-x-auto pb-2 lg:hidden">
-        {PROFILE_SECTIONS.map(([href, label]) => <a key={href} href={href} className="flex min-h-11 shrink-0 items-center rounded-md border border-border bg-surface px-3 text-small font-semibold text-textSecondary transition-colors hover:border-accent hover:text-accent">{label}</a>)}
+        {PROFILE_SECTIONS.map(([href, label]) => <a key={href} href={href} onClick={() => setActiveSection(href)} aria-current={activeSection === href ? "location" : undefined} className={cn("flex min-h-11 shrink-0 items-center rounded-md border px-3 text-small font-semibold transition-colors", activeSection === href ? "border-accent bg-accent text-onAccent" : "border-border bg-surface text-textSecondary hover:border-accent hover:text-text")}>{label}</a>)}
       </nav>
       {/* Sticky save bar */}
       {(dirty || savedTick) && (
         <div className="glass-panel sticky top-20 z-30 mb-5 flex flex-wrap items-center gap-3 !rounded-[16px] px-4 py-3 animate-fadeIn lg:top-6">
           <span className="text-small">
             {savedTick ? (
-              <span className="text-success">Modifications enregistrées ✓</span>
+              <span className="inline-flex items-center gap-1.5 text-text"><Check className="h-4 w-4 text-success" aria-hidden="true" /> Modifications enregistrées</span>
             ) : (
               <span className="text-textSecondary">
                 Modifications non enregistrées
@@ -137,7 +169,7 @@ export function ProfileEditor({ initial }: { initial: ProfileFull }) {
         </div>
       )}
       {error && (
-        <div className="mb-5 p-3 rounded-md bg-[rgba(255,59,48,0.08)] text-danger text-small">
+        <div role="alert" className="mb-5 rounded-md border border-danger bg-surface p-3 text-small text-text">
           {error}
         </div>
       )}
@@ -368,6 +400,9 @@ function SearchCard({
           );
         })}
       </div>
+      {profile.sources_enabled.length === 0 && (
+        <p role="alert" className="mt-3 rounded-md border border-danger bg-surface px-3 py-2 text-small text-text">{NO_SOURCE_MESSAGE}</p>
+      )}
       <EngineNotice
         active={profile.sources_enabled.includes("linkedin")}
         className="mt-3"
@@ -877,7 +912,7 @@ function SkillsCard({
             {s.name}
             <button
               onClick={() => remove(i)}
-              className="ml-1 opacity-60 hover:opacity-100"
+              className="ml-1 transition-opacity hover:opacity-70"
               aria-label={`Supprimer ${s.name}`}
             >
               ×
@@ -1025,7 +1060,8 @@ function ChipListField({
             {s}
             <button
               onClick={() => onChange(items.filter((x) => x !== s))}
-              className="ml-1 opacity-60 hover:opacity-100"
+              className="ml-1 transition-opacity hover:opacity-70"
+              aria-label={`Supprimer ${s}`}
             >
               ×
             </button>

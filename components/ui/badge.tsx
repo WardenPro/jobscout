@@ -9,11 +9,14 @@ export function Badge({
   ...props
 }: React.HTMLAttributes<HTMLSpanElement> & { variant?: BadgeVariant }) {
   const variants: Record<BadgeVariant, string> = {
-    default: "bg-surface text-textSecondary",
-    success: "bg-[rgba(48,209,88,0.12)] text-[#137b34] dark:text-success",
-    warning: "bg-[rgba(255,159,10,0.12)] text-[#935500] dark:text-warning",
-    danger: "bg-[rgba(255,59,48,0.12)] text-danger",
-    info: "bg-[rgba(0,113,227,0.12)] text-accent",
+    // Fond = couleur vive à 12 %, texte = encre du thème (text-* → --*-ink) :
+    // ≥ 4,5:1 en clair et en sombre (« Envoyée » tombait à 3,9:1).
+    // Neutre : fond plus soutenu que la carte + filet, sinon le badge se fond dans la carte.
+    default: "bg-surfaceHover text-textSecondary ring-1 ring-inset ring-border",
+    success: "bg-success/[.12] text-success",
+    warning: "bg-warning/[.12] text-warning",
+    danger: "bg-danger/[.12] text-danger",
+    info: "bg-accent/[.12] text-accent",
   };
   return (
     <span

@@ -40,11 +40,11 @@ export function CleanupButton() {
   if (done) {
     const total = done.experiencesMerged + done.educationsMerged + done.skillsRemoved;
     return (
-      <div className="text-small text-textSecondary inline-flex items-center gap-1.5">
+      <div role="status" className="text-small text-textSecondary inline-flex items-center gap-1.5">
         <Check className="h-4 w-4 text-success" />
         {total === 0
           ? "Aucun doublon trouvé"
-          : `${done.experiencesMerged} exp · ${done.educationsMerged} forma · ${done.skillsRemoved} compétence${done.skillsRemoved > 1 ? "s" : ""} fusionnée${done.skillsRemoved > 1 ? "s" : ""}`}
+          : `${done.experiencesMerged} expérience${done.experiencesMerged > 1 ? "s" : ""} et ${done.educationsMerged} formation${done.educationsMerged > 1 ? "s" : ""} fusionnée${done.experiencesMerged + done.educationsMerged > 1 ? "s" : ""} · ${done.skillsRemoved} compétence${done.skillsRemoved > 1 ? "s" : ""} en double retirée${done.skillsRemoved > 1 ? "s" : ""}`}
       </div>
     );
   }
