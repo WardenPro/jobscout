@@ -1,5 +1,6 @@
 import "server-only";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 /**
@@ -47,7 +48,34 @@ export function ensureDir(dir: string): string {
  */
 export function writableRoots(): string[] {
   const roots = [userDataDir()];
-  const home = process.env.USERPROFILE || process.env.HOME;
+  const home = envPath("USERPROFILE") || envPath("HOME");
   if (home) roots.push(home);
   return roots.map((r) => path.resolve(r));
+}
+
+/*
+ * Chemins du poste lus de façon OPAQUE pour le traceur de fichiers de Next
+ * (@vercel/nft) : au build, il évalue `process.env.X` et `os.homedir()` avec
+ * les valeurs de la machine de build et, quand l'expression désigne un dossier
+ * existant (profil, AppData\Local), il le parcourt en entier. Si le projet et
+ * le profil sont sur deux lecteurs différents (runner Windows de GitHub
+ * Actions, projet cloné sur D:), ce parcours échappe au filtre « hors du
+ * projet » et le build plante sur la jonction protégée « Application Data »
+ * (EPERM). Un appel de fonction avec paramètre, lui, n'est pas évalué.
+ */
+
+/** Variable d'environnement contenant un chemin (non vide), sinon undefined. */
+export function envPath(name: string): string | undefined {
+  const value = process.env[name];
+  return value && value.trim() ? value : undefined;
+}
+
+/** Appel indirect : le traceur n'évalue pas une fonction reçue en paramètre. */
+function opaque<T>(fn: () => T): T {
+  return fn();
+}
+
+/** Dossier personnel de l'utilisateur, suivi des segments donnés. */
+export function homePath(...segments: string[]): string {
+  return path.join(opaque(os.homedir), ...segments);
 }
