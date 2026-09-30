@@ -322,7 +322,7 @@ export function AiSettings({
 
       <div className="flex flex-wrap items-center gap-2 mt-4">
         <Button onClick={() => call("save")} disabled={!!loading || !canSubmit}>
-          {loading === "save" ? <Spinner size={16} className="text-white" /> : <Check className="h-4 w-4" />}
+          {loading === "save" ? <Spinner size={16} className="text-onAccent" /> : <Check className="h-4 w-4" />}
           Enregistrer
         </Button>
         <Button variant="secondary" onClick={() => call("verify")} disabled={!!loading || (mode === "pack" ? !canSubmit : preset.keyRequired && !apiKey.trim() && !storedKeyHint)}>

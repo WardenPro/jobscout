@@ -19,25 +19,19 @@ export function Chip({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={onClick ?? onRemove}
+      aria-pressed={onClick ? !!active : undefined}
+      aria-label={onRemove && typeof children === "string" ? `Retirer ${children}` : undefined}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-3 h-8 text-small font-medium border transition-all",
+        "inline-flex h-11 items-center gap-1.5 rounded-full border px-3.5 text-small font-medium transition-colors duration-200",
         active
-          ? "bg-accent border-accent text-white"
-          : "bg-surface border-border text-text hover:bg-surfaceHover",
+          ? "bg-accent/[.08] border-accent/40 text-accent"
+          : "border-border bg-transparent text-textSecondary hover:bg-surfaceHover hover:text-text",
         className
       )}
     >
       {children}
-      {onRemove && (
-        <X
-          className="h-3.5 w-3.5 -mr-1 opacity-70 hover:opacity-100"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
-        />
-      )}
+      {onRemove && <X aria-hidden="true" className="-mr-1 h-3.5 w-3.5 opacity-70" />}
     </button>
   );
 }

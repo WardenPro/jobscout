@@ -2,17 +2,21 @@
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 
-export function ThemeToggle() {
+export function ThemeToggle({ compact = false }: { compact?: boolean }) {
   const [dark, setDark] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    setDark(document.documentElement.classList.contains("dark"));
+    const syncTheme = () => setDark(document.documentElement.classList.contains("dark"));
+    syncTheme();
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
   }, []);
 
   function toggle() {
-    const next = !dark;
+    const next = !document.documentElement.classList.contains("dark");
     setDark(next);
     document.documentElement.classList.toggle("dark", next);
     try {
@@ -24,10 +28,12 @@ export function ThemeToggle() {
     <button
       onClick={toggle}
       aria-label={dark ? "Passer en clair" : "Passer en sombre"}
-      className="flex items-center gap-3 h-10 px-3 rounded-md text-body text-textSecondary hover:bg-surface hover:text-text transition-colors w-full"
+      className={compact
+        ? "flex h-10 w-10 items-center justify-center rounded-md text-textSecondary transition-colors hover:bg-surfaceHover hover:text-text"
+        : "flex h-10 w-full items-center gap-3 rounded-md px-3 text-body text-textSecondary transition-colors hover:bg-surfaceHover hover:text-text"}
     >
       {mounted && dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
-      {mounted && dark ? "Thème clair" : "Thème sombre"}
+      {!compact && (mounted && dark ? "Thème clair" : "Thème sombre")}
     </button>
   );
 }

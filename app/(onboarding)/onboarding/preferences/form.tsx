@@ -228,11 +228,13 @@ export function PreferencesForm() {
                 key={s.id}
                 type="button"
                 onClick={() => toggleSource(s.id)}
+                disabled={s.unavailable && !active}
+                aria-pressed={active}
                 className={`flex items-center justify-between gap-3 p-3 rounded-md border text-left transition-colors ${
                   active
                     ? "border-accent bg-accent/5"
                     : "border-border hover:bg-surface"
-                }`}
+                } ${s.unavailable && !active ? "cursor-not-allowed opacity-50" : ""}`}
               >
                 <div className="min-w-0">
                   <p className="text-body font-medium truncate">{s.label}</p>
@@ -258,7 +260,7 @@ export function PreferencesForm() {
           Retour
         </Button>
         <Button onClick={save} size="lg" disabled={saving}>
-          {saving && <Spinner size={16} className="text-white" />}
+          {saving && <Spinner size={16} className="text-onAccent" />}
           {saving ? "Enregistrement…" : "Enregistrer mon profil"}
         </Button>
       </div>

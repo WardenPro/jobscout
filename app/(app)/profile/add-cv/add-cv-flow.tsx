@@ -297,7 +297,7 @@ export function AddCVFlow() {
               Annuler
             </Button>
             <Button onClick={confirm} disabled={saveLoading || totalChanges === 0}>
-              {saveLoading && <Spinner size={16} className="text-white" />}
+              {saveLoading && <Spinner size={16} className="text-onAccent" />}
               {saveLoading ? "Fusion en cours…" : `Appliquer (${totalChanges} modification${totalChanges > 1 ? "s" : ""})`}
             </Button>
           </div>

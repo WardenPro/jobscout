@@ -9,8 +9,9 @@ export default async function CandidaturesPage() {
   return (
     <>
       <PageHeader
+        eyebrow="Faire avancer"
         title="Candidatures"
-        subtitle={`${items.length} candidature${items.length > 1 ? "s" : ""}`}
+        subtitle="Suivez chaque étape, notez vos échanges et gardez vos échéances à portée de main."
       />
       <CandidaturesTable initial={items} />
     </>

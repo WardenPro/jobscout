@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import "@fontsource-variable/dm-sans";
+import "@fontsource-variable/plus-jakarta-sans";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Job Scout",
+  title: "JobScout",
   description: "Trouvez le job de vos rêves grâce au scan IA multi-plateformes.",
 };
 

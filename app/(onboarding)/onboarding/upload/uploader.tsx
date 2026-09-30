@@ -5,7 +5,8 @@ import { Upload, FileText, AlertCircle } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
-const SAFE_TYPES = [".pdf", ".docx", ".doc", ".txt", ".png", ".jpg", ".jpeg"];
+const SAFE_TYPES = [".pdf", ".docx", ".txt", ".png", ".jpg", ".jpeg"];
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export function CVUploader({ disabled = false }: { disabled?: boolean }) {
   const router = useRouter();
@@ -18,6 +19,14 @@ export function CVUploader({ disabled = false }: { disabled?: boolean }) {
   async function handleFile(file: File) {
     if (disabled) return;
     setError(null);
+    if (!SAFE_TYPES.some((ext) => file.name.toLowerCase().endsWith(ext))) {
+      setError("Format non pris en charge. Choisissez un PDF, DOCX, TXT, PNG ou JPG.");
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      setError("Ce CV dépasse 10 Mo. Choisissez un fichier plus léger.");
+      return;
+    }
     setFilename(file.name);
     setLoading(true);
     try {
@@ -63,6 +72,15 @@ export function CVUploader({ disabled = false }: { disabled?: boolean }) {
           if (file) handleFile(file);
         }}
         onClick={() => !loading && !disabled && inputRef.current?.click()}
+        onKeyDown={(e) => {
+          if ((e.key === "Enter" || e.key === " ") && !loading && !disabled) {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        role="button"
+        tabIndex={disabled || loading ? -1 : 0}
+        aria-label="Sélectionner un CV à importer"
         aria-disabled={disabled}
         className={cn(
           "border-2 border-dashed rounded-xl p-12 flex flex-col items-center justify-center gap-3 transition-all",
@@ -110,7 +128,7 @@ export function CVUploader({ disabled = false }: { disabled?: boolean }) {
         )}
       </div>
       {error && (
-        <div className="flex items-start gap-2 p-4 rounded-md bg-[rgba(255,59,48,0.08)] text-danger text-small">
+        <div role="alert" className="flex items-start gap-2 p-4 rounded-md bg-[rgba(255,59,48,0.08)] text-danger text-small">
           <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
           <span>{error}</span>
         </div>

@@ -2,6 +2,7 @@ import path from "node:path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  devIndicators: false,
   // Sortie autonome : .next/standalone contient server.js + le strict nécessaire
   // de node_modules. C'est la base du paquet Windows (installer/).
   output: "standalone",

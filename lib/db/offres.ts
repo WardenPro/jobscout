@@ -2,7 +2,7 @@ import "server-only";
 import { getDb, asJson, parseJson } from "./index";
 import type { ScrapedOffre } from "@/lib/scrapers/base";
 import type { ScoreResult } from "@/lib/ai/score-offre";
-import { classifyContract, type ContractCategory } from "@/lib/contracts";
+import { classifyContract, CONTRACT_ORDER, type ContractCategory } from "@/lib/contracts";
 
 export type { ScrapedOffre };
 
@@ -43,6 +43,130 @@ export type OffreFiltered = OffreRow & {
   has_msg: boolean;
   contract_category: ContractCategory;
 };
+
+export type OffreSummary = Pick<
+  OffreFiltered,
+  "id" | "source" | "url" | "title" | "company" | "country" | "location" |
+  "posted_at" | "score" | "is_vie" | "description_status" | "contract_category" |
+  "has_cv" | "has_lm"
+> & {
+  description_text: string;
+  score_reason: string | null;
+};
+
+export type OffersSearch = {
+  offers: OffreSummary[];
+  total: number;
+  pageSize: number;
+  facets: {
+    total: number;
+    countries: string[];
+    sources: string[];
+    contractCounts: Record<ContractCategory, number>;
+    hasVie: boolean;
+  };
+};
+
+const OFFER_PAGE_SIZE = 24;
+// Même classement pour la liste, l’API paginée et les suggestions de l’accueil.
+// Le bonus de fraîcheur reste volontairement léger face au score du profil.
+const SMART_ORDER = `score + CASE
+  WHEN posted_at IS NULL THEN 0
+  WHEN julianday('now') - julianday(posted_at) <= 1 THEN 6
+  WHEN julianday('now') - julianday(posted_at) <= 3 THEN 4
+  WHEN julianday('now') - julianday(posted_at) <= 7 THEN 2
+  ELSE 0
+END DESC, score DESC, posted_at DESC`;
+
+function normalizeSearch(value: string): string {
+  return value.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+}
+
+type SearchRow = Pick<
+  OffreRow,
+  "id" | "source" | "url" | "title" | "company" | "country" | "location" |
+  "contract_type" | "description_text" | "description_status" | "posted_at" |
+  "score" | "is_vie"
+> & { score_breakdown: string | null; has_cv: number; has_lm: number; contract_category: ContractCategory };
+
+/** Filtrage côté serveur : seules les cartes de la page courante sont envoyées au navigateur. */
+export function searchOffres(opts: {
+  query?: string;
+  source?: string;
+  country?: string;
+  contracts?: ContractCategory[];
+  minScore?: boolean;
+  vieOnly?: boolean;
+  sortBy?: "smart" | "newest" | "score";
+  page?: number;
+} = {}): OffersSearch {
+  const rows = getDb().prepare(`
+    SELECT o.id, o.source, o.url, o.title, o.company, o.country, o.location,
+      o.contract_type, o.description_text, o.description_status, o.posted_at,
+      o.score, o.score_breakdown, o.is_vie,
+      EXISTS(SELECT 1 FROM documents WHERE offre_id = o.id AND type = 'cv') AS has_cv,
+      EXISTS(SELECT 1 FROM documents WHERE offre_id = o.id AND type = 'lm') AS has_lm
+    FROM offres o ORDER BY ${SMART_ORDER}
+  `).all() as SearchRow[];
+
+  const contractCounts = Object.fromEntries(CONTRACT_ORDER.map((contract) => [contract, 0])) as Record<ContractCategory, number>;
+  const countries = new Set<string>();
+  const sources = new Set<string>();
+  let hasVie = false;
+  for (const row of rows) {
+    row.contract_category = classifyContract(row);
+    contractCounts[row.contract_category]++;
+    if (row.country) countries.add(row.country);
+    sources.add(row.source);
+    if (row.is_vie) hasVie = true;
+  }
+
+  const query = normalizeSearch((opts.query ?? "").trim());
+  const contracts = new Set(opts.contracts ?? []);
+  const filtered = rows.filter((row) => {
+    if (query && !normalizeSearch([row.title, row.company, row.country, row.location, row.description_text].filter(Boolean).join(" ")).includes(query)) return false;
+    if (opts.source && row.source !== opts.source) return false;
+    if (opts.country && row.country !== opts.country) return false;
+    if (contracts.size && !contracts.has(row.contract_category)) return false;
+    if (opts.minScore && (row.score ?? 0) < 60) return false;
+    if (opts.vieOnly && !row.is_vie) return false;
+    return true;
+  });
+
+  if (opts.sortBy === "score") filtered.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  if (opts.sortBy === "newest") filtered.sort((a, b) => (b.posted_at ?? "").localeCompare(a.posted_at ?? ""));
+  const page = Math.max(1, Math.min(10000, Math.trunc(opts.page ?? 1) || 1));
+  const visible = filtered.slice((page - 1) * OFFER_PAGE_SIZE, page * OFFER_PAGE_SIZE);
+  return {
+    offers: visible.map((row) => ({
+      id: row.id, source: row.source, url: row.url, title: row.title,
+      company: row.company, country: row.country, location: row.location,
+      posted_at: row.posted_at, score: row.score, is_vie: row.is_vie,
+      description_status: row.description_status,
+      description_text: row.description_text.slice(0, 1000),
+      score_reason: parseJson<{ reason?: string } | null>(row.score_breakdown, null)?.reason ?? null,
+      contract_category: row.contract_category,
+      has_cv: !!row.has_cv, has_lm: !!row.has_lm,
+    })),
+    total: filtered.length,
+    pageSize: OFFER_PAGE_SIZE,
+    facets: {
+      total: rows.length,
+      countries: [...countries].sort((a, b) => a.localeCompare(b, "fr")),
+      sources: [...sources].sort(), contractCounts, hasVie,
+    },
+  };
+}
+
+/** Les six premières suggestions suffisent au tableau de bord. */
+export function suggestedOffres(limit: number, untracked = false): Pick<OffreRow, "id" | "title" | "company" | "country" | "location" | "posted_at" | "score">[] {
+  return getDb().prepare(`
+    SELECT o.id, o.title, o.company, o.country, o.location, o.posted_at, o.score
+    FROM offres o
+    ${untracked ? "WHERE NOT EXISTS(SELECT 1 FROM candidatures c WHERE c.offre_id = o.id)" : ""}
+    ORDER BY ${SMART_ORDER} LIMIT ?
+  `).all(Math.max(1, Math.min(20, Math.trunc(limit)))) as Pick<OffreRow, "id" | "title" | "company" | "country" | "location" | "posted_at" | "score">[];
+}
 
 // Filet de sécurité anti-mojibake : répare l'UTF-8 double-décodé (é→Ã©, ’→â€™…)
 // quelle que soit la source. Signatures fiables uniquement — "Ã" suivi d'un
@@ -145,20 +269,7 @@ export function listOffres(opts?: {
         EXISTS(SELECT 1 FROM documents WHERE offre_id = o.id AND type = 'msg') AS has_msg
        FROM offres o
        ${where}
-       ORDER BY
-         -- Pertinence = score + bonus de fraîcheur LÉGER. L'ancien tri mettait
-         -- TOUT ce qui était daté du jour au-dessus du reste : la seule source
-         -- qui date ses offres quotidiennement (APEC) occupait mécaniquement
-         -- le haut de liste, quel que soit son score.
-         score + CASE
-           WHEN posted_at IS NULL THEN 0
-           WHEN julianday('now') - julianday(posted_at) <= 1 THEN 6
-           WHEN julianday('now') - julianday(posted_at) <= 3 THEN 4
-           WHEN julianday('now') - julianday(posted_at) <= 7 THEN 2
-           ELSE 0
-         END DESC,
-         score DESC,
-         posted_at DESC`
+       ORDER BY ${SMART_ORDER}`
     )
     .all(...params) as any[];
 

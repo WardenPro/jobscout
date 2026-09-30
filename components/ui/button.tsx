@@ -4,21 +4,21 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-all duration-150 disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 active:scale-[0.98]",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-semibold transition-all duration-200 disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 active:scale-[0.98]",
   {
     variants: {
       variant: {
-        primary: "bg-accent text-white hover:bg-accentHover",
-        secondary: "bg-surface text-text border border-border hover:bg-surfaceHover",
-        ghost: "text-text hover:bg-surface",
-        danger: "bg-danger text-white hover:brightness-110",
+        primary: "button-primary !text-onAccent",
+        secondary: "button-secondary text-text",
+        ghost: "text-text hover:bg-surfaceHover",
+        danger: "bg-danger !text-onDanger hover:brightness-95",
         link: "text-accent underline-offset-4 hover:underline",
       },
       size: {
-        sm: "h-8 px-3 text-small",
-        md: "h-10 px-4 text-body",
+        sm: "h-11 px-3 text-small",
+        md: "h-11 px-4 text-small",
         lg: "h-12 px-6 text-body",
-        icon: "h-10 w-10",
+        icon: "h-11 w-11",
       },
     },
     defaultVariants: { variant: "primary", size: "md" },

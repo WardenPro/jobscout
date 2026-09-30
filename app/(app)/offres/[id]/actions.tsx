@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Check, FileText, Mail, MessageSquare, Send, Download, Sparkles, FolderOpen } from "lucide-react";
+import { Check, FileText, Mail, MessageSquare, Download, Sparkles, FolderOpen, ArrowUpRight, BookmarkPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
@@ -31,6 +31,7 @@ export function ActionsPanel({
   offreUrl,
   isVie,
   initial,
+  initialTrackingStatus = null,
   initialFolder = null,
 }: {
   offreId: number;
@@ -43,6 +44,7 @@ export function ActionsPanel({
     lm_docx_id: number | null;
     msg_id: number | null;
   };
+  initialTrackingStatus?: string | null;
   initialFolder?: string | null;
 }) {
   const [docs, setDocs] = useState<DocsState>(initial);
@@ -50,8 +52,8 @@ export function ActionsPanel({
   const [msgLoading, setMsgLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [msgPreview, setMsgPreview] = useState<{ text: string; length: number } | null>(null);
-  const [applyLoading, setApplyLoading] = useState(false);
-  const [applied, setApplied] = useState(false);
+  const [trackLoading, setTrackLoading] = useState(false);
+  const [trackingStatus, setTrackingStatus] = useState<string | null>(initialTrackingStatus);
   const [folder, setFolder] = useState<string | null>(initialFolder);
 
   // Un document existe dès qu'un de ses deux formats est enregistré : sur un
@@ -100,7 +102,6 @@ export function ActionsPanel({
       }));
       if (data.folder) {
         setFolder(data.folder);
-        openFolder(data.folder);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau");
@@ -133,7 +134,6 @@ export function ActionsPanel({
       if (data.text) setMsgPreview({ text: data.text, length: data.length });
       if (data.folder) {
         setFolder(data.folder);
-        openFolder(data.folder);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau");
@@ -142,10 +142,9 @@ export function ActionsPanel({
     }
   }
 
-  async function apply() {
-    setApplyLoading(true);
+  async function addToTracking() {
+    setTrackLoading(true);
     setError(null);
-    window.open(offreUrl, "_blank", "noopener,noreferrer");
     try {
       const res = await fetch("/api/candidatures", {
         method: "POST",
@@ -155,6 +154,7 @@ export function ActionsPanel({
           cv_doc_id: docs.cv_docx_id ?? docs.cv_pdf_id,
           lm_doc_id: docs.lm_docx_id ?? docs.lm_pdf_id,
           msg_doc_id: docs.msg_id,
+          status: "en_cours",
         }),
       });
       if (!res.ok) {
@@ -162,20 +162,21 @@ export function ActionsPanel({
         setError(data.error || "La candidature n'a pas pu être enregistrée.");
         return;
       }
-      setApplied(true);
+      setTrackingStatus("en_cours");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau");
     } finally {
-      setApplyLoading(false);
+      setTrackLoading(false);
     }
   }
 
   return (
-    <Card className="p-5 space-y-3">
+    <Card className="space-y-4 p-5">
       <div>
-        <h3 className="text-h3 mb-1">Actions</h3>
+        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-accent">Préparer votre dossier</p>
+        <h3 className="font-display text-h3 mb-1">Passez à l'action</h3>
         <p className="text-small text-textSecondary">
-          Générez vos documents (Word + PDF) puis postulez en un clic.
+          Préparez vos documents, puis finalisez la candidature sur le site de l'annonce.
         </p>
       </div>
 
@@ -256,26 +257,22 @@ export function ActionsPanel({
         </div>
       )}
 
-      {/* Apply button */}
-      <div className="pt-2 space-y-1.5">
-        <Button onClick={apply} className="w-full" size="lg" disabled={applyLoading}>
-          {applyLoading ? (
-            <Spinner size={16} className="text-white" />
-          ) : applied ? (
-            <Check className="h-4 w-4" />
-          ) : (
-            <Send className="h-4 w-4" />
-          )}
-          {applied ? "Candidature enregistrée" : "Postuler"}
+      <div className="space-y-2 border-t border-border pt-4">
+        <Button asChild variant={hasCV && hasLM ? "primary" : "secondary"} className="w-full" size="lg">
+          <a href={offreUrl} target="_blank" rel="noopener noreferrer">
+            Voir l'annonce et postuler <ArrowUpRight className="h-4 w-4" />
+          </a>
         </Button>
-        {applied && (
-          <p className="text-caption text-textSecondary text-center">
-            L'offre s'est ouverte dans un nouvel onglet — mettez à jour le statut depuis l'onglet Candidatures.
-          </p>
-        )}
+        <Button onClick={addToTracking} className="w-full" size="md" variant="secondary" disabled={trackLoading || !!trackingStatus}>
+          {trackLoading ? <Spinner size={16} /> : trackingStatus ? <Check className="h-4 w-4" /> : <BookmarkPlus className="h-4 w-4" />}
+          {trackingStatus ? "Dans votre suivi" : "Ajouter au suivi"}
+        </Button>
+        <p className="text-caption text-textSecondary">
+          {trackingStatus ? <>Retrouvez cette offre dans <a href="/candidatures" className="font-semibold text-accent hover:underline">Candidatures</a> pour mettre son statut à jour.</> : "Le suivi commence « En cours ». Passez à « Envoyée » après avoir soumis votre candidature."}
+        </p>
       </div>
 
-      {error && <p className="text-small text-danger pt-2">{error}</p>}
+      {error && <p role="alert" className="pt-2 text-small text-danger">{error}</p>}
     </Card>
   );
 }

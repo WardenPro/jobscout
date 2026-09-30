@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -27,18 +27,31 @@ import { EngineNotice } from "@/components/app/engine-notice";
 import type { ProfileFull, Experience, Education, Skill, Language } from "@/lib/cv/types";
 
 const SOURCES = SOURCES_META;
+const PROFILE_SECTIONS = [["#identite", "Identité"], ["#recherche", "Recherche"], ["#experiences", "Expériences"], ["#formations", "Formations"], ["#competences", "Compétences"], ["#langues", "Langues"], ["#parametres", "Paramètres"]] as const;
 
 export function ProfileEditor({ initial }: { initial: ProfileFull }) {
   const router = useRouter();
   const [profile, setProfile] = useState<ProfileFull>(initial);
+  const [baseline, setBaseline] = useState<ProfileFull>(initial);
+  const lastInitial = useRef(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedTick, setSavedTick] = useState(false);
 
   const dirty = useMemo(
-    () => JSON.stringify(profile) !== JSON.stringify(initial),
-    [profile, initial]
+    () => JSON.stringify(profile) !== JSON.stringify(baseline),
+    [profile, baseline]
   );
+
+  useEffect(() => {
+    if (lastInitial.current !== initial) {
+      lastInitial.current = initial;
+      if (!dirty) {
+        setProfile(initial);
+        setBaseline(initial);
+      }
+    }
+  }, [initial, dirty]);
 
   useEffect(() => {
     function onBeforeUnload(e: BeforeUnloadEvent) {
@@ -53,6 +66,11 @@ export function ProfileEditor({ initial }: { initial: ProfileFull }) {
   const update = (patch: Partial<ProfileFull>) => setProfile((p) => ({ ...p, ...patch }));
 
   async function save() {
+    if (profile.sources_enabled.length === 0) {
+      setError("Sélectionnez au moins une source de recherche avant d'enregistrer.");
+      document.getElementById("recherche")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -66,6 +84,7 @@ export function ProfileEditor({ initial }: { initial: ProfileFull }) {
         setError(data.error ?? "Erreur d'enregistrement");
         return;
       }
+      setBaseline(profile);
       setSavedTick(true);
       setTimeout(() => setSavedTick(false), 1800);
       router.refresh();
@@ -77,15 +96,23 @@ export function ProfileEditor({ initial }: { initial: ProfileFull }) {
   }
 
   function cancel() {
-    setProfile(initial);
+    setProfile(baseline);
     setError(null);
   }
 
   return (
-    <>
+    <div className="lg:grid lg:grid-cols-[176px_minmax(0,1fr)] lg:gap-7">
+      <nav aria-label="Sections du profil" className="glass-panel sticky top-6 hidden self-start p-2 lg:flex lg:flex-col">
+        <p className="px-3 pb-2 pt-2 text-caption font-semibold uppercase tracking-[0.12em] text-textSecondary">Votre profil</p>
+        {PROFILE_SECTIONS.map(([href, label]) => <a key={href} href={href} className="rounded-md px-3 py-2.5 text-small font-semibold text-textSecondary transition-colors hover:bg-surfaceHover hover:text-accent">{label}</a>)}
+      </nav>
+      <div className="min-w-0">
+      <nav aria-label="Sections du profil" className="mb-6 flex gap-2 overflow-x-auto pb-2 lg:hidden">
+        {PROFILE_SECTIONS.map(([href, label]) => <a key={href} href={href} className="flex min-h-11 shrink-0 items-center rounded-md border border-border bg-surface px-3 text-small font-semibold text-textSecondary transition-colors hover:border-accent hover:text-accent">{label}</a>)}
+      </nav>
       {/* Sticky save bar */}
       {(dirty || savedTick) && (
-        <div className="sticky top-0 z-30 -mx-12 mb-5 px-12 py-3 bg-bg/85 backdrop-blur border-b border-border animate-fadeIn flex items-center gap-3">
+        <div className="glass-panel sticky top-20 z-30 mb-5 flex flex-wrap items-center gap-3 !rounded-[16px] px-4 py-3 animate-fadeIn lg:top-6">
           <span className="text-small">
             {savedTick ? (
               <span className="text-success">Modifications enregistrées ✓</span>
@@ -102,7 +129,7 @@ export function ProfileEditor({ initial }: { initial: ProfileFull }) {
                 <X className="h-4 w-4" /> Annuler
               </Button>
               <Button onClick={save} disabled={saving}>
-                {saving ? <Spinner size={14} className="text-white" /> : <Save className="h-4 w-4" />}
+                {saving ? <Spinner size={14} className="text-onAccent" /> : <Save className="h-4 w-4" />}
                 Enregistrer
               </Button>
             </>
@@ -115,7 +142,7 @@ export function ProfileEditor({ initial }: { initial: ProfileFull }) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="space-y-5">
         <IdentityCard profile={profile} update={update} />
         <SearchCard profile={profile} update={update} />
 
@@ -124,7 +151,8 @@ export function ProfileEditor({ initial }: { initial: ProfileFull }) {
         <SkillsCard profile={profile} update={update} />
         <LanguagesCard profile={profile} update={update} />
       </div>
-    </>
+      </div>
+    </div>
   );
 }
 
@@ -140,9 +168,9 @@ function IdentityCard({
   update: (p: Partial<ProfileFull>) => void;
 }) {
   return (
-    <Card>
+    <Card id="identite" className="scroll-mt-28">
       <SectionHead icon={<User className="h-4 w-4" />} title="Identité" />
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Nom complet">
           <Input
             value={profile.full_name ?? ""}
@@ -234,7 +262,7 @@ function SearchCard({
   };
 
   return (
-    <Card>
+    <Card id="recherche" className="scroll-mt-28">
       <SectionHead icon={<Globe className="h-4 w-4" />} title="Recherche" />
 
       <p className="text-caption uppercase text-textSecondary mb-2">Secteurs</p>
@@ -331,15 +359,14 @@ function SearchCard({
 
       <p className="text-caption uppercase text-textSecondary mb-2">Sources</p>
       <div className="flex flex-wrap gap-1.5">
-        {SOURCES.map((s) => (
-          <Chip
-            key={s.id}
-            active={profile.sources_enabled.includes(s.id)}
-            onClick={() => toggleSource(s.id)}
-          >
-            {s.label}
-          </Chip>
-        ))}
+        {SOURCES.map((s) => {
+          const active = profile.sources_enabled.includes(s.id);
+          return s.unavailable && !active ? (
+            <span key={s.id} title={s.sublabel} className="inline-flex h-11 items-center rounded-md border border-border px-3 text-small text-textSecondary opacity-60">{s.label} · suspendue</span>
+          ) : (
+            <Chip key={s.id} active={active} onClick={() => toggleSource(s.id)}>{s.label}</Chip>
+          );
+        })}
       </div>
       <EngineNotice
         active={profile.sources_enabled.includes("linkedin")}
@@ -417,7 +444,7 @@ function ExperiencesCard({
   }
 
   return (
-    <Card className="md:col-span-2">
+    <Card id="experiences" className="scroll-mt-28 md:col-span-2">
       <SectionHead
         icon={<Briefcase className="h-4 w-4" />}
         title={`Expériences (${profile.experiences.length})`}
@@ -516,7 +543,7 @@ function ExperienceItem({
 
       {open && (
         <div className="p-4 pt-2 border-t border-border space-y-3 animate-fadeIn">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Poste">
           <Input value={exp.title} onChange={(e) => onChange({ title: e.target.value })} />
         </Field>
@@ -657,7 +684,7 @@ function EducationsCard({
   }
 
   return (
-    <Card className="md:col-span-2">
+    <Card id="formations" className="scroll-mt-28 md:col-span-2">
       <SectionHead
         icon={<GraduationCap className="h-4 w-4" />}
         title={`Formations (${profile.educations.length})`}
@@ -736,7 +763,7 @@ function EducationItem({
 
       {open && (
         <div className="p-4 pt-2 border-t border-border space-y-3 animate-fadeIn">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="École / institution">
               <Input value={edu.school} onChange={(e) => onChange({ school: e.target.value })} />
             </Field>
@@ -825,7 +852,7 @@ function SkillsCard({
   };
 
   return (
-    <Card className="md:col-span-2">
+    <Card id="competences" className="scroll-mt-28 md:col-span-2">
       <SectionHead
         icon={<Wrench className="h-4 w-4" />}
         title={`Compétences (${profile.skills.length})`}
@@ -898,7 +925,7 @@ function LanguagesCard({
   }
 
   return (
-    <Card className="md:col-span-2">
+    <Card id="langues" className="scroll-mt-28 md:col-span-2">
       <SectionHead
         icon={<Languages className="h-4 w-4" />}
         title={`Langues (${profile.languages.length})`}
@@ -961,13 +988,12 @@ function SectionHead({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2 mb-3">
-      <div className="h-7 w-7 rounded-md bg-surface flex items-center justify-center text-textSecondary">
-        {icon}
+    <div className="mb-5 flex flex-wrap items-center gap-3">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <span className="brand-mark h-8 w-8 rounded-[11px]">{icon}</span>
+        <h2 className="font-display text-h3">{title}</h2>
       </div>
-      <h2 className="text-h3">{title}</h2>
-      <div className="flex-1" />
-      {action}
+      {action && <div className="ml-auto flex flex-wrap items-center gap-2">{action}</div>}
     </div>
   );
 }

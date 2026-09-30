@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Users, Save, Trash2, ArrowRightLeft } from "lucide-react";
+import { Users, Save, Trash2, ArrowRightLeft, ChevronDown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,8 @@ export function ProfileSwitcher({ currentName }: { currentName: string | null })
   const [saveName, setSaveName] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [confirmLoad, setConfirmLoad] = useState<string | null>(null);
 
   const refresh = async () => {
     const res = await fetch("/api/profile/snapshots");
@@ -44,34 +46,36 @@ export function ProfileSwitcher({ currentName }: { currentName: string | null })
       }
       if (action === "save") setMessage(`Profil sauvegardé sous « ${name} ».`);
       if (action === "load") {
-        setMessage(`Profil « ${name} » chargé — ${data.rescored} offres re-scorées.`);
+        setMessage(`Profil « ${name} » chargé. Le classement des offres a été mis à jour.`);
         router.refresh();
       }
       if (action === "delete") setMessage(`« ${name} » supprimé.`);
       setSaveName("");
       await refresh();
+    } catch {
+      setMessage("L'action n'a pas abouti. Vérifiez la connexion puis réessayez.");
     } finally {
       setBusy(null);
     }
   }
 
   return (
-    <Card>
-      <div className="flex items-center gap-2 mb-1">
-        <Users className="h-4 w-4 text-textSecondary" />
-        <h2 className="text-h3">Profils enregistrés</h2>
-      </div>
-      <p className="text-small text-textSecondary mb-4">
-        Sauvegardez le profil actuel puis basculez d'un profil à l'autre en un clic — le score
-        de toutes les offres est recalculé instantanément (aucune ré-extraction de CV).
-      </p>
+    <Card className="p-0 sm:p-0">
+      <details className="group">
+        <summary className="flex min-h-20 list-none items-center gap-3 px-5 py-4 sm:px-6">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surfaceHover text-accent"><Users className="h-5 w-5" /></span>
+          <span className="min-w-0 flex-1"><span className="block text-h3">Profils enregistrés</span><span className="block text-small text-textSecondary">{snapshots.length ? `${snapshots.length} profil${snapshots.length > 1 ? "s" : ""} sauvegardé${snapshots.length > 1 ? "s" : ""}` : "Gérez plusieurs profils de recherche"}</span></span>
+          <ChevronDown className="h-5 w-5 shrink-0 text-textSecondary transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="border-t border-border px-5 py-5 sm:px-6">
+      <p className="mb-4 max-w-[65ch] text-small text-textSecondary">Sauvegardez votre profil avant d'en charger un autre. Le classement des offres est recalculé lors du changement.</p>
 
       {snapshots.length > 0 && (
         <div className="space-y-2 mb-4">
           {snapshots.map((s) => (
             <div
               key={s.name}
-              className="flex items-center justify-between gap-3 p-3 rounded-md bg-surface"
+              className="flex items-center justify-between gap-3 rounded-md border border-border p-3"
             >
               <div className="min-w-0">
                 <p className="text-body font-medium truncate">{s.name}</p>
@@ -80,12 +84,25 @@ export function ProfileSwitcher({ currentName }: { currentName: string | null })
                   {s.saved_at ? ` · sauvegardé le ${s.saved_at.slice(0, 10)}` : ""}
                 </p>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex shrink-0 items-center gap-2">
+                {confirmDelete === s.name ? (
+                  <span className="flex flex-wrap items-center gap-2 text-small">
+                    <span>Supprimer ?</span>
+                    <button type="button" onClick={() => setConfirmDelete(null)} className="font-semibold text-textSecondary hover:underline">Annuler</button>
+                    <button type="button" onClick={() => { setConfirmDelete(null); void act("delete", s.name); }} className="font-semibold text-danger hover:underline">Confirmer</button>
+                  </span>
+                ) : confirmLoad === s.name ? (
+                  <span className="flex flex-wrap items-center gap-2 text-small">
+                    <span>Charger ce profil ?</span>
+                    <button type="button" onClick={() => setConfirmLoad(null)} className="font-semibold text-textSecondary hover:underline">Annuler</button>
+                    <button type="button" onClick={() => { setConfirmLoad(null); void act("load", s.name); }} className="font-semibold text-accent hover:underline">Confirmer</button>
+                  </span>
+                ) : <>
                 <Button
                   size="sm"
                   variant="secondary"
                   disabled={busy !== null}
-                  onClick={() => act("load", s.name)}
+                  onClick={() => setConfirmLoad(s.name)}
                 >
                   {busy === `load:${s.name}` ? (
                     <Spinner size={14} />
@@ -95,32 +112,38 @@ export function ProfileSwitcher({ currentName }: { currentName: string | null })
                   Charger
                 </Button>
                 <button
+                  type="button"
                   aria-label={`Supprimer ${s.name}`}
                   disabled={busy !== null}
-                  onClick={() => act("delete", s.name)}
-                  className="text-textSecondary hover:text-danger p-1.5"
+                  onClick={() => { setConfirmLoad(null); setConfirmDelete(s.name); }}
+                  className="flex h-10 w-10 items-center justify-center rounded-md text-textSecondary hover:bg-surfaceHover hover:text-danger"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
+                </>}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+        <label htmlFor="profile-save-name" className="min-w-0 flex-1 text-small font-semibold">Nom du profil à enregistrer
         <Input
+          id="profile-save-name"
+          className="mt-1.5"
           value={saveName}
           onChange={(e) => setSaveName(e.target.value)}
           placeholder={
             currentName
-              ? `Nom du snapshot (ex. « ${currentName} »)`
-              : "Nom du snapshot"
+              ? `Ex. ${currentName}`
+              : "Ex. Recherche marketing"
           }
           onKeyDown={(e) =>
             e.key === "Enter" && saveName.trim() && act("save", saveName.trim())
           }
         />
+        </label>
         <Button
           variant="secondary"
           disabled={!saveName.trim() || busy !== null}
@@ -131,7 +154,9 @@ export function ProfileSwitcher({ currentName }: { currentName: string | null })
         </Button>
       </div>
 
-      {message && <p className="text-small text-accent mt-3">{message}</p>}
+      {message && <p role="status" className="mt-3 text-small text-accent">{message}</p>}
+        </div>
+      </details>
     </Card>
   );
 }

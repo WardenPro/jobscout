@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink, AlertTriangle, Calendar, MapPin, Building2 } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, AlertTriangle, CalendarDays, MapPin } from "lucide-react";
 import { getOffre } from "@/lib/db/offres";
 import { listDocuments, offreFolderPath } from "@/lib/db/documents";
+import { getDb } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { DescriptionRenderer } from "@/components/app/description-renderer";
 import { ActionsPanel } from "./actions";
@@ -21,119 +22,84 @@ export default async function OffreDetailPage({ params }: { params: Promise<{ id
   const lmPdf = docs.find((d) => d.type === "lm" && d.format === "pdf") ?? null;
   const lmDocx = docs.find((d) => d.type === "lm" && d.format === "docx") ?? null;
   const msgDoc = docs.find((d) => d.type === "msg") ?? null;
-  const sc = scoreColor(offre.score ?? 0);
-  const isFailed = offre.description_status === "failed";
+  const existingApplication = getDb().prepare("SELECT status FROM candidatures WHERE offre_id = ? LIMIT 1").get(offre.id) as { status: string } | undefined;
+  const score = scoreColor(offre.score ?? 0);
 
   return (
     <div>
-      <Link
-        href="/offres"
-        className="inline-flex items-center gap-1.5 text-small text-textSecondary hover:text-text mb-6"
-      >
-        <ArrowLeft className="h-4 w-4" /> Retour aux offres
+      <Link href="/offres" className="mb-6 inline-flex items-center gap-2 text-small font-semibold text-textSecondary transition-colors hover:text-accent">
+        <ArrowLeft className="h-4 w-4" /> Toutes les offres
       </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-10">
-        <div>
-          <div className="flex items-start gap-3 mb-3">
-            <span
-              className="shrink-0 inline-flex items-center justify-center rounded-full px-3 h-8 text-body font-semibold"
-              style={{ background: sc.bg, color: sc.fg }}
-            >
-              {offre.score ?? 0}
-            </span>
-            <h1 className="text-h1 tracking-tight flex-1">{offre.title}</h1>
+      <header className="glass-panel focus-card mb-8 p-5 sm:mb-9 sm:p-7">
+        <div className="flex items-start gap-4">
+          <div className="min-w-0 flex-1">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">{offre.company}</p>
+            <h1 className="font-display text-h1 text-balance">{offre.title}</h1>
           </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-body text-textSecondary mb-4">
-            <span className="inline-flex items-center gap-1.5">
-              <Building2 className="h-4 w-4" /> {offre.company}
-            </span>
-            {offre.location && (
-              <span className="inline-flex items-center gap-1.5">
-                <MapPin className="h-4 w-4" />
-                {offre.location}
-                {offre.country ? `, ${offre.country}` : ""}
-              </span>
-            )}
-            {offre.posted_at && (
-              <span className="inline-flex items-center gap-1.5">
-                <Calendar className="h-4 w-4" /> {formatRelativeDate(offre.posted_at)}
-              </span>
-            )}
+          <div className="score-badge flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-lg sm:h-[76px] sm:w-[76px]" aria-label={`Adéquation ${offre.score ?? 0} sur 100, ${score.label}`}>
+            <span className="text-[26px] font-bold leading-none tabular-nums sm:text-[30px]">{offre.score ?? 0}</span>
+            <span className="mt-1 text-[10px] font-semibold uppercase tracking-wide">/ 100</span>
           </div>
-          <div className="flex flex-wrap items-center gap-2 mb-8">
-            <Badge variant="default">{offre.source}</Badge>
-            {offre.is_vie ? <Badge variant="info">V.I.E</Badge> : null}
-            {offre.contract_type && <Badge variant="default">{offre.contract_type}</Badge>}
-            <a
-              href={offre.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-small text-accent hover:underline ml-auto"
-            >
-              Source <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          </div>
-
-          {offre.score_breakdown && (
-            <div className="bg-surface rounded-lg p-4 mb-6">
-              <p className="text-caption uppercase tracking-wide text-textSecondary mb-2">
-                Détail du score
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-2">
-                <ScoreBar label="Secteur" value={offre.score_breakdown.sector} />
-                <ScoreBar label="Compétences" value={offre.score_breakdown.skills} />
-                <ScoreBar label="Pays" value={offre.score_breakdown.country} />
-                {offre.score_breakdown.language != null && (
-                  <ScoreBar label="Langue" value={offre.score_breakdown.language} />
-                )}
-                {offre.score_breakdown.contract != null && (
-                  <ScoreBar label="Contrat" value={offre.score_breakdown.contract} />
-                )}
-                {offre.score_breakdown.duration != null &&
-                  offre.score_breakdown.duration > 0 && (
-                    <ScoreBar label="Durée V.I.E" value={offre.score_breakdown.duration} />
-                  )}
-              </div>
-              {offre.score_breakdown.reason && (
-                <p className="text-small text-textSecondary mt-2">{offre.score_breakdown.reason}</p>
-              )}
-            </div>
-          )}
-
-          {isFailed ? (
-            <div className="flex items-start gap-3 p-5 rounded-lg bg-[rgba(255,159,10,0.08)] text-[#c97400]">
-              <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
-              <div>
-                <p className="font-semibold">Description non récupérée</p>
-                <p className="text-small mt-1">
-                  Le scrapping de cette offre a échoué. Cliquez sur le lien source ci-dessus pour la consulter
-                  directement, ou relancez un scan.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <DescriptionRenderer html={offre.description_html} />
-          )}
         </div>
+        <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-small text-textSecondary">
+          {(offre.location || offre.country) && <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" /> {offre.location ?? offre.country}{offre.location && offre.country && offre.location !== offre.country ? `, ${offre.country}` : ""}</span>}
+          {offre.posted_at && <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-4 w-4" /> {formatRelativeDate(offre.posted_at)}</span>}
+          <span className="font-medium">Score {score.label.toLowerCase()}</span>
+        </div>
+        <div className="mt-5 flex flex-wrap items-center gap-2">
+          <Badge>{offre.source}</Badge>
+          {offre.is_vie ? <Badge variant="info">V.I.E</Badge> : null}
+          {offre.contract_type && <Badge>{offre.contract_type}</Badge>}
+          <a href={offre.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-small font-semibold text-accent hover:underline sm:ml-auto">
+            Voir l'annonce d'origine <ArrowUpRight className="h-4 w-4" />
+          </a>
+        </div>
+      </header>
 
-        <aside className="lg:sticky lg:top-12 self-start space-y-3">
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-7">
+        <aside className="order-1 space-y-5 xl:order-2 xl:sticky xl:top-8 xl:self-start">
           <ActionsPanel
             offreId={offre.id}
             offreUrl={offre.url}
             isVie={!!offre.is_vie}
-            initial={{
-              cv_pdf_id: cvPdf?.id ?? null,
-              cv_docx_id: cvDocx?.id ?? null,
-              lm_pdf_id: lmPdf?.id ?? null,
-              lm_docx_id: lmDocx?.id ?? null,
-              msg_id: msgDoc?.id ?? null,
-            }}
-            initialFolder={
-              docs.length > 0 ? offreFolderPath(offre.id, offre.company, offre.title) : null
-            }
+            initial={{ cv_pdf_id: cvPdf?.id ?? null, cv_docx_id: cvDocx?.id ?? null, lm_pdf_id: lmPdf?.id ?? null, lm_docx_id: lmDocx?.id ?? null, msg_id: msgDoc?.id ?? null }}
+            initialTrackingStatus={existingApplication?.status ?? null}
+            initialFolder={docs.length > 0 ? offreFolderPath(offre.id, offre.company, offre.title) : null}
           />
+          {offre.score_breakdown && (
+            <section aria-labelledby="score-title" className="glass-panel p-5">
+              <h2 id="score-title" className="text-h3">Pourquoi ce score ?</h2>
+              <p className="mt-1 text-small text-textSecondary">Comparaison de l'offre avec votre profil.</p>
+              <div className="mt-5 space-y-4">
+                <ScoreBar label="Secteur" value={offre.score_breakdown.sector} />
+                <ScoreBar label="Compétences" value={offre.score_breakdown.skills} />
+                <ScoreBar label="Pays" value={offre.score_breakdown.country} />
+                {offre.score_breakdown.language != null && <ScoreBar label="Langue" value={offre.score_breakdown.language} />}
+                {offre.score_breakdown.contract != null && <ScoreBar label="Contrat" value={offre.score_breakdown.contract} />}
+                {offre.score_breakdown.duration != null && offre.score_breakdown.duration > 0 && <ScoreBar label="Durée V.I.E" value={offre.score_breakdown.duration} />}
+              </div>
+              {offre.score_breakdown.reason && <p className="mt-5 border-t border-border pt-4 text-small text-textSecondary">{offre.score_breakdown.reason}</p>}
+            </section>
+          )}
         </aside>
+
+        <article className="order-2 min-w-0 xl:order-1">
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div>
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-textSecondary">L'annonce</p>
+              <h2 className="font-display text-h2">À propos du poste</h2>
+            </div>
+          </div>
+          {offre.description_status === "failed" ? (
+            <div className="glass-panel flex items-start gap-3 p-5">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
+              <div><p className="font-semibold">Description indisponible</p><p className="mt-1 text-small text-textSecondary">Consultez l'annonce d'origine ou relancez un scan pour essayer de la récupérer.</p></div>
+            </div>
+          ) : (
+            <div className="glass-panel p-5 sm:p-7"><DescriptionRenderer html={offre.description_html} /></div>
+          )}
+        </article>
       </div>
     </div>
   );
@@ -142,16 +108,8 @@ export default async function OffreDetailPage({ params }: { params: Promise<{ id
 function ScoreBar({ label, value }: { label: string; value: number }) {
   return (
     <div>
-      <div className="flex justify-between text-caption text-textSecondary mb-1">
-        <span>{label}</span>
-        <span>{Math.round(value)}</span>
-      </div>
-      <div className="h-1 bg-bg rounded-full overflow-hidden">
-        <div
-          className="h-full bg-accent transition-all duration-500"
-          style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
-        />
-      </div>
+      <div className="mb-1.5 flex justify-between gap-3 text-small"><span className="text-textSecondary">{label}</span><span className="font-semibold tabular-nums">{Math.round(value)}</span></div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-surfaceHover"><div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(0, Math.min(100, value))}%` }} /></div>
     </div>
   );
 }

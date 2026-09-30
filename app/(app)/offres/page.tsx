@@ -1,22 +1,23 @@
-import { listOffres, offresCounts } from "@/lib/db/offres";
+import { searchOffres } from "@/lib/db/offres";
 import { PageHeader } from "@/components/app/page-header";
 import { OffresList } from "./list";
 import { ScanButton } from "./scan-button";
 
 export const dynamic = "force-dynamic";
 
-export default async function OffresPage() {
-  const offres = listOffres();
-  const counts = offresCounts();
+export default async function OffresPage({ searchParams }: { searchParams: Promise<{ vie?: string }> }) {
+  const { vie } = await searchParams;
+  const initial = searchOffres({ vieOnly: vie === "1" });
 
   return (
     <>
       <PageHeader
-        title="Offres"
-        subtitle={`${counts.total} offres · ${counts.today} aujourd'hui · ${counts.vie} V.I.E`}
+        eyebrow="Découvrir"
+        title="Vos prochaines opportunités"
+        subtitle="Repérez les offres qui vous correspondent. Prenez le temps de choisir la suite."
         actions={<ScanButton />}
       />
-      <OffresList initial={offres} />
+      <OffresList initialResult={initial} initialVieOnly={vie === "1"} />
     </>
   );
 }

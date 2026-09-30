@@ -1,6 +1,5 @@
 import "server-only";
 import { getEnabledScrapers } from "@/lib/scrapers/registry";
-import { DEFAULT_SOURCE_IDS } from "@/lib/sources-meta";
 import { upsertOffreFromSource, setOffreScore } from "@/lib/db/offres";
 import { scoreOffresLocal } from "@/lib/scoring/local";
 import { getProfile } from "@/lib/db/queries";
@@ -23,11 +22,9 @@ export async function* runScan(
   const profile = getProfile();
   if (!profile) throw new Error("Aucun profil — terminez d'abord l'onboarding.");
 
-  // Repli : les sources qui ne demandent aucun téléchargement supplémentaire
-  // (LinkedIn exige le moteur Chromium et reste donc opt-in).
-  const allEnabled = profile.sources_enabled?.length
-    ? profile.sources_enabled
-    : DEFAULT_SOURCE_IDS;
+  // Respecte toujours la sélection enregistrée : une liste vide ne doit pas
+  // relancer silencieusement les sources par défaut.
+  const allEnabled = profile.sources_enabled ?? [];
   // If onlySource is set, restrict to it (whether or not it's in the user's enabled list).
   const enabled = opts.onlySource
     ? [opts.onlySource]

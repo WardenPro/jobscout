@@ -10,15 +10,15 @@ export function Badge({
 }: React.HTMLAttributes<HTMLSpanElement> & { variant?: BadgeVariant }) {
   const variants: Record<BadgeVariant, string> = {
     default: "bg-surface text-textSecondary",
-    success: "bg-[rgba(48,209,88,0.12)] text-[#16a34a]",
-    warning: "bg-[rgba(255,159,10,0.12)] text-[#c97400]",
+    success: "bg-[rgba(48,209,88,0.12)] text-[#137b34] dark:text-success",
+    warning: "bg-[rgba(255,159,10,0.12)] text-[#935500] dark:text-warning",
     danger: "bg-[rgba(255,59,48,0.12)] text-danger",
     info: "bg-[rgba(0,113,227,0.12)] text-accent",
   };
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-caption font-medium",
+        "inline-flex items-center rounded-sm px-2.5 py-0.5 text-caption font-semibold",
         variants[variant],
         className
       )}

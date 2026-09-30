@@ -10,36 +10,35 @@ const STEPS = [
 export function OnboardingStepper({ current }: { current: "upload" | "verify" | "preferences" }) {
   const idx = STEPS.findIndex((s) => s.id === current);
   return (
-    <div className="flex items-center justify-center gap-3 py-8">
+    <nav aria-label="Étapes de configuration" className="grid grid-cols-3 gap-2 border-b border-border">
       {STEPS.map((s, i) => {
         const done = i < idx;
         const active = i === idx;
         return (
-          <div key={s.id} className="flex items-center gap-3">
+          <div key={s.id} aria-current={active ? "step" : undefined} className={cn("flex min-w-0 items-center gap-2 border-b-2 pb-3 sm:gap-3", active ? "border-accent" : "border-transparent")}>
             <div
               className={cn(
-                "flex items-center justify-center h-7 w-7 rounded-full text-small font-semibold transition-colors",
+                "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-small font-semibold transition-colors",
                 done
-                  ? "bg-accent text-white"
+                  ? "bg-accent text-onAccent"
                   : active
-                  ? "bg-text text-bg"
-                  : "bg-surface text-textSecondary"
+                  ? "bg-accent text-onAccent"
+                  : "bg-surfaceHover text-textSecondary"
               )}
             >
               {done ? <Check className="h-4 w-4" /> : i + 1}
             </div>
             <span
               className={cn(
-                "text-small font-medium",
-                active ? "text-text" : done ? "text-textSecondary" : "text-textSecondary/60"
+                "truncate text-[11px] font-semibold sm:text-small",
+                active ? "text-text" : "text-textSecondary"
               )}
             >
               {s.label}
             </span>
-            {i < STEPS.length - 1 && <div className="w-12 h-px bg-border mx-2" />}
           </div>
         );
       })}
-    </div>
+    </nav>
   );
 }

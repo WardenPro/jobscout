@@ -120,7 +120,7 @@ export function SettingsFolder() {
 
       <div className="flex flex-wrap items-center gap-2 mt-4">
         <Button onClick={() => call("save")} disabled={loading || !folder.trim() || !dirty}>
-          {loading ? <Spinner size={16} className="text-white" /> : <Check className="h-4 w-4" />}
+          {loading ? <Spinner size={16} className="text-onAccent" /> : <Check className="h-4 w-4" />}
           Enregistrer
         </Button>
         <Button variant="secondary" onClick={() => call("verify")} disabled={loading || !folder.trim()}>

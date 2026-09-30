@@ -27,8 +27,8 @@ const TARGETS: {
   sublabel: string;
   icon: React.ComponentType<{ className?: string }>;
 }[] = [
-  { id: "all", label: "Toutes les sources", sublabel: "7 plateformes en parallèle", icon: Globe },
-  ...SOURCES_META.map((s) => ({
+  { id: "all", label: "Toutes les sources", sublabel: "Sources actives de votre profil", icon: Globe },
+  ...SOURCES_META.filter((s) => !s.unavailable).map((s) => ({
     id: s.id,
     label: s.label,
     sublabel: s.sublabel,
@@ -41,6 +41,7 @@ export function ScanButton() {
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [running, setRunning] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const [target, setTarget] = useState<ScanTarget>("all");
   const [logs, setLogs] = useState<string[]>([]);
   const [sources, setSources] = useState<Record<string, SourceProgress>>({});
@@ -66,6 +67,7 @@ export function ScanButton() {
     setTarget(t);
     setOpen(true);
     setRunning(true);
+    setHasError(false);
     setLogs([]);
     setSources({});
     const url = t === "all" ? "/api/scan/start" : `/api/scan/start?source=${t}`;
@@ -82,6 +84,7 @@ export function ScanButton() {
     };
     es.onerror = () => {
       setRunning(false);
+      setHasError(true);
       setLogs((l) => [...l, "[connexion] interrompue"]);
       es.close();
     };
@@ -120,6 +123,7 @@ export function ScanButton() {
       return;
     }
     if (e.kind === "error") {
+      setHasError(true);
       setLogs((l) => [...l, `[${e.source}] ${e.message}`]);
     }
   }
@@ -131,12 +135,12 @@ export function ScanButton() {
       {/* Split button: main action = scan all, chevron = pick a specific source */}
       <div ref={menuRef} className="relative inline-flex">
         <Button
-          onClick={() => start("all")}
-          disabled={running}
+          onClick={() => running ? setOpen(true) : start("all")}
           className="rounded-r-none pr-3"
+          aria-expanded={open}
         >
           <Search className="h-4 w-4" />
-          {running ? "Scan en cours…" : "Lancer un scan"}
+          {running ? "Scan en cours · suivre" : "Lancer un scan"}
         </Button>
         <Button
           onClick={() => setMenuOpen((o) => !o)}
@@ -177,19 +181,18 @@ export function ScanButton() {
       </div>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/30 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-bg rounded-t-xl sm:rounded-xl w-full max-w-[560px] shadow-elevated p-6 m-0 sm:m-4 animate-slideUp">
+        <div role="status" aria-live="polite" className="fixed bottom-24 left-4 right-4 z-40 max-h-[70dvh] overflow-y-auto rounded-xl border border-border bg-bg p-5 shadow-elevated animate-slideUp sm:left-auto sm:w-[420px] lg:bottom-6">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h2 className="text-h3">Scan — {targetLabel}</h2>
+                <h2 className="text-h3">{targetLabel}</h2>
                 <p className="text-small text-textSecondary">
-                  {running ? "Analyse en cours…" : "Scan terminé"}
+                  {running ? "Recherche en cours. Vous pouvez réduire ce panneau." : hasError ? "Terminé avec des alertes" : "Recherche terminée"}
                 </p>
               </div>
               <button
-                onClick={() => !running && setOpen(false)}
-                disabled={running}
-                className="text-textSecondary hover:text-text disabled:opacity-30"
+                onClick={() => setOpen(false)}
+                aria-label={running ? "Réduire la progression" : "Fermer la progression"}
+                className="text-textSecondary hover:text-text"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -226,7 +229,6 @@ export function ScanButton() {
                 ))}
               </div>
             )}
-          </div>
         </div>
       )}
     </>
