@@ -1,6 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { LlmNotConfiguredError } from "./client";
+import { PROVIDERS, type ProviderId } from "./providers";
 
 /**
  * Traduction FR des erreurs IA pour les routes de génération.
@@ -94,6 +95,53 @@ export function translateAiError(e: unknown): TranslatedAiError | null {
     return { message: e.message, status: 400 };
   }
 
+  // Fournisseurs compatibles OpenAI (lib/ai/llm.ts) — détection par nom : le
+  // bundler duplique le module, instanceof ne suffit pas.
+  if (e instanceof Error && e.name === "LlmTransportError") {
+    const t = e as Error & { provider?: string; url?: string; timeout?: boolean };
+    const label = providerLabel(t.provider);
+    if (t.timeout) {
+      return {
+        message: `${label} n'a pas répondu à temps — relancez la génération ; avec un modèle local, choisissez un modèle plus léger ou patientez.`,
+        status: 504,
+      };
+    }
+    // Serveur local : fournisseur local (Ollama, LM Studio) ou adresse de la machine même (« Autre »).
+    const local =
+      (t.provider && PROVIDERS[t.provider as ProviderId]?.local) ||
+      /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(t.url ?? "");
+    return {
+      message: local
+        ? `Impossible de joindre ${label} à l'adresse ${t.url} — vérifiez que le logiciel est lancé et que le serveur local est démarré.`
+        : `Impossible de joindre ${label} — vérifiez votre connexion internet puis réessayez.`,
+      status: 502,
+    };
+  }
+  if (e instanceof Error && e.name === "LlmHttpError") {
+    const h = e as Error & { status?: number; provider?: string; detail?: string };
+    const status = typeof h.status === "number" ? h.status : 502;
+    const label = providerLabel(h.provider);
+    const detail = (h.detail ?? "").trim();
+    const suffix = detail ? ` (détail : ${detail.slice(0, 160)})` : "";
+    const byStatus: Record<number, string> = {
+      400: `${label} a refusé la demande — le modèle choisi ne gère peut-être pas les réponses structurées, ou le document est trop long pour lui. Essayez un autre modèle dans Profil › Génération IA.${suffix}`,
+      401: `Clé API refusée par ${label} — vérifiez-la dans Profil › Génération IA.`,
+      402: `Crédit épuisé chez ${label} — rechargez votre compte ou changez de fournisseur.`,
+      403: `Accès refusé par ${label} — votre clé n'a pas accès à ce modèle ou à ce service.${suffix}`,
+      404: `Modèle introuvable chez ${label} — vérifiez le nom du modèle dans Profil › Génération IA (« Charger la liste »).${suffix}`,
+      413: `Document ou offre trop volumineux pour ${label} — réduisez la taille du CV ou choisissez un modèle à plus grand contexte.`,
+      429: `Limite atteinte chez ${label} (trop de requêtes ou quota épuisé) — patientez quelques minutes ou vérifiez votre crédit.`,
+    };
+    return {
+      message:
+        byStatus[status] ??
+        (status >= 500
+          ? `${label} est momentanément indisponible (HTTP ${status}) — réessayez dans un instant.`
+          : `Erreur de ${label} (HTTP ${status}) — vérifiez votre configuration dans Profil › Génération IA.${suffix}`),
+      status,
+    };
+  }
+
   // Contenu inexploitable (tronqué, hors schéma, vide) : message FR déjà rédigé.
   // Le test par `name` couvre les copies du module dupliquées par le bundler.
   if (e instanceof AiContentError || (e instanceof Error && e.name === "AiContentError")) {
@@ -140,12 +188,15 @@ export function translateAiError(e: unknown): TranslatedAiError | null {
   return null;
 }
 
-/** Erreur FR claire quand la réponse du modèle est tronquée (stop_reason max_tokens). */
+const providerLabel = (p: string | undefined): string =>
+  (p && PROVIDERS[p as ProviderId]?.label) || "Le service d'IA";
+
+/** Erreur FR claire quand la réponse du modèle est tronquée (limite de longueur atteinte). */
 export function assertNotTruncated(
-  message: { stop_reason: string | null },
+  message: { truncated?: boolean; stop_reason?: string | null },
   what: string
 ): void {
-  if (message.stop_reason === "max_tokens") {
+  if (message.truncated || message.stop_reason === "max_tokens") {
     throw new AiContentError(
       `La réponse IA pour ${what} a été tronquée (limite de longueur atteinte) — relancez la génération ; si le problème persiste, réduisez la taille du document ou de l'offre.`
     );

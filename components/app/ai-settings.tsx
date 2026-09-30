@@ -1,16 +1,23 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, Check, KeyRound, RotateCcw, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertCircle, Check, ExternalLink, KeyRound, ListRestart, RotateCcw, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+import { PROVIDERS, PROVIDER_IDS, type ProviderId } from "@/lib/ai/providers";
 
 type Quota = {
   points_remaining: number | null;
   dossiers_estimes: number | null;
   plan: string | null;
+};
+
+type ProviderState = {
+  keyHint: string | null;
+  baseURL: string;
+  models: { writer: string; reviewer: string };
 };
 
 type LlmStatus = {
@@ -21,14 +28,22 @@ type LlmStatus = {
   byokHint: string | null;
   /** Mode « Pack » proposé seulement si un proxy est configuré (build Pro). */
   packAvailable: boolean;
+  provider: ProviderId;
+  providers: Record<ProviderId, ProviderState>;
   quota: Quota | null;
 };
+
+const selectClass =
+  "h-10 w-full rounded-md bg-surface border border-border px-3 text-body text-text transition-all duration-150 focus:outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/15 disabled:opacity-40";
 
 /**
  * Carte de configuration de la génération IA (patron settings-folder).
  * Montée dans l'onboarding (avant l'uploader, qu'elle débloque) et dans la
  * pile de cartes du Profil. Les clés ne transitent JAMAIS en clair depuis le
  * serveur : seuls des hints masqués (…XXXX) sont affichés.
+ *
+ * Clé personnelle : n'importe quel fournisseur (Anthropic, OpenAI, Gemini,
+ * Mistral, DeepSeek, Groq, OpenRouter, Ollama, LM Studio, compatible OpenAI).
  */
 export function AiSettings({
   onStatusChange,
@@ -37,11 +52,28 @@ export function AiSettings({
 }) {
   const [status, setStatus] = useState<LlmStatus | null>(null);
   const [mode, setMode] = useState<"pack" | "byok">("byok");
+  const [provider, setProvider] = useState<ProviderId>("anthropic");
   const [licenseKey, setLicenseKey] = useState("");
-  const [byokKey, setByokKey] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [apiKey, setApiKey] = useState("");
+  const [baseURL, setBaseURL] = useState("");
+  const [writer, setWriter] = useState("");
+  const [reviewer, setReviewer] = useState("");
+  const [models, setModels] = useState<string[]>([]);
+  const [loading, setLoading] = useState<null | "save" | "verify" | "models" | "reset">(null);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+
+  const preset = PROVIDERS[provider];
+
+  /** Remplit le formulaire avec les réglages enregistrés du fournisseur (ou ses valeurs par défaut). */
+  const loadProvider = useCallback((p: ProviderId, s: LlmStatus | null) => {
+    const saved = s?.providers?.[p];
+    setBaseURL(saved?.baseURL ?? PROVIDERS[p].baseURL);
+    setWriter(saved?.models.writer ?? PROVIDERS[p].models.writer);
+    setReviewer(saved?.models.reviewer ?? PROVIDERS[p].models.reviewer);
+    setApiKey("");
+    setModels([]);
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -51,19 +83,22 @@ export function AiSettings({
       if (!data) return;
       setStatus(data);
       if (data.mode === "byok" || (data.mode === "pack" && data.packAvailable)) setMode(data.mode);
+      const p = data.provider && PROVIDERS[data.provider] ? data.provider : "anthropic";
+      setProvider(p);
+      loadProvider(p, data);
       onStatusChange?.({ configured: !!data.configured });
     } catch {
       // hors-ligne : la carte reste utilisable, le gate reste fermé
     }
-  }, [onStatusChange]);
+  }, [onStatusChange, loadProvider]);
 
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function call(action: "save" | "verify" | "reset") {
-    setLoading(true);
+  async function call(action: "save" | "verify" | "models" | "reset") {
+    setLoading(action);
     setError(null);
     setInfo(null);
     try {
@@ -73,54 +108,72 @@ export function AiSettings({
         body: JSON.stringify({
           action,
           mode,
+          provider,
           license_key: licenseKey.trim() || undefined,
-          byok_key: byokKey.trim() || undefined,
+          key: apiKey.trim() || undefined,
+          base_url: preset.editableBaseURL ? baseURL.trim() || undefined : undefined,
+          model_writer: writer.trim() || undefined,
+          model_reviewer: reviewer.trim() || undefined,
         }),
       });
       const data = (await res.json().catch(() => null)) as Record<string, unknown> | null;
       if (!res.ok) {
-        setError(
-          (data && typeof data.error === "string" && data.error) ||
-            `Erreur serveur (HTTP ${res.status}).`
-        );
+        setError((data && typeof data.error === "string" && data.error) || `Erreur serveur (HTTP ${res.status}).`);
+        return;
+      }
+      if (action === "models") {
+        const list = Array.isArray(data?.models) ? (data.models as string[]) : [];
+        setModels(list);
+        setInfo(list.length ? `${list.length} modèle(s) disponible(s) chez ${preset.label}.` : `${preset.label} n'a renvoyé aucun modèle — saisissez son nom à la main.`);
         return;
       }
       if (action === "verify") {
-        const quota = (data?.quota ?? null) as Quota | null;
-        setInfo(
-          mode === "pack"
-            ? `Licence valide ✓${
-                quota?.dossiers_estimes != null
-                  ? ` — ≈ ${quota.dossiers_estimes} dossiers restants`
-                  : ""
-              }`
-            : "Clé API Anthropic valide ✓"
-        );
+        if (mode === "pack") {
+          const quota = (data?.quota ?? null) as Quota | null;
+          setInfo(`Licence valide ✓${quota?.dossiers_estimes != null ? ` — ≈ ${quota.dossiers_estimes} dossiers restants` : ""}`);
+          return;
+        }
+        const list = Array.isArray(data?.models) ? (data.models as string[]) : [];
+        if (list.length) setModels(list);
+        const missing = Array.isArray(data?.missing) ? (data.missing as string[]) : [];
+        if (missing.length) {
+          setError(`Connexion à ${preset.label} réussie, mais modèle introuvable : ${missing.join(", ")} — choisissez-en un dans la liste.`);
+        } else {
+          setInfo(`Connexion à ${preset.label} réussie ✓${list.length ? ` — ${list.length} modèle(s) disponible(s)` : ""}`);
+        }
         return;
       }
       if (action === "reset") {
         setLicenseKey("");
-        setByokKey("");
+        setApiKey("");
         setInfo("Configuration réinitialisée.");
       } else {
         setLicenseKey("");
-        setByokKey("");
-        setInfo(
-          mode === "pack" ? "Pack JobScout activé ✓" : "Clé API personnelle activée ✓"
-        );
+        setApiKey("");
+        setInfo(mode === "pack" ? "Pack JobScout activé ✓" : `${preset.label} activé ✓`);
       }
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau");
     } finally {
-      setLoading(false);
+      setLoading(null);
     }
   }
 
   const configured = !!status?.configured;
-  const keyEntered = mode === "pack" ? !!licenseKey.trim() : !!byokKey.trim();
-  const storedHint = mode === "pack" ? status?.licenseHint : status?.byokHint;
-  const canSubmit = keyEntered || !!storedHint;
+  const storedKeyHint = status?.providers?.[provider]?.keyHint ?? null;
+  const canSubmit =
+    mode === "pack"
+      ? !!licenseKey.trim() || !!status?.licenseHint
+      : (!preset.keyRequired || !!apiKey.trim() || !!storedKeyHint) &&
+        !!writer.trim() &&
+        (!preset.editableBaseURL || !!baseURL.trim());
+  const activeLabel = useMemo(() => {
+    if (!status?.configured) return null;
+    if (status.mode === "pack") return "Pack actif";
+    return `${PROVIDERS[status.provider]?.label ?? "Clé API"} actif`;
+  }, [status]);
+  const listId = `ai-models-${provider}`;
 
   return (
     <Card data-testid="ai-settings">
@@ -129,44 +182,30 @@ export function AiSettings({
           <Sparkles className="h-5 w-5" />
         </div>
         <h2 className="text-h3">Génération IA</h2>
-        {configured && (
+        {configured && activeLabel && (
           <span className="ml-auto inline-flex items-center gap-1 text-caption text-success">
             <Check className="h-3.5 w-3.5" />
-            {status?.mode === "pack" ? "Pack actif" : "Clé API active"}
+            {activeLabel}
           </span>
         )}
       </div>
       <p className="text-small text-textSecondary mb-4">
-        {status?.packAvailable
-          ? "L'extraction de CV et la génération des documents utilisent l'IA. Choisissez le pack inclus avec votre licence JobScout, ou votre propre clé API Anthropic (facturée à l'usage, à vos frais)."
-          : "L'extraction de CV et la génération des documents utilisent l'IA, via votre propre clé API Anthropic (facturée à l'usage, à vos frais). La clé est nécessaire dès l'import du CV."}
+        L'extraction de CV et la rédaction des documents utilisent un modèle d'IA :{" "}
+        {status?.packAvailable ? "le pack inclus avec votre licence JobScout, " : ""}votre propre clé chez le
+        fournisseur de votre choix (facturée à l'usage par ce fournisseur) ou un modèle qui tourne sur votre machine
+        (Ollama, LM Studio). À configurer dès l'import du CV.
       </p>
 
-      {/* Choix du mode : le Pack n'est proposé que si un proxy est configuré (build Pro) */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        {status?.packAvailable && (
-          <ModeChip
-            active={mode === "pack"}
-            onClick={() => {
-              setMode("pack");
-              setError(null);
-              setInfo(null);
-            }}
-          >
+      {status?.packAvailable && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          <ModeChip active={mode === "pack"} onClick={() => { setMode("pack"); setError(null); setInfo(null); }}>
             Pack JobScout (licence)
           </ModeChip>
-        )}
-        <ModeChip
-          active={mode === "byok"}
-          onClick={() => {
-            setMode("byok");
-            setError(null);
-            setInfo(null);
-          }}
-        >
-          Ma clé API Anthropic
-        </ModeChip>
-      </div>
+          <ModeChip active={mode === "byok"} onClick={() => { setMode("byok"); setError(null); setInfo(null); }}>
+            Ma propre clé / mon modèle
+          </ModeChip>
+        </div>
+      )}
 
       {mode === "pack" ? (
         <>
@@ -187,36 +226,117 @@ export function AiSettings({
           </p>
         </>
       ) : (
-        <>
-          <Input
-            type="password"
-            value={byokKey}
-            onChange={(e) => setByokKey(e.target.value)}
-            placeholder="sk-ant-…"
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <p className="text-caption text-textSecondary mt-1.5">
-            {status?.byokHint ? (
-              <>Clé API enregistrée : <code>{status.byokHint}</code></>
-            ) : (
-              <>Créez une clé sur platform.claude.com (console Anthropic) — elle reste sur cette machine.</>
+        <div className="space-y-3">
+          <label className="block">
+            <span className="text-caption text-textSecondary">Fournisseur</span>
+            <select
+              className={cn(selectClass, "mt-1")}
+              value={provider}
+              data-testid="ai-provider"
+              onChange={(e) => {
+                const p = e.target.value as ProviderId;
+                setProvider(p);
+                loadProvider(p, status);
+                setError(null);
+                setInfo(null);
+              }}
+            >
+              {PROVIDER_IDS.map((id) => (
+                <option key={id} value={id}>
+                  {PROVIDERS[id].label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="text-caption text-textSecondary">
+            {preset.help}
+            {preset.keyUrl && (
+              <>
+                {" "}
+                <a className="inline-flex items-center gap-0.5 text-accent hover:underline" href={preset.keyUrl} target="_blank" rel="noreferrer">
+                  {preset.local ? "Télécharger" : "Créer une clé"} <ExternalLink className="h-3 w-3" />
+                </a>
+              </>
             )}
           </p>
-        </>
+
+          {(preset.keyRequired || provider === "custom") && (
+            <label className="block">
+              <span className="text-caption text-textSecondary">Clé API{preset.keyRequired ? "" : " (facultative)"}</span>
+              <Input
+                className="mt-1"
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder={preset.keyPlaceholder}
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <span className="block text-caption text-textSecondary mt-1">
+                {storedKeyHint ? <>Clé enregistrée : <code>{storedKeyHint}</code> — laissez vide pour la garder.</> : <>La clé reste sur cette machine.</>}
+              </span>
+            </label>
+          )}
+
+          {preset.editableBaseURL && (
+            <label className="block">
+              <span className="text-caption text-textSecondary">Adresse du serveur</span>
+              <Input
+                className="mt-1"
+                value={baseURL}
+                onChange={(e) => setBaseURL(e.target.value)}
+                placeholder={preset.baseURL || "https://mon-serveur.exemple/v1"}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-caption text-textSecondary">Modèle de rédaction (CV, lettre)</span>
+              <Input className="mt-1" list={listId} value={writer} onChange={(e) => setWriter(e.target.value)} placeholder="nom du modèle" spellCheck={false} />
+            </label>
+            <label className="block">
+              <span className="text-caption text-textSecondary">Modèle de relecture (plus léger)</span>
+              <Input className="mt-1" list={listId} value={reviewer} onChange={(e) => setReviewer(e.target.value)} placeholder="même modèle si vide" spellCheck={false} />
+            </label>
+          </div>
+          <datalist id={listId}>
+            {models.map((m) => (
+              <option key={m} value={m} />
+            ))}
+          </datalist>
+          {!preset.local && provider !== "anthropic" && (
+            <p className="text-caption text-textSecondary">
+              JobScout a été mis au point avec Claude. Avec un autre modèle, la qualité et le coût varient : relisez vos premiers documents.
+            </p>
+          )}
+          {preset.local && (
+            <p className="text-caption text-textSecondary">
+              Un modèle local respecte moins bien le format demandé et le français soutenu qu'un grand modèle en ligne : préférez au moins 14 milliards de paramètres.
+            </p>
+          )}
+        </div>
       )}
 
       <div className="flex flex-wrap items-center gap-2 mt-4">
-        <Button onClick={() => call("save")} disabled={loading || !canSubmit}>
-          {loading ? <Spinner size={16} className="text-white" /> : <Check className="h-4 w-4" />}
+        <Button onClick={() => call("save")} disabled={!!loading || !canSubmit}>
+          {loading === "save" ? <Spinner size={16} className="text-white" /> : <Check className="h-4 w-4" />}
           Enregistrer
         </Button>
-        <Button variant="secondary" onClick={() => call("verify")} disabled={loading || !canSubmit}>
-          <KeyRound className="h-4 w-4" />
+        <Button variant="secondary" onClick={() => call("verify")} disabled={!!loading || (mode === "pack" ? !canSubmit : preset.keyRequired && !apiKey.trim() && !storedKeyHint)}>
+          {loading === "verify" ? <Spinner size={16} /> : <KeyRound className="h-4 w-4" />}
           Vérifier
         </Button>
+        {mode === "byok" && (
+          <Button variant="secondary" onClick={() => call("models")} disabled={!!loading || (preset.keyRequired && !apiKey.trim() && !storedKeyHint)}>
+            {loading === "models" ? <Spinner size={16} /> : <ListRestart className="h-4 w-4" />}
+            Charger la liste
+          </Button>
+        )}
         {configured && status?.source === "settings" && (
-          <Button variant="ghost" onClick={() => call("reset")} disabled={loading}>
+          <Button variant="ghost" onClick={() => call("reset")} disabled={!!loading}>
             <RotateCcw className="h-4 w-4" /> Réinitialiser
           </Button>
         )}
@@ -224,14 +344,12 @@ export function AiSettings({
 
       {status?.mode === "pack" && status.quota?.points_remaining != null && (
         <p className="text-caption text-textSecondary mt-3">
-          Pack : ≈ {status.quota.dossiers_estimes ?? Math.floor(status.quota.points_remaining / 10)}{" "}
-          dossiers restants ({status.quota.points_remaining} points).
+          Pack : ≈ {status.quota.dossiers_estimes ?? Math.floor(status.quota.points_remaining / 10)} dossiers restants (
+          {status.quota.points_remaining} points).
         </p>
       )}
       {status?.source === "env" && (
-        <p className="text-caption text-textSecondary mt-3">
-          Mode développement : clé API lue depuis l'environnement.
-        </p>
+        <p className="text-caption text-textSecondary mt-3">Mode développement : clé Anthropic lue depuis l'environnement.</p>
       )}
 
       {info && (

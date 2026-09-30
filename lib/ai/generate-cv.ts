@@ -1,7 +1,7 @@
 import "server-only";
 import fs from "node:fs";
 import path from "node:path";
-import { getClaude, MODELS } from "./client";
+import { callStructured, type StructuredTool } from "./llm";
 import { compareRecentFirst, parseGeneratedCV } from "./cv-shape";
 import { AiContentError, assertNotTruncated } from "./errors";
 import { validateCVAgainstProfile } from "./validate";
@@ -154,7 +154,6 @@ export async function generateCV(
   lang: DocLang = detectDocLanguage(offre.title, offre.description_text, sourceLanguageHint(offre.source, offre.raw_payload), offre.country)
 ): Promise<GeneratedCV> {
   if (!_system) _system = fs.readFileSync(path.join(process.cwd(), "prompts", "generate-cv.md"), "utf-8");
-  const client = getClaude();
   // CV en anglais : le vocabulaire de compétences du profil (français) est
   // traduit une fois, en parallèle de la génération, pour que l'ancrage
   // anti-hallucination reconnaisse les compétences traduites par le modèle.
@@ -168,37 +167,26 @@ export async function generateCV(
   // préfixe tools+prompt est partagé entre tous les utilisateurs via la clé
   // unique du proxy, et le profil est réutilisé d'une offre à l'autre pendant
   // un burst de candidatures. Le bloc user ne garde que l'offre + la consigne.
-  const message = await client.messages.create({
-    model: MODELS.opus,
-    max_tokens: 4000,
+  const message = await callStructured({
+    role: "writer",
+    maxTokens: 4000,
     system: [
-      { type: "text", text: _system, cache_control: { type: "ephemeral" } },
-      {
-        type: "text",
-        text: `## Profil utilisateur\n${JSON.stringify(stripIds(profile), null, 2)}`,
-        cache_control: { type: "ephemeral" },
-      },
+      { text: _system, cache: true },
+      { text: `## Profil utilisateur\n${JSON.stringify(stripIds(profile), null, 2)}`, cache: true },
     ],
-    tools: [TOOL as any],
-    tool_choice: { type: "tool", name: "build_cv" },
-    messages: [
-      {
-        role: "user",
-        content: `${cvLanguageInstruction(lang)}
+    tool: TOOL as unknown as StructuredTool,
+    user: `${cvLanguageInstruction(lang)}
 
 ## Offre cible\n- Titre: ${offre.title}\n- Entreprise: ${offre.company}\n- Pays: ${offre.country ?? ""}\n- Description:\n${offre.description_text.slice(0, 6000)}\n\nGénère le CV optimisé${lang === "en" ? " — entièrement en anglais" : ""}.`,
-      },
-    ],
   });
   assertNotTruncated(message, "le CV");
-  const t = message.content.find((b) => b.type === "tool_use");
-  if (!t || t.type !== "tool_use")
+  if (!message.input)
     throw new AiContentError(
-      "La réponse IA pour le CV est vide (aucun contenu structuré) — relancez la génération."
+      "La réponse IA pour le CV est vide (aucun contenu structuré) — relancez la génération ; si cela se reproduit, choisissez un modèle plus capable dans Profil › Génération IA."
     );
   // Validation d'EXÉCUTION, jamais un cast nu : le proxy a déjà répondu 200 et
   // débité les points, un plantage ici serait payé sans rien livrer.
-  const raw = parseGeneratedCV(t.input);
+  const raw = parseGeneratedCV(message.input);
   // Anti-hallucination : strip companies/skills not anchored in the profile
   const vocabEn = vocabPromise ? await vocabPromise : [];
   // strict = la traduction a bien eu lieu ; sinon (échec silencieux du

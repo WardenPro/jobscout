@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { getSetting, setSetting } from "@/lib/db";
 import {
   LLM_SETTING_KEYS,
@@ -7,9 +6,18 @@ import {
   getLlmConfig,
   getLlmState,
   packAvailable,
+  providerBaseUrl,
+  providerBaseUrlSetting,
+  providerKeySetting,
+  providerModels,
+  providerModelsSetting,
   proxyBaseUrl,
   resetClaude,
+  type LlmConfig,
 } from "@/lib/ai/client";
+import { listModels } from "@/lib/ai/llm";
+import { translateAiError } from "@/lib/ai/errors";
+import { PROVIDERS, PROVIDER_IDS, isProviderId, validateBaseURL, type ProviderId } from "@/lib/ai/providers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,11 +25,13 @@ export const dynamic = "force-dynamic";
 /**
  * Configuration de la génération IA.
  *
- * GET  : état courant (mode, configuré, hints masqués) + quota du pack si
- *        joignable (timeout 4 s, échec totalement silencieux — motif
- *        lib/update/check.ts : l'app doit rester utilisable hors-ligne).
- * POST : { action: "save" | "verify" | "reset" } — les clés ne sont JAMAIS
- *        renvoyées en clair (hint = 4 derniers symboles).
+ * GET  : état courant (mode, fournisseur, configuré, hints masqués) + quota du
+ *        pack si joignable (timeout 4 s, échec totalement silencieux).
+ * POST : { action: "save" | "verify" | "models" | "reset" } — les clés ne sont
+ *        JAMAIS renvoyées en clair (hint = 4 derniers symboles).
+ *
+ * Clé personnelle : n'importe quel fournisseur du catalogue (lib/ai/providers.ts).
+ * Champs : provider, key (ou byok_key, ancien nom), base_url, model_writer, model_reviewer.
  */
 
 type Quota = {
@@ -67,12 +77,7 @@ async function fetchQuota(
     const body = await res.json().catch(() => null);
     if (!res.ok) {
       const code = (body as { error?: { code?: unknown } } | null)?.error?.code;
-      return {
-        ok: false,
-        status: res.status,
-        quota: null,
-        code: typeof code === "string" ? code : null,
-      };
+      return { ok: false, status: res.status, quota: null, code: typeof code === "string" ? code : null };
     }
     return { ok: true, status: res.status, quota: parseQuota(body), code: null };
   } catch {
@@ -104,12 +109,6 @@ const clean = (v: unknown): string | null => {
   return t.length > 0 ? t : null;
 };
 
-/** Clé fournie par le formulaire, sinon clé déjà enregistrée (champ laissé vide). */
-function resolveKey(provided: string | null, settingKey: string): string | null {
-  if (provided) return provided;
-  return clean(getSetting(settingKey));
-}
-
 async function verifyPack(licenseKey: string): Promise<NextResponse> {
   const res = await fetchQuota(licenseKey, { timeoutMs: 6000 });
   if (res.ok) {
@@ -137,35 +136,52 @@ async function verifyPack(licenseKey: string): Promise<NextResponse> {
   );
 }
 
-async function verifyByok(apiKey: string): Promise<NextResponse> {
-  try {
-    const client = new Anthropic({
-      apiKey,
-      baseURL: anthropicBaseUrl(),
-      // Voir lib/ai/client.ts : sans authToken: null, une ANTHROPIC_AUTH_TOKEN
-      // héritée de l'environnement partirait en Authorization: Bearer — et
-      // Anthropic pourrait refuser la clé personnelle pourtant valide, ce que
-      // le message d'erreur ci-dessous imputerait à tort à la saisie.
-      authToken: null,
-      maxRetries: 0,
-      timeout: 10_000,
-    });
-    // models.list : appel gratuit, valide la clé sans consommer de tokens.
-    await client.models.list();
-    return NextResponse.json({ ok: true, mode: "byok" });
-  } catch (e) {
-    if (e instanceof Anthropic.APIError) {
-      const msg =
-        e.status === 401
-          ? "Clé API Anthropic refusée — vérifiez la saisie (elle commence par sk-ant-)."
-          : `Vérification impossible (HTTP ${e.status ?? "?"}) — réessayez plus tard.`;
-      return NextResponse.json({ error: msg }, { status: e.status ?? 502 });
-    }
-    return NextResponse.json(
-      { error: "Impossible de joindre l'API Anthropic — vérifiez votre connexion internet." },
-      { status: 502 }
-    );
+type ByokDraft = { ok: true; cfg: LlmConfig } | { ok: false; error: string };
+
+/**
+ * Configuration clé personnelle construite à partir du formulaire, complétée
+ * par ce qui est déjà enregistré (champ clé laissé vide = clé enregistrée).
+ */
+function byokDraft(body: Record<string, unknown>): ByokDraft {
+  const providerRaw = clean(body.provider) ?? "anthropic";
+  if (!isProviderId(providerRaw)) return { ok: false, error: "Fournisseur d'IA inconnu." };
+  const provider: ProviderId = providerRaw;
+  const preset = PROVIDERS[provider];
+
+  const apiKey = clean(body.key) ?? clean(body.byok_key) ?? clean(getSetting(providerKeySetting(provider)));
+  if (preset.keyRequired && !apiKey) return { ok: false, error: `Saisissez votre clé API ${preset.label}.` };
+
+  let baseURL = provider === "anthropic" ? anthropicBaseUrl() : providerBaseUrl(provider);
+  if (preset.editableBaseURL) {
+    const v = validateBaseURL(clean(body.base_url) ?? baseURL);
+    if (!v.ok) return { ok: false, error: v.error };
+    baseURL = v.url;
   }
+
+  const stored = providerModels(provider);
+  const writer = clean(body.model_writer) ?? stored.writer;
+  const reviewer = clean(body.model_reviewer) ?? (clean(body.model_writer) ? writer : stored.reviewer) ?? writer;
+  if (!writer) return { ok: false, error: "Indiquez le modèle de rédaction (bouton « Charger la liste » pour voir les modèles disponibles)." };
+
+  return {
+    ok: true,
+    cfg: {
+      mode: "byok",
+      provider,
+      kind: preset.kind,
+      apiKey,
+      baseURL,
+      models: { writer, reviewer: reviewer || writer },
+      source: "settings",
+    },
+  };
+}
+
+function aiErrorResponse(e: unknown, fallback: string): NextResponse {
+  const t = translateAiError(e);
+  if (t) return NextResponse.json({ error: t.message }, { status: t.status >= 400 ? t.status : 502 });
+  console.error("[settings/llm]", e);
+  return NextResponse.json({ error: fallback }, { status: 502 });
 }
 
 export async function POST(req: NextRequest) {
@@ -175,13 +191,12 @@ export async function POST(req: NextRequest) {
   }
   const action = body.action;
   const mode = clean(body.mode);
-  const licenseKey = resolveKey(clean(body.license_key), LLM_SETTING_KEYS.licenseKey);
-  const byokKey = resolveKey(clean(body.byok_key), LLM_SETTING_KEYS.byokKey);
+  const licenseKey = clean(body.license_key) ?? clean(getSetting(LLM_SETTING_KEYS.licenseKey));
 
   if (action === "reset") {
     setSetting(LLM_SETTING_KEYS.mode, "");
     setSetting(LLM_SETTING_KEYS.licenseKey, "");
-    setSetting(LLM_SETTING_KEYS.byokKey, "");
+    for (const id of PROVIDER_IDS) setSetting(providerKeySetting(id), "");
     resetClaude(); // best-effort — l'empreinte relue à chaque appel fait le vrai travail
     return NextResponse.json({ ok: true, ...getLlmState(), quota: null });
   }
@@ -193,34 +208,48 @@ export async function POST(req: NextRequest) {
   // doit partir vers un hôte que personne ne contrôle.
   if (mode === "pack" && !packAvailable()) {
     return NextResponse.json(
-      { error: "Le Pack JobScout n'est pas disponible dans cette version — utilisez votre clé API Anthropic." },
+      { error: "Le Pack JobScout n'est pas disponible dans cette version — utilisez votre propre clé API." },
       { status: 400 }
     );
   }
 
-  if (action === "verify") {
-    if (mode === "pack") {
-      if (!licenseKey)
-        return NextResponse.json({ error: "Saisissez votre clé de licence JobScout." }, { status: 400 });
-      return verifyPack(licenseKey);
+  if (mode === "pack") {
+    if (!licenseKey)
+      return NextResponse.json({ error: "Saisissez votre clé de licence JobScout." }, { status: 400 });
+    if (action === "verify") return verifyPack(licenseKey);
+    if (action === "save") {
+      setSetting(LLM_SETTING_KEYS.mode, "pack");
+      setSetting(LLM_SETTING_KEYS.licenseKey, licenseKey);
+      resetClaude();
+      return NextResponse.json({ ok: true, ...getLlmState(), quota: null });
     }
-    if (!byokKey)
-      return NextResponse.json({ error: "Saisissez votre clé API Anthropic." }, { status: 400 });
-    return verifyByok(byokKey);
+    return NextResponse.json({ error: "Action inconnue." }, { status: 400 });
+  }
+
+  const draft = byokDraft(body);
+  if (!draft.ok) return NextResponse.json({ error: draft.error }, { status: 400 });
+  const { cfg } = draft;
+  const label = PROVIDERS[cfg.provider].label;
+
+  if (action === "models" || action === "verify") {
+    let models: string[];
+    try {
+      models = await listModels(cfg);
+    } catch (e) {
+      return aiErrorResponse(e, `Vérification impossible auprès de ${label} — réessayez plus tard.`);
+    }
+    if (action === "models") return NextResponse.json({ ok: true, models });
+    // Un serveur peut renvoyer une liste vide (certains serveurs locaux) : on ne conclut alors rien sur les modèles.
+    const missing = models.length ? [cfg.models.writer, cfg.models.reviewer].filter((m, i, a) => a.indexOf(m) === i && !models.includes(m)) : [];
+    return NextResponse.json({ ok: true, mode: "byok", provider: cfg.provider, models, missing });
   }
 
   if (action === "save") {
-    if (mode === "pack") {
-      if (!licenseKey)
-        return NextResponse.json({ error: "Saisissez votre clé de licence JobScout." }, { status: 400 });
-      setSetting(LLM_SETTING_KEYS.mode, "pack");
-      setSetting(LLM_SETTING_KEYS.licenseKey, licenseKey);
-    } else {
-      if (!byokKey)
-        return NextResponse.json({ error: "Saisissez votre clé API Anthropic." }, { status: 400 });
-      setSetting(LLM_SETTING_KEYS.mode, "byok");
-      setSetting(LLM_SETTING_KEYS.byokKey, byokKey);
-    }
+    setSetting(LLM_SETTING_KEYS.mode, "byok");
+    setSetting(LLM_SETTING_KEYS.provider, cfg.provider);
+    if (cfg.apiKey) setSetting(providerKeySetting(cfg.provider), cfg.apiKey);
+    if (PROVIDERS[cfg.provider].editableBaseURL) setSetting(providerBaseUrlSetting(cfg.provider), cfg.baseURL);
+    setSetting(providerModelsSetting(cfg.provider), JSON.stringify(cfg.models));
     resetClaude(); // best-effort — l'empreinte relue à chaque appel fait le vrai travail
     return NextResponse.json({ ok: true, ...getLlmState(), quota: null });
   }

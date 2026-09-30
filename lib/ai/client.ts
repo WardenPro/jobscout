@@ -1,24 +1,21 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { getSetting } from "@/lib/db";
+import { PROVIDERS, isProviderId, type ProviderId, type ProviderKind } from "./providers";
 
 /**
- * Client Claude routé selon le mode configuré :
+ * Configuration de la génération IA, relue à CHAQUE appel.
  *
- * - mode « pack »  : les appels passent par le proxy JobScout, authentifiés
- *   par la clé de licence (le SDK l'envoie en `x-api-key`). Quota décompté
- *   côté serveur. `maxRetries: 0` + timeout long : le proxy rembourse les
- *   échecs, c'est l'UI qui propose « Réessayer » — un retry automatique du
- *   SDK pourrait consommer deux réservations pour un seul dossier.
- * - mode « byok »  : clé Anthropic personnelle de l'utilisateur, appels
- *   directs à l'API Anthropic, défauts SDK.
+ * - mode « pack »  : appels via le proxy JobScout (format Anthropic), authentifiés
+ *   par la clé de licence. `maxRetries: 0` + timeout long : le proxy rembourse
+ *   les échecs, c'est l'UI qui propose « Réessayer ».
+ * - mode « byok »  : clé personnelle chez le fournisseur choisi (Anthropic,
+ *   OpenAI, Gemini, Mistral, DeepSeek, Groq, OpenRouter, Ollama, LM Studio ou
+ *   tout serveur compatible OpenAI — voir providers.ts).
  *
- * L'empreinte de configuration est relue à CHAQUE getClaude() via getSetting()
- * (SQLite synchrone, négligeable) : le build standalone duplique ce module
- * dans plusieurs bundles (msg/route.js, chunks/…), donc un simple
- * `resetClaude()` module-local ne suffit pas — le cache client vit sur
- * `globalThis`, partagé entre toutes les copies du module, et se reconstruit
- * dès que l'empreinte change.
+ * Le build standalone duplique ce module dans plusieurs bundles : le cache du
+ * client Anthropic vit sur `globalThis` et se reconstruit dès que l'empreinte
+ * de configuration change.
  *
  * `baseURL` est TOUJOURS passé explicitement pour neutraliser une
  * `ANTHROPIC_BASE_URL` qui traînerait dans l'environnement du poste.
@@ -27,8 +24,6 @@ import { getSetting } from "@/lib/db";
 /**
  * URL du proxy JobScout : AUCUNE par défaut. Le mode « Pack » n'existe que si
  * une URL est fournie par l'environnement (JOBSCOUT_PROXY_URL, build Pro).
- * Une URL par défaut vers un domaine que le projet ne contrôle pas enverrait
- * la clé de licence et le texte du CV à son propriétaire.
  */
 export const DEFAULT_PROXY_URL = "";
 
@@ -36,19 +31,30 @@ export const DEFAULT_PROXY_URL = "";
 const ANTHROPIC_API_URL = "https://api.anthropic.com";
 
 export type LlmMode = "pack" | "byok" | "unset";
+export type LlmRole = "writer" | "reviewer";
 
 /** Clés de la table settings — partagées avec la route /api/settings/llm. */
 export const LLM_SETTING_KEYS = {
   mode: "llm:mode",
   licenseKey: "llm:license_key",
+  /** Clé Anthropic (nom historique, conservé : les installations ≤ 3.4.10 continuent de fonctionner). */
   byokKey: "llm:byok_key",
+  provider: "llm:provider",
 } as const;
+
+/** Clé API d'un fournisseur (Anthropic garde son nom historique). */
+export const providerKeySetting = (p: ProviderId): string =>
+  p === "anthropic" ? LLM_SETTING_KEYS.byokKey : `llm:key:${p}`;
+/** URL de base choisie pour un fournisseur à adresse modifiable (Ollama, LM Studio, Autre). */
+export const providerBaseUrlSetting = (p: ProviderId): string => `llm:base_url:${p}`;
+/** Modèles choisis pour un fournisseur : JSON { writer, reviewer }. */
+export const providerModelsSetting = (p: ProviderId): string => `llm:models:${p}`;
 
 /** Levée quand aucune configuration IA n'existe — traduite en 400 côté routes. */
 export class LlmNotConfiguredError extends Error {
   constructor() {
     super(
-      "Génération IA non configurée — choisissez « Pack JobScout » ou « Ma clé API Anthropic » dans Profil › Génération IA."
+      "Génération IA non configurée — choisissez un fournisseur d'IA et renseignez votre clé dans Profil › Génération IA."
     );
     this.name = "LlmNotConfiguredError";
   }
@@ -78,11 +84,24 @@ export function anthropicBaseUrl(): string {
   return normalizeProxyUrl(fromEnv || ANTHROPIC_API_URL);
 }
 
+// IDs de modèles Anthropic par défaut, surchargeables via env
+// (JOBSCOUT_MODEL_OPUS / JOBSCOUT_MODEL_SONNET) sans redéployer.
+// En mode pack, le proxy FORCE de toute façon le modèle côté serveur.
+export const MODELS = {
+  // Rédaction : extraction CV, génération CV, lettre et message V.I.E
+  opus: process.env.JOBSCOUT_MODEL_OPUS || PROVIDERS.anthropic.models.writer,
+  // Relecture : relecture, traduction, réparation ciblée de la lettre
+  sonnet: process.env.JOBSCOUT_MODEL_SONNET || PROVIDERS.anthropic.models.reviewer,
+} as const;
+
 export type LlmConfig = {
   mode: LlmMode;
-  /** Clé active (licence ou clé Anthropic). Ne JAMAIS la renvoyer au navigateur. */
+  provider: ProviderId;
+  kind: ProviderKind;
+  /** Clé active (licence ou clé du fournisseur). Ne JAMAIS la renvoyer au navigateur. */
   apiKey: string | null;
   baseURL: string;
+  models: { writer: string; reviewer: string };
   /** "settings" = configuré par l'utilisateur ; "env" = rétro-compat dev. */
   source: "settings" | "env" | null;
 };
@@ -92,6 +111,39 @@ const clean = (v: string | null | undefined): string | null => {
   return t.length > 0 ? t : null;
 };
 
+/** Modèles enregistrés pour un fournisseur, sinon ses valeurs par défaut. */
+export function providerModels(p: ProviderId): { writer: string; reviewer: string } {
+  const defaults =
+    p === "anthropic" ? { writer: MODELS.opus, reviewer: MODELS.sonnet } : PROVIDERS[p].models;
+  const raw = clean(getSetting(providerModelsSetting(p)));
+  if (!raw) return { ...defaults };
+  try {
+    const v = JSON.parse(raw) as { writer?: unknown; reviewer?: unknown };
+    const w = typeof v.writer === "string" ? v.writer.trim() : "";
+    const r = typeof v.reviewer === "string" ? v.reviewer.trim() : "";
+    return { writer: w || defaults.writer, reviewer: r || w || defaults.reviewer };
+  } catch {
+    return { ...defaults };
+  }
+}
+
+/** URL de base effective d'un fournisseur. */
+export function providerBaseUrl(p: ProviderId): string {
+  if (p === "anthropic") return anthropicBaseUrl();
+  const preset = PROVIDERS[p];
+  if (preset.editableBaseURL) {
+    const stored = clean(getSetting(providerBaseUrlSetting(p)));
+    if (stored) return stored.replace(/\/+$/, "");
+  }
+  return preset.baseURL.replace(/\/+$/, "");
+}
+
+/** Fournisseur choisi (Anthropic si rien n'est enregistré : installations antérieures). */
+export function currentProvider(): ProviderId {
+  const p = clean(getSetting(LLM_SETTING_KEYS.provider));
+  return isProviderId(p) ? p : "anthropic";
+}
+
 /**
  * Lit la configuration au moment de l'appel (jamais mise en cache : c'est
  * l'empreinte qui pilote la reconstruction du client).
@@ -99,13 +151,27 @@ const clean = (v: string | null | undefined): string | null => {
 export function getLlmConfig(): LlmConfig {
   const mode = clean(getSetting(LLM_SETTING_KEYS.mode));
   const licenseKey = clean(getSetting(LLM_SETTING_KEYS.licenseKey));
-  const byokKey = clean(getSetting(LLM_SETTING_KEYS.byokKey));
 
   if (mode === "pack" && licenseKey && packAvailable()) {
-    return { mode: "pack", apiKey: licenseKey, baseURL: proxyBaseUrl(), source: "settings" };
+    return {
+      mode: "pack",
+      provider: "anthropic",
+      kind: "anthropic",
+      apiKey: licenseKey,
+      baseURL: proxyBaseUrl(),
+      models: { writer: MODELS.opus, reviewer: MODELS.sonnet },
+      source: "settings",
+    };
   }
-  if (mode === "byok" && byokKey) {
-    return { mode: "byok", apiKey: byokKey, baseURL: anthropicBaseUrl(), source: "settings" };
+
+  if (mode === "byok") {
+    const provider = currentProvider();
+    const preset = PROVIDERS[provider];
+    const apiKey = clean(getSetting(providerKeySetting(provider)));
+    const baseURL = providerBaseUrl(provider);
+    const models = providerModels(provider);
+    const ready = (apiKey || !preset.keyRequired) && baseURL && models.writer && models.reviewer;
+    if (ready) return { mode: "byok", provider, kind: preset.kind, apiKey, baseURL, models, source: "settings" };
   }
 
   // Rétro-compat développement UNIQUEMENT : une ANTHROPIC_API_KEY d'environnement
@@ -115,12 +181,35 @@ export function getLlmConfig(): LlmConfig {
     const envKey = clean(process.env.ANTHROPIC_API_KEY);
     // « sk-ant-... » recopié tel quel depuis .env.example n'est pas une clé.
     if (envKey && !envKey.includes("...")) {
-      return { mode: "byok", apiKey: envKey, baseURL: anthropicBaseUrl(), source: "env" };
+      return {
+        mode: "byok",
+        provider: "anthropic",
+        kind: "anthropic",
+        apiKey: envKey,
+        baseURL: anthropicBaseUrl(),
+        models: { writer: MODELS.opus, reviewer: MODELS.sonnet },
+        source: "env",
+      };
     }
   }
 
-  return { mode: "unset", apiKey: null, baseURL: anthropicBaseUrl(), source: null };
+  return {
+    mode: "unset",
+    provider: currentProvider(),
+    kind: PROVIDERS[currentProvider()].kind,
+    apiKey: null,
+    baseURL: providerBaseUrl(currentProvider()),
+    models: providerModels(currentProvider()),
+    source: null,
+  };
 }
+
+/** Réglages d'un fournisseur montrés à l'UI : jamais de clé en clair. */
+export type ProviderState = {
+  keyHint: string | null;
+  baseURL: string;
+  models: { writer: string; reviewer: string };
+};
 
 /** État sûr pour l'UI : jamais de clé en clair, hints masqués (4 derniers symboles). */
 export type LlmState = {
@@ -128,9 +217,12 @@ export type LlmState = {
   configured: boolean;
   source: "settings" | "env" | null;
   licenseHint: string | null;
+  /** Hint de la clé du fournisseur actif (compatibilité avec l'ancienne carte). */
   byokHint: string | null;
   /** Le mode « Pack » est-il proposé (proxy configuré) ? */
   packAvailable: boolean;
+  provider: ProviderId;
+  providers: Record<ProviderId, ProviderState>;
 };
 
 const hint = (key: string | null): string | null =>
@@ -138,13 +230,24 @@ const hint = (key: string | null): string | null =>
 
 export function getLlmState(): LlmState {
   const cfg = getLlmConfig();
+  const providers = {} as Record<ProviderId, ProviderState>;
+  for (const id of Object.keys(PROVIDERS) as ProviderId[]) {
+    providers[id] = {
+      keyHint: hint(clean(getSetting(providerKeySetting(id)))),
+      baseURL: providerBaseUrl(id),
+      models: providerModels(id),
+    };
+  }
+  const provider = cfg.mode === "unset" ? currentProvider() : cfg.provider;
   return {
     mode: cfg.mode,
     configured: cfg.mode !== "unset",
     source: cfg.source,
     licenseHint: hint(clean(getSetting(LLM_SETTING_KEYS.licenseKey))),
-    byokHint: hint(clean(getSetting(LLM_SETTING_KEYS.byokKey))),
+    byokHint: providers[provider].keyHint,
     packAvailable: packAvailable(),
+    provider,
+    providers,
   };
 }
 
@@ -152,8 +255,8 @@ export function getLlmState(): LlmState {
 type LlmCache = { fingerprint: string; client: Anthropic };
 const G = globalThis as typeof globalThis & { __jobscoutLlmClient?: LlmCache };
 
-export function getClaude(): Anthropic {
-  const cfg = getLlmConfig();
+/** Client Anthropic (mode pack, ou BYOK Anthropic). */
+export function getClaude(cfg: LlmConfig = getLlmConfig()): Anthropic {
   if (cfg.mode === "unset" || !cfg.apiKey) throw new LlmNotConfiguredError();
 
   const fingerprint = JSON.stringify([cfg.mode, cfg.apiKey, cfg.baseURL]);
@@ -164,12 +267,12 @@ export function getClaude(): Anthropic {
     apiKey: cfg.apiKey,
     baseURL: cfg.baseURL,
     // authToken explicitement neutralisé, au même titre que baseURL : sans lui,
-    // le SDK lit ANTHROPIC_AUTH_TOKEN dans l'environnement du poste
-    // (index.js:56) et l'envoie en `Authorization: Bearer …` à CHAQUE appel —
-    // y compris vers le proxy JobScout, donc vers un tiers, sans consentement.
+    // le SDK lit ANTHROPIC_AUTH_TOKEN dans l'environnement du poste et l'envoie
+    // en `Authorization: Bearer …` à CHAQUE appel — y compris vers le proxy
+    // JobScout, donc vers un tiers, sans consentement.
     authToken: null,
     // Mode pack : pas de retry SDK (le proxy rembourse, l'UI propose de
-    // réessayer) et timeout long (génération Opus non-streaming = minutes).
+    // réessayer) et timeout long (génération non-streaming = minutes).
     ...(cfg.mode === "pack" ? { maxRetries: 0, timeout: 150_000 } : {}),
   });
   G.__jobscoutLlmClient = { fingerprint, client };
@@ -183,13 +286,3 @@ export function getClaude(): Anthropic {
 export function resetClaude(): void {
   delete G.__jobscoutLlmClient;
 }
-
-// IDs de modèles surchargeables via env (JOBSCOUT_MODEL_OPUS / JOBSCOUT_MODEL_SONNET)
-// pour ne pas avoir à redéployer si Anthropic publie une nouvelle version.
-// En mode pack, le proxy FORCE de toute façon le modèle côté serveur.
-export const MODELS = {
-  // Lourd : extraction CV, génération CV, lettre et message V.I.E
-  opus: process.env.JOBSCOUT_MODEL_OPUS || "claude-opus-4-8",
-  // Léger : relecture, traduction, réparation ciblée de la lettre
-  sonnet: process.env.JOBSCOUT_MODEL_SONNET || "claude-sonnet-5",
-} as const;

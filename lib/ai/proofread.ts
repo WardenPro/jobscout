@@ -1,5 +1,5 @@
 import "server-only";
-import { getClaude, MODELS } from "./client";
+import { callStructured, type StructuredTool } from "./llm";
 import type { GeneratedCV } from "./generate-cv";
 import type { GeneratedLM } from "./generate-lm";
 import type { ProfileFull } from "@/lib/cv/types";
@@ -85,32 +85,24 @@ export async function proofreadTexts(
   const nonEmpty = texts.some((t) => t && t.trim());
   if (!nonEmpty) return texts;
   try {
-    const client = getClaude();
-    const message = await client.messages.create({
-      model: MODELS.sonnet,
-      max_tokens: 6000,
-      system: [{ type: "text", text: lang === "en" ? SYSTEM_EN : SYSTEM_FR, cache_control: { type: "ephemeral" } }],
-      tools: [TOOL as any],
-      tool_choice: { type: "tool", name: "return_corrections" },
-      messages: [
-        {
-          role: "user",
-          content:
-            lang === "en"
-              ? `## Profile facts (source of truth, in French)\n${profileFacts(profile)}\n\n` +
-                `## Document type: ${kind === "cv" ? "résumé (summary, then bullets)" : "cover letter (subject line, then paragraphs)"}\n\n` +
-                `## Texts to proofread (${texts.length}) — output language: ENGLISH\n` +
-                texts.map((t, i) => `[${i + 1}] ${t}`).join("\n\n")
-              : `## Faits du profil (vérité de référence)\n${profileFacts(profile)}\n\n` +
-                `## Type de document : ${kind === "cv" ? "CV (résumé puis puces)" : "lettre de motivation (objet puis paragraphes)"}\n\n` +
-                `## Textes à relire (${texts.length})\n` +
-                texts.map((t, i) => `[${i + 1}] ${t}`).join("\n\n"),
-        },
-      ],
+    const message = await callStructured({
+      role: "reviewer",
+      maxTokens: 6000,
+      system: [{ text: lang === "en" ? SYSTEM_EN : SYSTEM_FR, cache: true }],
+      tool: TOOL as unknown as StructuredTool,
+      user:
+        lang === "en"
+          ? `## Profile facts (source of truth, in French)\n${profileFacts(profile)}\n\n` +
+            `## Document type: ${kind === "cv" ? "résumé (summary, then bullets)" : "cover letter (subject line, then paragraphs)"}\n\n` +
+            `## Texts to proofread (${texts.length}) — output language: ENGLISH\n` +
+            texts.map((t, i) => `[${i + 1}] ${t}`).join("\n\n")
+          : `## Faits du profil (vérité de référence)\n${profileFacts(profile)}\n\n` +
+            `## Type de document : ${kind === "cv" ? "CV (résumé puis puces)" : "lettre de motivation (objet puis paragraphes)"}\n\n` +
+            `## Textes à relire (${texts.length})\n` +
+            texts.map((t, i) => `[${i + 1}] ${t}`).join("\n\n"),
     });
-    const t = message.content.find((b) => b.type === "tool_use");
-    if (!t || t.type !== "tool_use") throw new Error("pas de sortie d'outil");
-    const out = (t.input as { items?: unknown; changes?: unknown }) ?? {};
+    if (!message.input) throw new Error("pas de sortie structurée");
+    const out = message.input as { items?: unknown; changes?: unknown };
     const items = Array.isArray(out.items) ? out.items : [];
     if (items.length !== texts.length || !items.every((x) => typeof x === "string")) {
       throw new Error(`nombre d'éléments inattendu (${items.length} ≠ ${texts.length})`);
@@ -136,25 +128,17 @@ export async function translateToEnglish(items: string[], kind: string): Promise
   const idx = items.map((s, i) => (s && s.trim() ? i : -1)).filter((i) => i >= 0);
   if (!idx.length) return items;
   try {
-    const client = getClaude();
-    const message = await client.messages.create({
-      model: MODELS.sonnet,
-      max_tokens: 6000,
-      system: [{ type: "text", text: TRANSLATE_SYSTEM, cache_control: { type: "ephemeral" } }],
-      tools: [TRANSLATE_TOOL as any],
-      tool_choice: { type: "tool", name: "return_translations" },
-      messages: [
-        {
-          role: "user",
-          content:
-            `## Items to translate into English (${idx.length})\n` +
-            idx.map((i, k) => `[${k + 1}] ${items[i]}`).join("\n"),
-        },
-      ],
+    const message = await callStructured({
+      role: "reviewer",
+      maxTokens: 6000,
+      system: [{ text: TRANSLATE_SYSTEM, cache: true }],
+      tool: TRANSLATE_TOOL as unknown as StructuredTool,
+      user:
+        `## Items to translate into English (${idx.length})\n` +
+        idx.map((i, k) => `[${k + 1}] ${items[i]}`).join("\n"),
     });
-    const t = message.content.find((b) => b.type === "tool_use");
-    if (!t || t.type !== "tool_use") throw new Error("pas de sortie d'outil");
-    const out = (t.input as { items?: unknown }) ?? {};
+    if (!message.input) throw new Error("pas de sortie structurée");
+    const out = message.input as { items?: unknown };
     const got = Array.isArray(out.items) ? out.items : [];
     if (got.length !== idx.length || !got.every((x) => typeof x === "string")) {
       throw new Error(`nombre d'éléments inattendu (${got.length} ≠ ${idx.length})`);

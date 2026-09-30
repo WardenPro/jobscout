@@ -1,7 +1,7 @@
 import "server-only";
 import fs from "node:fs";
 import path from "node:path";
-import { getClaude, MODELS } from "@/lib/ai/client";
+import { callStructured, type StructuredTool } from "@/lib/ai/llm";
 import { AiContentError, assertNotTruncated } from "@/lib/ai/errors";
 import { ExtractedCVSchema, type ExtractedCV } from "./types";
 
@@ -146,31 +146,23 @@ export async function extractCV(text: string): Promise<ExtractedCV> {
       400
     );
   }
-  const client = getClaude();
-  const message = await client.messages.create({
-    model: MODELS.opus,
-    max_tokens: 8000,
-    system: [{ type: "text", text: getSystemPrompt(), cache_control: { type: "ephemeral" } }],
-    tools: [EXTRACT_TOOL as any],
-    tool_choice: { type: "tool", name: "extract_cv" },
-    messages: [
-      {
-        role: "user",
-        content: `Voici le texte brut extrait d'un CV. Extrais toutes les informations dans l'outil extract_cv selon les règles fournies dans le system prompt.\n\n<cv_text>\n${text}\n</cv_text>`,
-      },
-    ],
+  const message = await callStructured({
+    role: "writer",
+    maxTokens: 8000,
+    system: [{ text: getSystemPrompt(), cache: true }],
+    tool: EXTRACT_TOOL as unknown as StructuredTool,
+    user: `Voici le texte brut extrait d'un CV. Extrais toutes les informations dans l'outil extract_cv selon les règles fournies dans le system prompt.\n\n<cv_text>\n${text}\n</cv_text>`,
   });
 
   assertNotTruncated(message, "l'extraction du CV");
-  const toolUse = message.content.find((b) => b.type === "tool_use");
-  if (!toolUse || toolUse.type !== "tool_use") {
+  if (!message.input) {
     throw new AiContentError(
-      "La réponse IA pour l'extraction du CV est vide — relancez l'import du document."
+      "La réponse IA pour l'extraction du CV est vide — relancez l'import du document ; si cela se reproduit, choisissez un modèle plus capable dans Profil › Génération IA."
     );
   }
   // Sortie hors schéma : le rapport zod (anglais, verbeux) ne doit pas remonter
   // dans l'UI — on journalise et on rend un message FR actionnable.
-  const parsed = ExtractedCVSchema.safeParse(toolUse.input);
+  const parsed = ExtractedCVSchema.safeParse(message.input);
   if (!parsed.success) {
     console.error("[extractCV] sortie d'outil hors schéma :", parsed.error.issues.slice(0, 5));
     throw new AiContentError(

@@ -9,7 +9,8 @@ Tout tourne sur votre machine : base SQLite locale, serveur limité à `127.0.0.
 ## Stack
 
 - **Next.js 15** (App Router) + **React 19** + **TypeScript** + **Tailwind**
-- **Anthropic Claude** — Opus 4.8 (extraction du CV, génération du CV, de la lettre et du message V.I.E), Sonnet 5 (relecture, traduction anglaise, réparation ciblée de la lettre). Identifiants de modèle surchargeables par `JOBSCOUT_MODEL_OPUS` / `JOBSCOUT_MODEL_SONNET`.
+- **IA au choix** — Anthropic Claude (référence : Opus 4.8 pour la rédaction, Sonnet 5 pour la relecture), OpenAI, Google Gemini, Mistral, DeepSeek, Groq, OpenRouter, Ollama et LM Studio en local, ou tout serveur compatible OpenAI. Deux modèles par fournisseur : un de **rédaction** (extraction du CV, CV, lettre, message V.I.E) et un de **relecture** (relecture, traduction anglaise, réparation ciblée de la lettre). Couche commune : `lib/ai/llm.ts` ; catalogue : `lib/ai/providers.ts`.
+- **Tests** : Vitest (`npm test`) et intégration continue GitHub Actions (types, tests, build sur Windows et Linux, Node 22 et 24)
 - **SQLite** intégré (`node:sqlite`, WAL) + fichiers locaux
 - **Scraping** : `fetch` + parsing DOM (`jsdom`) + JSON-LD `JobPosting` ; Playwright uniquement pour LinkedIn
 - **@react-pdf/renderer** + **docx** pour les documents générés ; **xlsx** pour l'import/export des candidatures
@@ -31,7 +32,20 @@ npm run dev
 
 L'app démarre sur http://127.0.0.1:3000 (écoute limitée à la machine locale, rien n'est exposé au réseau). Sous Windows, `scripts/Start-JobScout.ps1` lance le serveur de développement et ouvre le navigateur.
 
-**Clé IA obligatoire dès l'inscription** : l'onboarding lit votre CV avec Claude pour créer le profil. Collez votre clé API Anthropic (créée sur https://platform.claude.com) dans l'écran « Génération IA » de l'onboarding. Elle reste dans la base locale. Autre possibilité : copiez `.env.example` en `.env` et renseignez `ANTHROPIC_API_KEY` (mode développement uniquement).
+**IA à configurer dès l'inscription** : l'onboarding lit votre CV avec un modèle d'IA pour créer le profil. Dans l'écran « Génération IA », choisissez votre fournisseur et collez votre clé :
+
+| Fournisseur | Clé | Remarque |
+|---|---|---|
+| Anthropic (Claude) | https://platform.claude.com | référence de JobScout, meilleure fidélité au profil ; les modèles récents qui refusent l'appel d'outil forcé (Opus 5.5, Sonnet 5.5) passent d'eux-mêmes en mode « auto » |
+| OpenAI | https://platform.openai.com/api-keys | GPT-6 Sol / Luna, raisonnement coupé (requis pour les réponses structurées en Chat Completions) |
+| Google Gemini | https://aistudio.google.com/apikey | offre gratuite limitée |
+| Mistral | https://console.mistral.ai/api-keys | fournisseur européen |
+| DeepSeek | https://platform.deepseek.com/api_keys | très économique ; mode « thinking » coupé (requis pour l'appel d'outil forcé) |
+| Groq, OpenRouter | console du fournisseur | Groq : offre gratuite très limitée (≈ 8 000 jetons/min) ; OpenRouter : une clé pour des centaines de modèles |
+| Ollama, LM Studio | aucune clé | 100 % local et gratuit ; qualité selon le modèle (par exemple `gemma4:12b`, `qwen3.5:9b`, `ministral-3:14b`) ; réponse contrainte par le schéma JSON, ces serveurs ne sachant pas forcer un appel d'outil |
+| Autre | selon le serveur | tout serveur au format OpenAI Chat Completions (URL de base à indiquer) |
+
+« Charger la liste » propose les modèles disponibles chez le fournisseur, « Vérifier » teste la connexion. Les clés restent dans la base locale. Une adresse de serveur doit être en `https://`, sauf serveur sur la machine même (`http://127.0.0.1…`). Mode développement : une `ANTHROPIC_API_KEY` dans `.env` sert de repli si rien n'est configuré.
 
 **LinkedIn (optionnel)** : c'est la seule source qui a besoin d'un navigateur Chromium. Activez-la dans Profil › Sources, puis cliquez « Installer le moteur LinkedIn » (~100 Mo à télécharger, ~265 Mo sur le disque). En ligne de commande : `npm run playwright:install`.
 
@@ -80,7 +94,9 @@ Cascade selon le type de fichier : PDF (`pdf-parse` ou `pdfjs-dist` multi-colonn
 
 `data/documents/…` — CV et lettre en PDF **et** DOCX, avec une boucle de rétrécissement qui garantit une page A4. Langue détectée par offre (français, ou anglais si l'annonce est en anglais). Relecture automatique : orthographe, affirmations non étayées par le profil. Message court (V.I.E) réservé aux offres V.I.E.
 
-Coût avec votre clé Anthropic : environ 0,12 à 0,20 $ par dossier (CV + lettre, relecture comprise) aux tarifs actuels, selon la longueur du profil et de l'offre.
+Coût : avec Claude (Anthropic), environ 0,12 à 0,20 $ par dossier (CV + lettre, relecture comprise) aux tarifs actuels, selon la longueur du profil et de l'offre. Avec un autre fournisseur, le coût suit ses tarifs ; en local (Ollama, LM Studio), il est nul. Le nombre de jetons de chaque appel est écrit dans le journal du serveur (`[llm] …`).
+
+**Qualité selon le modèle** : les garde-fous anti-invention (validation contre le profil, limites de mise en page) s'appliquent quel que soit le modèle. Mais JobScout a été mis au point avec Claude : avec un autre modèle, relisez vos premiers documents. Si un modèle renvoie une réponse mal formée, JobScout tente un repli (mode JSON, extraction tolérante) avant d'afficher une erreur qui invite à choisir un modèle plus capable.
 
 ## Sécurité
 
@@ -95,11 +111,26 @@ Coût avec votre clé Anthropic : environ 0,12 à 0,20 $ par dossier (CV + lettr
 | | Gratuit (ce dépôt) | Pro (en préparation) |
 |---|---|---|
 | Scan 6 sources + scoring local | illimité | illimité |
-| CV / lettre / message IA | avec **votre** clé Anthropic | crédits inclus via le relais JobScout, sans clé |
+| CV / lettre / message IA | avec **votre** clé (fournisseur au choix) ou un modèle local | crédits inclus via le relais JobScout, sans clé |
 | Installation | Node ≥ 22.13 + `npm ci` | installeur Windows autonome |
 | Mises à jour | `git pull` | notification dans l'application |
 
-Le code est identique : la version Pro n'aura aucune fonction cachée. Modes IA (`lib/ai/client.ts`) : `byok` (votre clé Anthropic) ; `pack` (licence → relais), proposé uniquement quand un relais est configuré par `JOBSCOUT_PROXY_URL` ; `unset` (aucune clé : l'onboarding reste bloqué à l'import du CV).
+Le code est identique : la version Pro n'aura aucune fonction cachée. Modes IA (`lib/ai/client.ts`) : `byok` (votre clé ou votre modèle local, fournisseur au choix) ; `pack` (licence → relais), proposé uniquement quand un relais est configuré par `JOBSCOUT_PROXY_URL` ; `unset` (rien de configuré : l'onboarding reste bloqué à l'import du CV).
+
+## Tests
+
+```bash
+npm test            # tests automatiques (Vitest) : couche IA, fournisseurs, configuration, génération de bout en bout
+npm run typecheck   # vérification des types
+```
+
+Les tests n'utilisent ni clé ni réseau : un faux serveur compatible OpenAI rejoue la génération complète (prompts, validation anti-invention, relecture). GitHub Actions les lance à chaque push et pull request (`.github/workflows/ci.yml`).
+
+Test réel optionnel avec votre propre fournisseur (appels facturés par lui, quelques centimes) :
+
+```bash
+JOBSCOUT_LIVE=1 JOBSCOUT_LIVE_PROVIDER=openai JOBSCOUT_LIVE_KEY=sk-... npx vitest run tests/live
+```
 
 ## Licence
 

@@ -1,7 +1,7 @@
 import "server-only";
 import fs from "node:fs";
 import path from "node:path";
-import { getClaude, MODELS } from "./client";
+import { callStructured, type StructuredTool } from "./llm";
 import type { ProfileFull } from "@/lib/cv/types";
 
 export type ScoreResult = {
@@ -72,7 +72,6 @@ export async function scoreOffres(
 ): Promise<ScoreResult[]> {
   if (offres.length === 0) return [];
 
-  const client = getClaude();
   const profileSummary = buildProfileSummary(profile);
 
   // Truncate descriptions to keep batch reasonable; full descriptions stay in DB.
@@ -84,32 +83,22 @@ export async function scoreOffres(
     description: o.description_text.slice(0, 3000),
   }));
 
-  const message = await client.messages.create({
-    model: MODELS.sonnet,
-    max_tokens: 4000,
+  const message = await callStructured({
+    role: "reviewer",
+    maxTokens: 4000,
     system: [
-      { type: "text", text: getSystemPrompt(), cache_control: { type: "ephemeral" } },
-      {
-        type: "text",
-        text: `<profil_utilisateur>\n${profileSummary}\n</profil_utilisateur>`,
-        cache_control: { type: "ephemeral" },
-      },
+      { text: getSystemPrompt(), cache: true },
+      { text: `<profil_utilisateur>\n${profileSummary}\n</profil_utilisateur>`, cache: true },
     ],
-    tools: [SCORE_TOOL as any],
-    tool_choice: { type: "tool", name: "score_offres" },
-    messages: [
-      {
-        role: "user",
-        content: `Score les ${offres.length} offres ci-dessous.\n\n${JSON.stringify(offresPayload)}`,
-      },
-    ],
+    tool: SCORE_TOOL as unknown as StructuredTool,
+    user: `Score les ${offres.length} offres ci-dessous.\n\n${JSON.stringify(offresPayload)}`,
   });
 
-  const toolUse = message.content.find((b) => b.type === "tool_use");
-  if (!toolUse || toolUse.type !== "tool_use") {
+  if (!message.input) {
     return offres.map(() => ({ score: 0, breakdown: { sector: 0, skills: 0, country: 0 }, reason: "" }));
   }
-  const out = (toolUse.input as { results: any[] }).results || [];
+  const results = (message.input as { results?: unknown }).results;
+  const out = (Array.isArray(results) ? results : []) as any[];
   const ordered: ScoreResult[] = offres.map((_, i) => {
     const r = out.find((x: any) => x.offre_index === i);
     if (!r) return { score: 0, breakdown: { sector: 0, skills: 0, country: 0 }, reason: "" };

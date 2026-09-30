@@ -1,7 +1,7 @@
 import "server-only";
 import fs from "node:fs";
 import path from "node:path";
-import { getClaude, MODELS } from "./client";
+import { callStructured, type StructuredTool } from "./llm";
 import { AiContentError, assertNotTruncated } from "./errors";
 import type { ProfileFull } from "@/lib/cv/types";
 import type { OffreFiltered } from "@/lib/db/offres";
@@ -136,25 +136,20 @@ export async function generateMsgVie(
       "utf-8"
     );
   }
-  const client = getClaude();
-  const message = await client.messages.create({
-    model: MODELS.opus,
-    max_tokens: 1200,
-    system: [
-      { type: "text", text: _system, cache_control: { type: "ephemeral" } },
-    ],
-    tools: [TOOL as any],
-    tool_choice: { type: "tool", name: "build_msg_vie" },
-    messages: [{ role: "user", content: buildUserPrompt(profile, offre, lang) }],
+  const message = await callStructured({
+    role: "writer",
+    maxTokens: 1200,
+    system: [{ text: _system, cache: true }],
+    tool: TOOL as unknown as StructuredTool,
+    user: buildUserPrompt(profile, offre, lang),
   });
   assertNotTruncated(message, "le message V.I.E");
-  const t = message.content.find((b) => b.type === "tool_use");
-  if (!t || t.type !== "tool_use")
+  if (!message.input)
     throw new AiContentError(
       "La réponse IA pour le message V.I.E est vide — relancez la génération."
     );
   // Lecture défensive : la sortie d'outil n'est pas garantie conforme au schéma.
-  const out = (t.input ?? {}) as Partial<GeneratedMsgVie>;
+  const out = message.input as Partial<GeneratedMsgVie>;
   const line = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
 
   const intro = line(out.intro_line);

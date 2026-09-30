@@ -69,6 +69,9 @@ const PATTERNS = [
     re: /(?<![\d.\-])0[1-9](?:[ .\-]\d{2}){4}(?![ .\-]?\d)/g,
   },
   { label: "clé API Anthropic", re: /sk-ant-[A-Za-z0-9_\-]{8,}/g },
+  { label: "clé API OpenAI / DeepSeek / OpenRouter", re: /sk-(?:proj-|or-v1-)?[A-Za-z0-9_\-]{32,}/g },
+  { label: "clé API Google (Gemini)", re: /AIza[0-9A-Za-z_\-]{35}/g },
+  { label: "clé API Groq", re: /gsk_[A-Za-z0-9]{40,}/g },
   { label: "secret d'environnement", re: /(?:API_KEY|SECRET|TOKEN)\s*=\s*\S{12,}/g },
 ];
 
@@ -200,12 +203,12 @@ async function generateLocalNeedles() {
         /* snapshot illisible : ignoré */
       }
     }
-    // Clés IA (llm:byok_key = clé Anthropic perso, llm:license_key = clé de
-    // licence) : des secrets, jamais des données de démo — toute occurrence
-    // dans une distribution est une fuite.
+    // Clés IA (llm:byok_key = clé Anthropic perso, llm:key:<fournisseur> = clés
+    // des autres fournisseurs, llm:license_key = clé de licence) : des secrets,
+    // jamais des données de démo — toute occurrence dans une distribution est une fuite.
     for (const row of db
       .prepare(
-        "SELECT value FROM settings WHERE key IN ('llm:byok_key', 'llm:license_key')"
+        "SELECT value FROM settings WHERE key IN ('llm:byok_key', 'llm:license_key') OR key LIKE 'llm:key:%'"
       )
       .all()) {
       add(row.value);

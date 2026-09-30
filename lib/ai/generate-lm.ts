@@ -1,7 +1,7 @@
 import "server-only";
 import fs from "node:fs";
 import path from "node:path";
-import { getClaude, MODELS } from "./client";
+import { callStructured, type StructuredTool } from "./llm";
 import { AiContentError, assertNotTruncated } from "./errors";
 import { validateLMAgainstProfile } from "./validate";
 import { proofreadLM } from "./proofread";
@@ -46,31 +46,23 @@ export async function generateLM(
   lang: DocLang = detectDocLanguage(offre.title, offre.description_text, sourceLanguageHint(offre.source, offre.raw_payload), offre.country)
 ): Promise<GeneratedLM> {
   if (!_system) _system = fs.readFileSync(path.join(process.cwd(), "prompts", "generate-lm.md"), "utf-8");
-  const client = getClaude();
-  const message = await client.messages.create({
-    model: MODELS.opus,
-    max_tokens: 2000,
-    system: [{ type: "text", text: _system, cache_control: { type: "ephemeral" } }],
-    tools: [TOOL as any],
-    tool_choice: { type: "tool", name: "build_lm" },
-    messages: [
-      {
-        role: "user",
-        content:
-          `${lmLanguageInstruction(lang)}
+  const message = await callStructured({
+    role: "writer",
+    maxTokens: 2000,
+    system: [{ text: _system, cache: true }],
+    tool: TOOL as unknown as StructuredTool,
+    user:
+      `${lmLanguageInstruction(lang)}
 
 ## Faits du profil — SEULE source autorisée pour le §2 (dates, puces, outils par expérience)\n${profileFacts(profile)}\n\n` +
-          `## Offre\n- Titre: ${offre.title}\n- Entreprise: ${offre.company || "(non précisée dans l'annonce)"}\n- Lieu de l'offre: ${[offre.location, offre.country].filter(Boolean).join(", ") || "(non précisé)"}\n- Ville du candidat: ${profile.location ?? "(non précisée)"}\n- Description:\n${offre.description_text.slice(0, 5000)}\n\nRédige la lettre de motivation${lang === "en" ? " — entièrement en anglais" : ""}.`,
-      },
-    ],
+      `## Offre\n- Titre: ${offre.title}\n- Entreprise: ${offre.company || "(non précisée dans l'annonce)"}\n- Lieu de l'offre: ${[offre.location, offre.country].filter(Boolean).join(", ") || "(non précisé)"}\n- Ville du candidat: ${profile.location ?? "(non précisée)"}\n- Description:\n${offre.description_text.slice(0, 5000)}\n\nRédige la lettre de motivation${lang === "en" ? " — entièrement en anglais" : ""}.`,
   });
   assertNotTruncated(message, "la lettre de motivation");
-  const t = message.content.find((b) => b.type === "tool_use");
-  if (!t || t.type !== "tool_use")
+  if (!message.input)
     throw new AiContentError(
-      "La réponse IA pour la lettre de motivation est vide — relancez la génération."
+      "La réponse IA pour la lettre de motivation est vide — relancez la génération ; si cela se reproduit, choisissez un modèle plus capable dans Profil › Génération IA."
     );
-  const shaped = enforceLMShape(t.input);
+  const shaped = enforceLMShape(message.input);
   // Sortie vide = document vide écrit sur disque et annoncé comme réussi :
   // aucune des routes ne vérifiait la non-vacuité.
   if (shaped.body_paragraphs.join("").trim().length < 50) {
@@ -177,25 +169,17 @@ async function ensureMobility(
   const place = [city, lang === "en" ? countryEn || countryFr : countryFr].filter(Boolean).join(", ");
   console.log(`[generateLM] mobilité : lieu « ${place} » absent de la lettre — réparation du §4`);
   try {
-    const client = getClaude();
-    const message = await client.messages.create({
-      model: MODELS.sonnet,
-      max_tokens: 800,
+    const message = await callStructured({
+      role: "reviewer",
+      maxTokens: 800,
       system:
         lang === "en"
           ? "You edit ONE paragraph of a cover letter. Insert, naturally, an explicit sentence of availability and mobility that names the job location given (on-site interview there or by video call, readiness to relocate). Keep every other sentence unchanged, same language (English), no salutation, no sign-off. Return only the paragraph via the tool."
           : "Tu modifies UN paragraphe d'une lettre de motivation. Insère, naturellement, une phrase explicite de disponibilité et de mobilité qui nomme le lieu de l'offre indiqué (entretien sur place ou en visioconférence, mobilité vers ce lieu). Conserve toutes les autres phrases à l'identique, même langue (français), sans salutation ni formule de politesse. Renvoie uniquement le paragraphe via l'outil.",
-      tools: [MOBILITY_TOOL as any],
-      tool_choice: { type: "tool", name: "return_paragraph" },
-      messages: [
-        {
-          role: "user",
-          content: `Job location: ${place}\nCandidate city: ${candidateCity || "(unknown)"}\n\nParagraph:\n${lm.body_paragraphs[idx]}`,
-        },
-      ],
+      tool: MOBILITY_TOOL as unknown as StructuredTool,
+      user: `Job location: ${place}\nCandidate city: ${candidateCity || "(unknown)"}\n\nParagraph:\n${lm.body_paragraphs[idx]}`,
     });
-    const t = message.content.find((b) => b.type === "tool_use");
-    const out = t && t.type === "tool_use" ? (t.input as { paragraph?: unknown }).paragraph : null;
+    const out = message.input ? (message.input as { paragraph?: unknown }).paragraph : null;
     if (typeof out !== "string" || out.trim().length < 20) throw new Error("paragraphe vide");
     if (!names.some((n) => foldText(out).includes(foldText(n)))) throw new Error("lieu toujours absent");
     const body_paragraphs = [...lm.body_paragraphs];

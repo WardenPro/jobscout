@@ -7,9 +7,9 @@ Ce guide s'adresse à tout le monde, y compris si vous n'avez jamais ouvert un t
 | | |
 |---|---|
 | **Temps total** | environ 20 à 35 minutes, dont **10 à 15 minutes devant l'écran** |
-| **Ce qu'il faut** | un ordinateur (Windows, macOS ou Linux), une connexion internet, votre CV, une clé API Anthropic |
-| **Coût** | logiciel gratuit ; l'IA est facturée par Anthropic sur votre clé, environ **0,12 à 0,20 $ par dossier** (CV + lettre). Le scan et le tri des offres sont gratuits. |
-| **Où vont vos données** | profil, offres, documents et candidatures restent sur votre ordinateur (dossier `data/`). Pour rédiger, JobScout envoie votre profil et l'offre à l'API Claude d'Anthropic, avec votre clé. |
+| **Ce qu'il faut** | un ordinateur (Windows, macOS ou Linux), une connexion internet, votre CV, et une IA : une clé API chez le fournisseur de votre choix (Anthropic, OpenAI, Google Gemini, Mistral, DeepSeek…) ou un modèle local gratuit (Ollama, LM Studio) |
+| **Coût** | logiciel gratuit ; l'IA est facturée par votre fournisseur sur votre clé — avec Claude (Anthropic), environ **0,12 à 0,20 $ par dossier** (CV + lettre) ; gratuite avec un modèle local. Le scan et le tri des offres sont gratuits. |
+| **Où vont vos données** | profil, offres, documents et candidatures restent sur votre ordinateur (dossier `data/`). Pour rédiger, JobScout envoie votre profil et l'offre au fournisseur d'IA choisi, avec votre clé — ou à aucun, avec un modèle local. |
 
 ## Combien de temps ça prend ?
 
@@ -35,7 +35,9 @@ Durées mesurées le 30/09/2026 sur un PC Windows 11 relié à la fibre. Avec un
 
 - **Un ordinateur** Windows 10 ou 11, macOS ou Linux, avec 8 Go de mémoire de préférence (4 Go minimum) et **environ 1 Go d'espace disque libre** (plus 265 Mo si vous activez LinkedIn).
 - **Node.js 22.13 ou plus récent** : l'étape 1 explique comment l'installer.
-- **Une clé API Anthropic.** Créez un compte sur [platform.claude.com](https://platform.claude.com), ajoutez des crédits (paiement à l'usage), puis créez une clé dans « API Keys ». Elle ressemble à `sk-ant-…`. Gardez-la pour l'étape 5 ; ne la partagez avec personne.
+- **Une IA, au choix** :
+  - **une clé API** chez un fournisseur. Anthropic (Claude) est la référence de JobScout : compte sur [platform.claude.com](https://platform.claude.com), crédits (paiement à l'usage), puis une clé dans « API Keys » (`sk-ant-…`). Fonctionnent aussi : [OpenAI](https://platform.openai.com/api-keys), [Google Gemini](https://aistudio.google.com/apikey) (offre gratuite limitée), [Mistral](https://console.mistral.ai/api-keys), [DeepSeek](https://platform.deepseek.com/api_keys), [Groq](https://console.groq.com/keys), [OpenRouter](https://openrouter.ai/keys). Gardez la clé pour l'étape 5 ; ne la partagez avec personne ;
+  - **ou un modèle local gratuit**, sans clé ni données qui sortent : installez [Ollama](https://ollama.com/download) (puis par exemple `ollama pull gemma4:12b`) ou [LM Studio](https://lmstudio.ai). Il faut une machine assez puissante (16 Go de mémoire conseillés) et la qualité des documents est en général en dessous des grands modèles en ligne.
 - **Votre CV** en PDF, DOCX, TXT ou image.
 - **Git** est facultatif : vous pouvez télécharger JobScout en ZIP (étape 2, option B).
 
@@ -114,7 +116,7 @@ powershell -ExecutionPolicy Bypass -File scripts\Start-JobScout.ps1
 
 L'assistant s'ouvre tout seul, en trois étapes : **Importer**, **Vérifier**, **Préférences**.
 
-1. **Génération IA** : collez votre clé API Anthropic, cliquez sur **Enregistrer** puis **Vérifier**. Elle est enregistrée dans la base locale, sur votre ordinateur.
+1. **Génération IA** : choisissez votre **fournisseur**, collez votre clé (aucune pour Ollama ou LM Studio), puis **Charger la liste** pour choisir le modèle de rédaction et le modèle de relecture (les valeurs proposées conviennent en général). Cliquez sur **Vérifier**, puis **Enregistrer**. La clé est enregistrée dans la base locale, sur votre ordinateur. Pour un modèle local, lancez d'abord Ollama ou le serveur de LM Studio.
 2. **Importer** : déposez votre CV. L'IA en extrait votre profil (expériences, compétences, langues…). Comptez de quelques secondes à une minute.
 3. **Vérifier** : relisez le profil extrait et corrigez ce qui doit l'être. JobScout ne rédigera jamais une compétence absente de ce profil : c'est le moment d'être complet.
 4. **Préférences** : pays visés, types de contrat, secteurs, et les sources à scanner.
@@ -129,7 +131,7 @@ Page **Offres** › **Lancer un scan**. JobScout interroge chaque source, puis n
 - Vous pouvez utiliser l'ordinateur et même JobScout pendant ce temps. Laissez simplement le terminal ouvert et évitez la mise en veille.
 - Une source indisponible (site en panne, protection anti-robot) est signalée dans le journal du scan ; les autres continuent.
 
-Ensuite, sur la fiche d'une offre, **Générer les documents** produit un CV et une lettre d'une page (PDF et Word), dans la langue de l'annonce. C'est la seule étape qui utilise votre clé API (0,12 à 0,20 $ par dossier) ; comptez en général moins de deux minutes.
+Ensuite, sur la fiche d'une offre, **Générer les documents** produit un CV et une lettre d'une page (PDF et Word), dans la langue de l'annonce. C'est la seule étape (avec l'import du CV) qui utilise l'IA : 0,12 à 0,20 $ par dossier avec Claude, selon les tarifs du fournisseur sinon, rien avec un modèle local. Comptez en général moins de deux minutes avec un modèle en ligne, davantage avec un modèle local.
 
 ## Au quotidien
 
@@ -147,7 +149,10 @@ Ensuite, sur la fiche d'une offre, **Générer les documents** produit un CV et 
 | `EBADENGINE` ou un message sur la version de Node | Votre Node.js est trop ancien : installez la version LTS actuelle (22.13 ou plus). |
 | `Port 3000 is in use` | Un autre programme utilise ce port. Lancez `npm run dev -- -p 3001`, puis ouvrez http://127.0.0.1:3001. |
 | La page ne s'ouvre pas | Vérifiez que le terminal tourne toujours et affiche `Ready`. Utilisez bien `http://127.0.0.1:3000`. |
-| La clé API est refusée | Vérifiez qu'elle est copiée en entier (`sk-ant-…`) et qu'il reste des crédits sur votre compte Anthropic. |
+| La clé API est refusée | Vérifiez que le bon fournisseur est choisi, que la clé est copiée en entier et qu'il reste des crédits sur votre compte chez ce fournisseur. |
+| « Modèle introuvable » | Cliquez sur **Charger la liste** dans Profil › Génération IA et choisissez un modèle proposé. |
+| « Impossible de joindre Ollama / LM Studio » | Lancez le logiciel (et, pour LM Studio, démarrez son serveur local), puis réessayez. |
+| Documents incomplets ou réponse « inexploitable » avec un modèle local | Choisissez un modèle plus grand ; pour Ollama, augmentez le contexte (`OLLAMA_CONTEXT_LENGTH=16384`) avant de le lancer. |
 | LinkedIn ne renvoie rien | Installez le moteur LinkedIn (Profil › Sources). Si LinkedIn bloque temporairement, relancez le scan plus tard : les autres sources ne sont pas concernées. |
 | `npm audit` signale des vulnérabilités | Ne lancez pas `npm audit fix --force`. Mettez JobScout à jour (`git pull` puis `npm ci`) ; s'il en reste, signalez-le dans une issue GitHub. |
 
