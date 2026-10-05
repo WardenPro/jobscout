@@ -385,6 +385,8 @@ LM Studio est une autre application gratuite pour faire tourner une IA en local,
 
 ## 5. Brancher l'IA dans JobScout
 
+> **En vidéo** : la carte Génération IA est montrée dans le [tutoriel 2 — Mise en place, à partir de 0:11](https://youtu.be/gOMQkcsD6LA?t=11).
+
 ### Où se trouve la carte « Génération IA »
 
 **Au premier lancement**, l'assistant s'ouvre sur « Étape 1 sur 3 », **Importer**, avec le titre « Commençons par votre profil. ». Le bloc **Génération IA** se trouve au-dessus de la zone de dépôt du CV. Il est ouvert et affiche « À configurer ». Tant que l'IA n'est pas enregistrée, la zone de dépôt indique « Configurez d'abord la génération IA ci-dessus pour débloquer l'import. »

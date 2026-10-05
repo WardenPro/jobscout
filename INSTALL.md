@@ -6,6 +6,7 @@ Ce guide s'adresse à tout le monde, y compris si vous n'avez jamais ouvert un t
 
 | | |
 |---|---|
+| **En vidéo** | [1. Installation](https://youtu.be/cIh4PSmPlKE) (étapes 1 à 4) · [2. Mise en place](https://youtu.be/gOMQkcsD6LA) (étape 5) · [3. Utilisation](https://youtu.be/45uLxsWXXLQ) (étape 6 et au quotidien) — moins de 2 minutes chacune |
 | **Temps total** | environ 10 à 20 minutes avec les réglages par défaut (jusqu'à 35 si vous activez d'autres sources), dont **10 à 15 minutes devant l'écran** |
 | **Ce qu'il faut** | un ordinateur (Windows, macOS ou Linux), une connexion internet, votre CV, et une IA : une clé API chez le fournisseur de votre choix (Anthropic, OpenAI, Google Gemini, Mistral, DeepSeek…) ou un modèle local gratuit (Ollama, LM Studio) |
 | **Coût** | logiciel gratuit ; l'IA est facturée par votre fournisseur sur votre clé — avec Claude (Anthropic), environ **0,12 à 0,20 $ par dossier** (CV + lettre) ; gratuite avec un modèle local. Le scan et le tri des offres sont gratuits. |
@@ -40,6 +41,8 @@ Durées mesurées le 30/09/2026 sur un PC Windows 11 relié à la fibre. Avec un
   - **ou un modèle local gratuit**, sans clé, et sans que votre CV ni vos documents ne sortent de l'ordinateur (les scans, eux, interrogent toujours les sites d'offres) : installez [Ollama](https://ollama.com/download) (puis par exemple `ollama pull gemma4:12b`) ou [LM Studio](https://lmstudio.ai). Il faut une machine assez puissante (16 Go de mémoire conseillés) et la qualité des documents est en général en dessous des grands modèles en ligne.
 - **Votre CV** en PDF, DOCX, TXT ou image.
 - **Git** est facultatif : vous pouvez télécharger JobScout en ZIP (étape 2, option B).
+
+> **En vidéo** : les étapes 1 à 4 sont montrées dans le [tutoriel 1 — Installation](https://youtu.be/cIh4PSmPlKE).
 
 ## Étape 1 — Installer Node.js
 
@@ -116,6 +119,8 @@ powershell -ExecutionPolicy Bypass -File scripts\Start-JobScout.ps1
 
 L'assistant s'ouvre tout seul, en trois étapes : **Importer**, **Vérifier**, **Préférences**.
 
+> **En vidéo** : cette étape est montrée dans le [tutoriel 2 — Mise en place](https://youtu.be/gOMQkcsD6LA).
+
 > **Pas encore de clé, ou envie d'une IA gratuite sur votre ordinateur ?** Le [guide de l'IA](GUIDE-IA.md) explique pas à pas comment créer une clé (Claude, OpenAI, Gemini…) ou installer Ollama et LM Studio, puis comment les brancher dans JobScout.
 
 1. **Génération IA** : choisissez votre **fournisseur**, collez votre clé (aucune pour Ollama ou LM Studio), puis **Charger la liste** pour choisir le modèle de rédaction et le modèle de relecture (les valeurs proposées conviennent en général). Cliquez sur **Vérifier**, puis **Enregistrer**. La clé est enregistrée dans la base locale, sur votre ordinateur. Pour un modèle local, lancez d'abord Ollama ou le serveur de LM Studio.
@@ -126,6 +131,8 @@ L'assistant s'ouvre tout seul, en trois étapes : **Importer**, **Vérifier**, *
 **LinkedIn (facultatif)** : c'est la seule source qui a besoin d'un petit navigateur intégré. Pour l'activer : **Profil › Recherche › Sources**, puis **Installer le moteur LinkedIn** (environ 100 Mo à télécharger, 265 Mo sur le disque, 1 à 2 minutes).
 
 ## Étape 6 — Premier scan
+
+> **En vidéo** : le scan, les filtres, les documents et le suivi des candidatures sont montrés dans le [tutoriel 3 — Utilisation](https://youtu.be/45uLxsWXXLQ).
 
 Page **Offres** › **Lancer un scan**. JobScout interroge chaque source, puis note chaque offre selon votre profil. Ce tri est fait sur votre machine, sans IA ni coût.
 
