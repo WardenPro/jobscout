@@ -1,27 +1,55 @@
-node_modules
-.next
-out
-build
-dist
+# Dépendances et fichiers régénérés par Next.js / TypeScript
+node_modules/
+.next/
+out/
+build/
+dist/
+next-env.d.ts
+*.tsbuildinfo
 
+# Configuration privée : seul le modèle sans secret est partagé
 .env
-.env.local
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.cer
+*.crt
 
-data/jobscout.db
-data/jobscout.db-journal
-data/documents/
+# Données de l'utilisateur et bases SQLite, quel que soit leur dossier
+/data/
+/demo-profiles/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+# Modèles OCR téléchargés à la première lecture d'un CV image
+*.traineddata
 
-*.log
-.DS_Store
-.vscode
-
-# Données locales, profils de démonstration, artefacts de build et outillage local
-data/
-demo-profiles/
+# Installeur Windows : sources conservées, sorties exclues
 installer/dist/
 installer/output/
 installer/runtime/
 installer/leak-needles.local.txt
-*.tsbuildinfo
+installer/leak-needles.operator.txt
+
+# Journaux, résultats de tests et caches locaux
+*.log
 logs-*.txt
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+.cache/
+
+# Réglages propres au poste
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
 .claude/
+.codex/

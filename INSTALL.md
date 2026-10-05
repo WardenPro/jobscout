@@ -9,7 +9,7 @@ Ce guide s'adresse à tout le monde, y compris si vous n'avez jamais ouvert un t
 | **Temps total** | environ 20 à 35 minutes, dont **10 à 15 minutes devant l'écran** |
 | **Ce qu'il faut** | un ordinateur (Windows, macOS ou Linux), une connexion internet, votre CV, et une IA : une clé API chez le fournisseur de votre choix (Anthropic, OpenAI, Google Gemini, Mistral, DeepSeek…) ou un modèle local gratuit (Ollama, LM Studio) |
 | **Coût** | logiciel gratuit ; l'IA est facturée par votre fournisseur sur votre clé — avec Claude (Anthropic), environ **0,12 à 0,20 $ par dossier** (CV + lettre) ; gratuite avec un modèle local. Le scan et le tri des offres sont gratuits. |
-| **Où vont vos données** | profil, offres, documents et candidatures restent sur votre ordinateur (dossier `data/`). Pour rédiger, JobScout envoie votre profil et l'offre au fournisseur d'IA choisi, avec votre clé — ou à aucun, avec un modèle local. |
+| **Où vont vos données** | profil, offres, documents et candidatures restent sur votre ordinateur (dossier `data/`). Pour lire votre CV et rédiger, JobScout envoie le texte du CV, votre profil et l'offre au fournisseur d'IA choisi, avec votre clé — ou à aucun, avec un modèle local. Pendant un scan, les sites d'offres reçoivent vos mots-clés, vos pays cibles et votre adresse IP. L'éditeur de JobScout ne reçoit rien. Détail : [politique de confidentialité](CONFIDENTIALITE.md). |
 
 ## Combien de temps ça prend ?
 
@@ -37,7 +37,7 @@ Durées mesurées le 30/09/2026 sur un PC Windows 11 relié à la fibre. Avec un
 - **Node.js 22.13 ou plus récent** : l'étape 1 explique comment l'installer.
 - **Une IA, au choix** :
   - **une clé API** chez un fournisseur. Anthropic (Claude) est la référence de JobScout : compte sur [platform.claude.com](https://platform.claude.com), crédits (paiement à l'usage), puis une clé dans « API Keys » (`sk-ant-…`). Fonctionnent aussi : [OpenAI](https://platform.openai.com/api-keys), [Google Gemini](https://aistudio.google.com/apikey) (offre gratuite limitée), [Mistral](https://console.mistral.ai/api-keys), [DeepSeek](https://platform.deepseek.com/api_keys), [Groq](https://console.groq.com/keys), [OpenRouter](https://openrouter.ai/keys). Gardez la clé pour l'étape 5 ; ne la partagez avec personne ;
-  - **ou un modèle local gratuit**, sans clé ni données qui sortent : installez [Ollama](https://ollama.com/download) (puis par exemple `ollama pull gemma4:12b`) ou [LM Studio](https://lmstudio.ai). Il faut une machine assez puissante (16 Go de mémoire conseillés) et la qualité des documents est en général en dessous des grands modèles en ligne.
+  - **ou un modèle local gratuit**, sans clé, et sans que votre CV ni vos documents ne sortent de l'ordinateur (les scans, eux, interrogent toujours les sites d'offres) : installez [Ollama](https://ollama.com/download) (puis par exemple `ollama pull gemma4:12b`) ou [LM Studio](https://lmstudio.ai). Il faut une machine assez puissante (16 Go de mémoire conseillés) et la qualité des documents est en général en dessous des grands modèles en ligne.
 - **Votre CV** en PDF, DOCX, TXT ou image.
 - **Git** est facultatif : vous pouvez télécharger JobScout en ZIP (étape 2, option B).
 
@@ -147,13 +147,15 @@ Ensuite, sur la fiche d'une offre, **Générer les documents** produit un CV et 
 |---|---|
 | `node` ou `npm` « n'est pas reconnu » | Fermez et rouvrez le terminal après l'installation de Node.js. Sinon, réinstallez Node.js (étape 1). |
 | `EBADENGINE` ou un message sur la version de Node | Votre Node.js est trop ancien : installez la version LTS actuelle (22.13 ou plus). |
-| `Port 3000 is in use` | Un autre programme utilise ce port. Lancez `npm run dev -- -p 3001`, puis ouvrez http://127.0.0.1:3001. |
+| `Port 3000 is in use` | Un autre programme utilise ce port. JobScout prend alors le port suivant et l'affiche dans le terminal (`using available port 3001`) : ouvrez l'adresse indiquée, par exemple http://127.0.0.1:3001. |
 | La page ne s'ouvre pas | Vérifiez que le terminal tourne toujours et affiche `Ready`. Utilisez bien `http://127.0.0.1:3000`. |
 | La clé API est refusée | Vérifiez que le bon fournisseur est choisi, que la clé est copiée en entier et qu'il reste des crédits sur votre compte chez ce fournisseur. |
 | « Modèle introuvable » | Cliquez sur **Charger la liste** dans Profil › Génération IA et choisissez un modèle proposé. |
 | « Impossible de joindre Ollama / LM Studio » | Lancez le logiciel (et, pour LM Studio, démarrez son serveur local), puis réessayez. |
 | Documents incomplets ou réponse « inexploitable » avec un modèle local | Choisissez un modèle plus grand ; pour Ollama, augmentez le contexte (`OLLAMA_CONTEXT_LENGTH=16384`) avant de le lancer. |
 | LinkedIn ne renvoie rien | Installez le moteur LinkedIn (Profil › Sources). Si LinkedIn bloque temporairement, relancez le scan plus tard : les autres sources ne sont pas concernées. |
-| `npm audit` signale des vulnérabilités | Ne lancez pas `npm audit fix --force`. Mettez JobScout à jour (`git pull` puis `npm ci`) ; s'il en reste, signalez-le dans une issue GitHub. |
+| `npm audit` signale des vulnérabilités | C'est attendu : elles concernent des outils de développement (Tailwind CSS), pas l'application (`npm audit --omit=dev` affiche 0). Ne lancez jamais `npm audit fix --force`. |
 
-Une question, un bug ? Ouvrez une *issue* sur le [dépôt GitHub](https://github.com/latenightsbeats1208-pixel/jobscout/issues).
+Une question, un bug ? Ouvrez une *issue* sur le [dépôt GitHub](https://github.com/latenightsbeats1208-pixel/jobscout/issues) — sans jamais y coller votre CV ni une clé : les issues sont publiques.
+
+En utilisant JobScout, vous acceptez ses [conditions d'utilisation](CGU.md). Vos données : [politique de confidentialité](CONFIDENTIALITE.md).

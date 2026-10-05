@@ -23,7 +23,8 @@ import { PROVIDERS, isProviderId, type ProviderId, type ProviderKind } from "./p
 
 /**
  * URL du proxy JobScout : AUCUNE par défaut. Le mode « Pack » n'existe que si
- * une URL est fournie par l'environnement (JOBSCOUT_PROXY_URL, build Pro).
+ * une URL est fournie par l'environnement (JOBSCOUT_PROXY_URL). La version publiée
+ * sur GitHub n'en configure aucune.
  */
 export const DEFAULT_PROXY_URL = "";
 

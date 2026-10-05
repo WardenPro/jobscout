@@ -9,7 +9,7 @@ import path from "node:path";
  */
 
 // Aucun flux par défaut : la vérification n'a lieu que si JOBSCOUT_UPDATE_URL
-// est fournie (build Pro). Un flux par défaut vers un domaine que le projet ne
+// est fournie (aucune dans la version GitHub). Un flux par défaut vers un domaine que le projet ne
 // contrôle pas permettrait à son propriétaire d'annoncer une fausse mise à jour.
 export const DEFAULT_UPDATE_URL = "";
 const FETCH_TIMEOUT_MS = 4000;

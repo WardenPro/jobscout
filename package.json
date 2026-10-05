@@ -1,13 +1,13 @@
 {
   "name": "jobscout",
-  "version": "3.4.12",
+  "version": "3.4.13",
   "private": true,
   "engines": {
     "node": ">=22.13"
   },
   "scripts": {
-    "dev": "next dev -H 127.0.0.1",
-    "build": "next build",
+    "dev": "node scripts/next.mjs dev -H 127.0.0.1",
+    "build": "node scripts/next.mjs build",
     "start": "next start -H 127.0.0.1",
     "playwright:install": "playwright install chromium --only-shell",
     "package": "node installer/build.mjs",

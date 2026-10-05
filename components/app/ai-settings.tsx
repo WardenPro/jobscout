@@ -26,7 +26,7 @@ type LlmStatus = {
   source: "settings" | "env" | null;
   licenseHint: string | null;
   byokHint: string | null;
-  /** Mode « Pack » proposé seulement si un proxy est configuré (build Pro). */
+  /** Mode « Pack » proposé seulement si un relais est configuré (JOBSCOUT_PROXY_URL). */
   packAvailable: boolean;
   provider: ProviderId;
   providers: Record<ProviderId, ProviderState>;
@@ -221,7 +221,7 @@ export function AiSettings({
             {status?.licenseHint ? (
               <>Clé de licence enregistrée : <code>{status.licenseHint}</code></>
             ) : (
-              <>Votre clé de licence vous a été envoyée à l'achat de JobScout.</>
+              <>Saisissez la clé de licence fournie avec ce relais.</>
             )}
           </p>
         </>

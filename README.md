@@ -2,9 +2,9 @@
 
 Trouvez des offres d'emploi grâce à un scan multi-plateformes, triez-les avec un score calculé sur votre vrai profil, et générez pour chacune un CV et une lettre de motivation d'une page (compatibles ATS), sans jamais inventer une compétence que vous n'avez pas.
 
-Tout tourne sur votre machine : base SQLite locale, serveur limité à `127.0.0.1`, aucun compte à créer.
+Tout tourne sur votre machine : base SQLite locale, serveur limité à `127.0.0.1`, aucun compte à créer. Seuls sortent les recherches envoyées aux sites d'offres pendant un scan et, si vous utilisez une IA en ligne, les textes transmis au fournisseur que vous avez choisi ([détail](CONFIDENTIALITE.md)).
 
-> Site et guide de démarrage : **https://latenightsbeats1208-pixel.github.io/jobscout/** — une version Pro (installeur Windows, crédits IA inclus) est en préparation.
+> Site et guide de démarrage : **https://latenightsbeats1208-pixel.github.io/jobscout/** · [Conditions d'utilisation](CGU.md) · [Confidentialité](CONFIDENTIALITE.md)
 
 ## Stack
 
@@ -45,13 +45,13 @@ L'app démarre sur http://127.0.0.1:3000 (écoute limitée à la machine locale,
 | Ollama, LM Studio | aucune clé | 100 % local et gratuit ; qualité selon le modèle (par exemple `gemma4:12b`, `qwen3.5:9b`, `ministral-3:14b`) ; réponse contrainte par le schéma JSON, ces serveurs ne sachant pas forcer un appel d'outil |
 | Autre | selon le serveur | tout serveur au format OpenAI Chat Completions (URL de base à indiquer) |
 
-« Charger la liste » propose les modèles disponibles chez le fournisseur, « Vérifier » teste la connexion. Les clés restent dans la base locale. Une adresse de serveur doit être en `https://`, sauf serveur sur la machine même (`http://127.0.0.1…`). Mode développement : une `ANTHROPIC_API_KEY` dans `.env` sert de repli si rien n'est configuré.
+« Charger la liste » propose les modèles disponibles chez le fournisseur, « Vérifier » teste la connexion. Les clés restent dans la base locale, enregistrées en clair (non chiffrées) : protégez l'accès à votre ordinateur. Une adresse de serveur doit être en `https://`, sauf serveur sur la machine même (`http://127.0.0.1…`). Mode développement : une `ANTHROPIC_API_KEY` dans `.env` sert de repli si rien n'est configuré.
 
 **LinkedIn (optionnel)** : c'est la seule source qui a besoin d'un navigateur Chromium. Activez-la dans Profil › Sources, puis cliquez « Installer le moteur LinkedIn » (~100 Mo à télécharger, ~265 Mo sur le disque). En ligne de commande : `npm run playwright:install`.
 
 **Mises à jour** : `git pull` puis `npm ci`.
 
-**Messages npm normaux** : `npm warn deprecated node-domexception`, « packages are looking for funding », et, avec npm récent, le script d'installation de `tesseract.js` ignoré (il n'affiche qu'un appel aux dons). `npm audit` doit afficher `found 0 vulnerabilities` (le PostCSS embarqué par Next.js est forcé en version corrigée via `overrides`). **Ne lancez jamais `npm audit fix --force`** : il installerait Next.js 16, incompatible.
+**Messages npm normaux** : `npm warn deprecated node-domexception`, « packages are looking for funding », et, avec npm récent, le script d'installation de `tesseract.js` ignoré (il n'affiche qu'un appel aux dons). `npm audit --omit=dev`, qui ne regarde que ce qui tourne réellement, doit afficher `found 0 vulnerabilities` (le PostCSS embarqué par Next.js est forcé en version corrigée via `overrides`). `npm audit` complet signale des failles dans des outils de développement (Tailwind CSS et ses dépendances), sans effet sur l'application. **Ne lancez jamais `npm audit fix --force`** : il installerait Next.js 16, incompatible.
 
 ## Paquet Windows
 
@@ -61,7 +61,7 @@ L'app démarre sur http://127.0.0.1:3000 (écoute limitée à la machine locale,
 
 | Source | Méthode | Périmètre |
 |--------|---------|-----------|
-| Welcome to the Jungle | Index de recherche public Algolia du site (lecture seule, aucune page HTML) | International (filtré par pays cibles) |
+| Welcome to the Jungle | Index de recherche Algolia du site, avec la clé de recherche de son interface (lecture seule, aucune page HTML) | International (filtré par pays cibles) |
 | LinkedIn | Playwright (pages publiques « guest ») | International (tous pays cibles) |
 | APEC | API `rechercheOffre` + page de détail | France (cadres) |
 | HelloWork | HTML SSR + JSON-LD | France |
@@ -71,7 +71,7 @@ L'app démarre sur http://127.0.0.1:3000 (écoute limitée à la machine locale,
 
 Chaque source s'active ou se désactive dans Profil › Sources (ou à l'étape Préférences de l'onboarding). Une source hors périmètre géographique (ex. APEC quand le profil ne cible pas la France) est automatiquement sautée. La disponibilité des sources dépend des sites tiers (anti-bot, changements d'API) ; une source en échec est signalée dans le journal du scan.
 
-WTTJ est interrogée avec la clé de recherche publique (lecture seule) du site ; si elle change, fournissez `WTTJ_ALGOLIA_APP` / `WTTJ_ALGOLIA_KEY`.
+WTTJ est interrogée avec la clé de recherche (lecture seule) qu'utilise l'interface du site. Si elle cesse de fonctionner, décochez la source. Avant votre premier scan, lisez les [conditions d'utilisation](CGU.md) (sections 5 et 6) : plusieurs sites interdisent l'extraction automatisée.
 
 ## Scoring des offres (local, déterministe, gratuit)
 
@@ -88,7 +88,7 @@ Aucun appel IA : instantané et illimité. Re-scoring global : `POST /api/offres
 
 ## Extraction du CV
 
-Cascade selon le type de fichier : PDF (`pdf-parse` ou `pdfjs-dist` multi-colonnes, meilleur retenu), DOCX (`mammoth`), image (`tesseract.js` FR+EN), TXT. Puis extraction structurée par Claude (tool use forcé), validation Zod, score de confiance et **garde-fou anti-hallucination** (suppression des entreprises et compétences non ancrées dans le profil).
+Cascade selon le type de fichier : PDF (`pdf-parse` ou `pdfjs-dist` multi-colonnes, meilleur retenu), DOCX (`mammoth`), image (`tesseract.js` FR+EN), TXT. Les modèles de reconnaissance d'image (FR, EN) sont téléchargés une fois depuis `cdn.jsdelivr.net`. Puis extraction structurée par le fournisseur d'IA choisi (appel d'outil forcé, ou réponse JSON contrainte selon le fournisseur), validation Zod, score de confiance et **garde-fou anti-hallucination** (suppression des entreprises et compétences non ancrées dans le profil).
 
 ## Génération de documents
 
@@ -101,21 +101,15 @@ Coût : avec Claude (Anthropic), environ 0,12 à 0,20 $ par dossier (CV + lettre
 ## Sécurité
 
 - Serveur limité à `127.0.0.1` ; l'API refuse les requêtes venant d'un autre site ou d'un hôte non local (`middleware.ts`)
-- Clés IA stockées dans la base locale, jamais renvoyées au navigateur (seuls les 4 derniers caractères sont affichés)
+- Clés IA stockées en clair dans la base locale, jamais renvoyées au navigateur (seuls les 4 derniers caractères sont affichés)
+- Aucune télémétrie : JobScout n'envoie rien à son éditeur, et les scripts de lancement (`npm run dev`, `npm run build`) coupent celle de Next.js (`scripts/next.mjs`) — voir [Confidentialité](CONFIDENTIALITE.md)
 - Whitelist de colonnes sur la mise à jour des candidatures (anti mass-assignment)
 - Bornage des chemins d'écriture du dossier documents ; ouverture de dossier restreinte au dossier configuré
 - Descriptions d'offres assainies (DOMPurify) ; `rel="noopener noreferrer"` sur tous les liens sortants
 
-## Gratuit ou Pro
+## Modes IA
 
-| | Gratuit (ce dépôt) | Pro (en préparation) |
-|---|---|---|
-| Scan 6 sources + scoring local | illimité | illimité |
-| CV / lettre / message IA | avec **votre** clé (fournisseur au choix) ou un modèle local | crédits inclus via le relais JobScout, sans clé |
-| Installation | Node ≥ 22.13 + `npm ci` | installeur Windows autonome |
-| Mises à jour | `git pull` | notification dans l'application |
-
-Le code est identique : la version Pro n'aura aucune fonction cachée. Modes IA (`lib/ai/client.ts`) : `byok` (votre clé ou votre modèle local, fournisseur au choix) ; `pack` (licence → relais), proposé uniquement quand un relais est configuré par `JOBSCOUT_PROXY_URL` ; `unset` (rien de configuré : l'onboarding reste bloqué à l'import du CV).
+JobScout est gratuit (licence MIT), sans compte ni abonnement. Modes IA (`lib/ai/client.ts`) : `byok` (votre clé ou votre modèle local, fournisseur au choix) ; `unset` (rien de configuré : l'onboarding reste bloqué à l'import du CV). Le code contient aussi un mode `pack` (relais défini par `JOBSCOUT_PROXY_URL`) : il est inactif dans cette version, aucun relais n'étant configuré.
 
 ## Tests
 
@@ -135,3 +129,5 @@ JOBSCOUT_LIVE=1 JOBSCOUT_LIVE_PROVIDER=openai JOBSCOUT_LIVE_KEY=sk-... npx vites
 ## Licence
 
 MIT — voir [`LICENSE`](LICENSE). Les marques des sites scannés appartiennent à leurs propriétaires ; JobScout n'est affilié à aucun d'eux.
+
+Utilisation : [conditions générales d'utilisation](CGU.md). Données personnelles : [politique de confidentialité](CONFIDENTIALITE.md).

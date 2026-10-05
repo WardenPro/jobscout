@@ -39,11 +39,11 @@ export const GENERIC_FAILURE_MESSAGE =
 
 const CODE_MESSAGES: Record<string, string> = {
   QUOTA_EXHAUSTED:
-    "Pack épuisé — rechargez ou passez sur votre clé API dans Profil › Génération IA.",
+    "Crédits du relais épuisés — passez sur votre clé API dans Profil › Génération IA.",
   LICENSE_INVALID:
     "Clé de licence invalide ou inconnue — vérifiez-la dans Profil › Génération IA.",
   LICENSE_SUSPENDED:
-    "Licence suspendue — contactez le support JobScout pour la réactiver.",
+    "Licence refusée par le relais — passez sur votre clé API dans Profil › Génération IA.",
   RATE_LIMITED:
     "Trop de générations sur la dernière heure — patientez quelques minutes avant de réessayer.",
   CONCURRENCY_LIMITED:
