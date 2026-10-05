@@ -385,7 +385,7 @@ LM Studio est une autre application gratuite pour faire tourner une IA en local,
 
 ## 5. Brancher l'IA dans JobScout
 
-> **En vidéo** : la carte Génération IA est montrée dans le [tutoriel 2 — Mise en place, à partir de 0:11](https://youtu.be/gOMQkcsD6LA?t=11).
+> **En vidéo** : la carte Génération IA est montrée dans le [tutoriel 2 — Mise en place, à partir de 0:11](https://youtu.be/gOMQkcsD6LA?t=11). La vidéo ne parle pas des offres gratuites en ligne (Gemini, Mistral, Groq) : elles sont décrites en [section 2](#2-option-a--une-clé-payante-claude-recommandé).
 
 ### Où se trouve la carte « Génération IA »
 

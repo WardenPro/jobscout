@@ -6,7 +6,7 @@ Ce guide s'adresse à tout le monde, y compris si vous n'avez jamais ouvert un t
 
 | | |
 |---|---|
-| **En vidéo** | [1. Installation](https://youtu.be/cIh4PSmPlKE) (étapes 1 à 4) · [2. Mise en place](https://youtu.be/gOMQkcsD6LA) (étape 5) · [3. Utilisation](https://youtu.be/45uLxsWXXLQ) (étape 6 et au quotidien) — moins de 2 minutes chacune |
+| **En vidéo** | [1. Installation](https://youtu.be/cIh4PSmPlKE) (étapes 1 à 4, et la mise à jour) · [2. Mise en place](https://youtu.be/gOMQkcsD6LA) (étape 5) · [3. Utilisation](https://youtu.be/45uLxsWXXLQ) (étape 6, et la relance au quotidien) — moins de 2 minutes chacune |
 | **Temps total** | environ 10 à 20 minutes avec les réglages par défaut (jusqu'à 35 si vous activez d'autres sources), dont **10 à 15 minutes devant l'écran** |
 | **Ce qu'il faut** | un ordinateur (Windows, macOS ou Linux), une connexion internet, votre CV, et une IA : une clé API chez le fournisseur de votre choix (Anthropic, OpenAI, Google Gemini, Mistral, DeepSeek…) ou un modèle local gratuit (Ollama, LM Studio) |
 | **Coût** | logiciel gratuit ; l'IA est facturée par votre fournisseur sur votre clé — avec Claude (Anthropic), environ **0,12 à 0,20 $ par dossier** (CV + lettre) ; gratuite avec un modèle local. Le scan et le tri des offres sont gratuits. |
@@ -86,16 +86,16 @@ Toujours dans le dossier `jobscout` :
 npm ci
 ```
 
-npm télécharge environ 360 paquets. **Laissez tourner** jusqu'au retour de l'invite de commande (environ 1 minute, parfois plus). C'est réussi si la fin affiche une ligne du type `added 361 packages`.
+npm télécharge environ 330 paquets. **Laissez tourner** jusqu'au retour de l'invite de commande (environ 1 minute, parfois plus). C'est réussi si la fin affiche une ligne du type `added 328 packages` (le nombre exact peut varier un peu selon le système).
 
 Ces messages sont **normaux** et sans conséquence :
 
 - `npm warn deprecated node-domexception@1.0.0` : une dépendance indirecte obsolète, sans effet.
-- `52 packages are looking for funding` : de simples appels aux dons.
+- `… packages are looking for funding` : de simples appels aux dons.
 - Un message indiquant que le script d'installation de `tesseract.js` a été ignoré ou bloqué (npm récent) : ce script n'affiche qu'un appel aux dons, JobScout n'en a pas besoin.
 - `npm notice New major version of npm available` : vous pouvez l'ignorer.
 
-**Ne lancez pas `npm audit fix --force`** : cette commande remplacerait Next.js par une version majeure incompatible et casserait l'application.
+**Ne lancez pas `npm audit fix --force`** : cette commande remplacerait Tailwind CSS 3 par la version 4, incompatible, et casserait l'application.
 
 ## Étape 4 — Lancer JobScout
 
@@ -137,16 +137,16 @@ L'assistant s'ouvre tout seul, en trois étapes : **Importer**, **Vérifier**, *
 Page **Offres** › **Lancer un scan**. JobScout interroge chaque source, puis note chaque offre selon votre profil. Ce tri est fait sur votre machine, sans IA ni coût.
 
 - Durée : **1 à 3 minutes** avec France Travail seule (réglage par défaut) ; **10 à 20 minutes** si vous activez d'autres sources, selon le nombre de pays ; environ deux fois moins sans LinkedIn.
-- Vous pouvez utiliser l'ordinateur et même JobScout pendant ce temps. Laissez simplement le terminal ouvert et évitez la mise en veille.
+- Gardez la page du scan ouverte : elle reste bloquée jusqu'à la fin. Vous pouvez utiliser le reste de l'ordinateur pendant ce temps ; laissez le terminal ouvert et évitez la mise en veille.
 - Une source indisponible (site en panne, protection anti-robot) est signalée dans le journal du scan ; les autres continuent.
 
-Ensuite, sur la fiche d'une offre, **Générer les documents** produit un CV et une lettre d'une page (PDF et Word), dans la langue de l'annonce. C'est la seule étape (avec l'import du CV) qui utilise l'IA : 0,12 à 0,20 $ par dossier avec Claude, selon les tarifs du fournisseur sinon, rien avec un modèle local. Comptez en général moins de deux minutes avec un modèle en ligne, davantage avec un modèle local.
+Ensuite, sur la fiche d'une offre, **Générer les documents** produit un CV et une lettre d'une page (PDF et Word), en français, ou en anglais si l'annonce est en anglais (une annonce dans une autre langue donne des documents en français). C'est la seule étape (avec l'import du CV) qui utilise l'IA : 0,12 à 0,20 $ par dossier avec Claude, selon les tarifs du fournisseur sinon, rien avec un modèle local. Comptez en général moins de deux minutes avec un modèle en ligne, davantage avec un modèle local.
 
 ## Au quotidien
 
 - **Relancer JobScout** : ouvrez un terminal dans le dossier `jobscout`, tapez `npm run dev`, puis ouvrez http://127.0.0.1:3000.
 - **Arrêter JobScout** : dans le terminal, `Ctrl + C` (ou fermez la fenêtre).
-- **Mettre à jour** : dans le dossier `jobscout`, tapez `git pull` puis `npm ci`. Si vous avez installé par ZIP : téléchargez le nouveau ZIP, décompressez-le, puis **recopiez votre dossier `data`** de l'ancienne version dans la nouvelle avant de lancer `npm ci`.
+- **Mettre à jour** : arrêtez JobScout (`Ctrl + C`), puis, dans le dossier `jobscout`, tapez `git pull` puis `npm ci`, et relancez `npm run dev`. Si vous avez installé par ZIP : téléchargez le nouveau ZIP, décompressez-le, puis **recopiez votre dossier `data`** de l'ancienne version dans la nouvelle avant de lancer `npm ci`.
 - **Sauvegarder vos données** : copiez le dossier `data` (base, documents générés).
 - **Désinstaller** : supprimez le dossier `jobscout`. Pensez à garder une copie de `data` si vous voulez conserver vos candidatures.
 
