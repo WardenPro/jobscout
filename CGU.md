@@ -11,7 +11,7 @@ Elles ne constituent pas un conseil juridique. L'éditeur ne peut pas vous dire 
 - JobScout est un logiciel libre et gratuit qui tourne sur votre ordinateur. Pas de compte, pas d'abonnement, pas de serveur de l'éditeur.
 - JobScout n'envoie aucune de vos données à l'éditeur. L'éditeur ne collecte, ne stocke et ne revend aucune offre.
 - C'est vous qui lancez les recherches, depuis votre ordinateur et votre connexion. Vous choisissez les sites interrogés et vous devez respecter leurs conditions.
-- Plusieurs de ces sites interdisent l'extraction automatisée, dont trois des cinq sources cochées par défaut : Welcome to the Jungle, HelloWork et Talent.com. Les conditions de l'APEC, également cochée, interdisent d'exploiter ses contenus sans son accord. Lisez les sections 5 et 6 avant votre premier scan.
+- Par défaut, seule France Travail est cochée. Sans identifiants d'API, elle charge les pages du site comme un navigateur (section 6). Les conditions de Welcome to the Jungle, HelloWork, Talent.com et LinkedIn interdisent l'extraction automatisée : ces sources restent décochées, et c'est à vous de décider de les activer. Lisez les sections 5 et 6 avant de le faire.
 - Les offres récupérées ne doivent servir qu'à votre propre recherche d'emploi, sans but commercial.
 - Les documents rédigés par l'IA peuvent contenir des erreurs. Relisez-les avant de les envoyer.
 - JobScout est fourni « en l'état », sans garantie.
@@ -70,7 +70,7 @@ Il est interdit :
 
 Ces interdits portent sur l'usage des offres et des sites tiers. Ils ne retirent aucun des droits que la licence MIT vous donne sur le code (section 3).
 
-**Attention** : la section 6 décrit les méthodes du code publié qu'un site pourrait considérer comme un contournement. Les deux plus sensibles concernent des sources cochées par défaut : Welcome to the Jungle et l'APEC. Pour l'éviter, décochez-les avant votre premier scan.
+**Attention** : la section 6 décrit les méthodes du code publié qu'un site pourrait considérer comme contraires à ses conditions, en particulier pour Welcome to the Jungle. Cette source est décochée par défaut : ne l'activez qu'après avoir lu ces explications.
 
 ## 5. Les sites d'offres : qui fait quoi
 
@@ -80,16 +80,16 @@ Ces interdits portent sur l'usage des offres et des sites tiers. Ils ne retirent
 - Les requêtes partent de votre ordinateur, avec votre adresse IP. Les sites voient cette adresse et peuvent la limiter ou la bloquer.
 - Elles contiennent vos secteurs, utilisés comme mots-clés, et, selon le site, le pays visé. Elles ne contiennent ni votre nom, ni votre CV, ni les cookies de votre navigateur.
 - Vous choisissez les sources à l'étape Préférences de l'inscription, puis dans **Profil › Recherche › Sources**. Le bouton « Lancer un scan » interroge les sources cochées.
-- Sur la page Offres, la flèche à côté de « Lancer un scan » ouvre le menu « Scanner une source ». Ce menu permet d'interroger une seule source, **même si elle est décochée**.
-- Vous devez respecter les conditions d'utilisation de chaque site que vous interrogez. Les conditions de Welcome to the Jungle, HelloWork et Talent.com, cochées par défaut, et celles de LinkedIn interdisent expressément l'extraction automatisée. Celles de l'APEC, également cochée, interdisent d'exploiter ses contenus sans son accord (section 6). Pour respecter ces conditions, décochez ces sources avant votre premier scan et ne les choisissez pas dans « Scanner une source ».
+- Sur la page Offres, la flèche à côté de « Lancer un scan » ouvre le menu « Scanner une source ». Ce menu permet d'interroger une seule source, **même si elle est décochée** (sauf les sources suspendues).
+- Vous devez respecter les conditions d'utilisation de chaque site que vous interrogez. Celles de Welcome to the Jungle, HelloWork, Talent.com et LinkedIn interdisent expressément l'extraction automatisée (section 6). Si vous activez l'une de ces sources, ou si vous la choisissez dans « Scanner une source », vous le faites en connaissance de cause et sous votre responsabilité.
 
 **Ce qui est coché par défaut**
 
-Sur une installation neuve, cinq sources sont cochées : Welcome to the Jungle, APEC, HelloWork, France Travail et Talent.com. LinkedIn est décochée : pour l'utiliser, il faut l'activer puis installer un moteur de navigation. Civiweb est suspendue.
+Depuis la 3.4.13, sur une installation neuve, seule France Travail est cochée. Welcome to the Jungle, HelloWork, Talent.com et LinkedIn sont décochées : à vous de les activer, après avoir lu leurs conditions. LinkedIn demande en plus l'installation d'un moteur de navigation. L'APEC et Civiweb sont suspendues : JobScout ne les interroge plus, même si elles sont restées cochées dans un ancien profil.
 
-Si votre profil ne contient aucune source (profil créé avec une ancienne version, ou profil restauré), « Lancer un scan » interroge ces cinq sources. Ouvrez **Profil › Recherche › Sources** et enregistrez vos choix avant de lancer un scan.
+Si votre profil ne contient aucune source (profil restauré, par exemple), « Lancer un scan » interroge France Travail seule.
 
-Toutes les sources ne sont donc pas désactivées par défaut. Vérifiez vos choix avant le premier scan.
+**Profils créés avant la 3.4.13** : les sources que vous aviez cochées le restent. Le changement de réglage par défaut ne les décoche pas. Vérifiez vos choix dans **Profil › Recherche › Sources**.
 
 **Ce que fait JobScout pour limiter le volume**
 
@@ -113,7 +113,7 @@ En bref : les conditions de LinkedIn, Welcome to the Jungle, HelloWork et Talent
 
 ### Welcome to the Jungle
 
-- **Par défaut** : cochée.
+- **Par défaut** : décochée, à activer vous-même.
 - **Ce que fait JobScout** : il ne charge aucune page du site. Il interroge directement l'index de recherche qui alimente le site (service Algolia), avec la clé de recherche présente dans les pages du site, en indiquant `welcometothejungle.com` comme provenance. Voir « Méthodes à connaître » ci-dessous.
 - **Conditions du site** : [conditions générales](https://www.welcometothejungle.com/fr/pages/terms). Elles interdisent l'extraction automatisée par logiciel, script ou robot, sauf pour les moteurs de recherche (art. 10). Elles limitent l'accès à un usage personnel (art. 19.2).
 
@@ -125,13 +125,13 @@ En bref : les conditions de LinkedIn, Welcome to the Jungle, HelloWork et Talent
 
 ### APEC
 
-- **Par défaut** : cochée. JobScout ne l'interroge que si votre profil cible la France ou ne cible aucun pays.
-- **Ce que fait JobScout** : il interroge le service de recherche interne du site, en indiquant `www.apec.fr` comme provenance et en se présentant comme un navigateur Chrome. Il demande ensuite la page de chaque offre en se présentant comme le robot d'aperçu de liens de Facebook. Voir « Méthodes à connaître » ci-dessous.
-- **Conditions du site** : [informations légales de l'Apec](https://corporate.apec.fr/home/informations-legales-et-conditio.html). Elles interdisent de reproduire ou d'exploiter les contenus sans accord préalable de l'Apec. Les conditions du site destiné aux candidats, `www.apec.fr`, n'ont pas pu être consultées.
+- **Par défaut** : suspendue depuis la 3.4.13. Elle ne peut plus être cochée.
+- **Ce que fait JobScout** : rien. Le site bloque désormais les requêtes automatiques, et JobScout ne l'interroge plus, même si elle est restée cochée dans un ancien profil.
+- **Conditions du site** : [informations légales de l'Apec](https://corporate.apec.fr/home/informations-legales-et-conditio.html). Elles interdisent de reproduire ou d'exploiter les contenus sans accord préalable de l'Apec.
 
 ### HelloWork
 
-- **Par défaut** : cochée. JobScout ne l'interroge que si votre profil cible la France ou ne cible aucun pays.
+- **Par défaut** : décochée, à activer vous-même. JobScout ne l'interroge que si votre profil cible la France ou ne cible aucun pays.
 - **Ce que fait JobScout** : il charge les pages de résultats, puis la page de chaque offre, en se présentant comme un navigateur Chrome.
 - **Conditions du site** : [conditions générales](https://www.hellowork-group.com/fr/legal/cgu-hellowork/). Elles interdisent l'extraction automatisée et considèrent tout logiciel qui accède au site comme un utilisateur non légitime (art. 1 et 8.2). Elles limitent l'usage à des fins privées et non commerciales.
 
@@ -145,23 +145,22 @@ En bref : les conditions de LinkedIn, Welcome to the Jungle, HelloWork et Talent
 
 ### Talent.com
 
-- **Par défaut** : cochée.
+- **Par défaut** : décochée, à activer vous-même.
 - **Ce que fait JobScout** : il charge les pages de résultats des sites nationaux qui correspondent à vos pays cibles (France si vous n'en indiquez aucun). Il charge ensuite la page de chaque offre, en se présentant comme un navigateur Chrome.
-- **Conditions du site** : [Terms of Service](https://ca.talent.com/en/tos), en anglais, lues sur le site canadien. Ils interdisent le « scraping » et les robots qui envoient plus de requêtes qu'un humain (section C.5). Les conditions des autres sites nationaux, dont `fr.talent.com`, n'ont pas été vérifiées.
+- **Conditions du site** : [Terms of Service](https://ca.talent.com/en/tos), en anglais, lues sur le site canadien. Elles interdisent le « scraping » et les robots qui envoient plus de requêtes qu'un humain (section C.5). Les conditions des autres sites nationaux, dont `fr.talent.com`, n'ont pas été vérifiées.
 
 ### Civiweb (V.I.E, Business France)
 
 - **Par défaut** : suspendue. Elle ne peut plus être cochée.
-- **Ce que fait JobScout** : le service de recherche de Business France exige désormais une authentification, et JobScout ne la gère pas. Si la source est restée cochée dans un ancien profil, la recherche est tentée puis échoue. Décochez-la.
+- **Ce que fait JobScout** : rien. Le service de recherche de Business France exige désormais une authentification, et JobScout ne la gère pas. Depuis la 3.4.13, JobScout ne l'interroge plus, même si elle est restée cochée dans un ancien profil.
 - **Conditions du site** : [mentions légales](https://mon-vie-via.businessfrance.fr/FR/mentions-legales.aspx), non consultées.
 
 ### Méthodes à connaître
 
-- **Navigateur imité.** Pour LinkedIn, HelloWork, Talent.com, la recherche de l'APEC et les pages de France Travail, JobScout se présente comme un navigateur Chrome ordinaire. Il ne se signale pas comme un logiciel automatique.
+- **Navigateur imité.** Pour LinkedIn, HelloWork, Talent.com et les pages de France Travail, JobScout se présente comme un navigateur Chrome ordinaire. Il ne se signale pas comme un logiciel automatique.
 - **Welcome to the Jungle.** JobScout utilise la clé de recherche présente dans les pages du site. Welcome to the Jungle ne propose pas cette clé aux tiers comme une API. D'après les notes du code (`lib/scrapers/wttj.ts`), les pages d'offres du site imposent depuis l'été 2026 un contrôle anti-robot. La clé est écrite dans le code. Si Welcome to the Jungle la change ou la retire, la source cessera de fonctionner. N'en cherchez pas une autre : décochez la source.
-- **APEC.** JobScout demande la page de chaque offre en se présentant comme le robot d'aperçu de liens de Facebook (`facebookexternalhit/1.1`). JobScout n'est pas ce robot et n'a aucun lien avec Facebook ni avec Meta.
 
-Ces sites peuvent considérer ces méthodes, en particulier les deux dernières, comme contraires à leurs conditions ou comme le contournement d'une restriction, ce que la section 4 vous interdit. Pour l'éviter, décochez ces sources dans **Profil › Recherche › Sources** et ne les choisissez pas dans « Scanner une source ».
+Ces sites peuvent considérer ces méthodes, en particulier l'usage de la clé de Welcome to the Jungle, comme contraires à leurs conditions ou comme le contournement d'une restriction, ce que la section 4 vous interdit. Welcome to the Jungle, HelloWork, Talent.com et LinkedIn sont décochées par défaut : si vous ne voulez pas prendre ce risque, laissez-les décochées et ne les choisissez pas dans « Scanner une source ». France Travail, seule source cochée par défaut, charge ses pages en se présentant comme Chrome, sauf si vous fournissez vos identifiants d'API : pour rester dans le cadre prévu par France Travail, utilisez l'API ou décochez la source.
 
 ## 7. Demande de retrait par un site
 
@@ -178,8 +177,7 @@ La mesure retenue s'applique aux versions publiées ensuite. Elle ne peut pas mo
 ## 8. Marques et absence d'affiliation
 
 - JobScout n'est affilié à aucun des sites ni à aucun des fournisseurs cités. Aucun d'eux ne l'approuve ni ne le soutient.
-- JobScout n'est pas le robot d'aperçu de liens de Facebook et n'a aucun lien avec Meta.
-- LinkedIn, Welcome to the Jungle, APEC, HelloWork, France Travail, Talent.com, Civiweb, Business France, Anthropic, Claude, OpenAI, Google, Gemini, Mistral, DeepSeek, Groq, OpenRouter, Ollama, LM Studio, Meta, Facebook, Algolia, Chrome, Chromium, Playwright, Next.js, SQLite et GitHub, ainsi que les autres noms de produits et de services cités, sont des marques ou des noms de leurs titulaires respectifs.
+- LinkedIn, Welcome to the Jungle, APEC, HelloWork, France Travail, Talent.com, Civiweb, Business France, Anthropic, Claude, OpenAI, Google, Gemini, Mistral, DeepSeek, Groq, OpenRouter, Ollama, LM Studio, Algolia, Chrome, Chromium, Playwright, Next.js, SQLite et GitHub, ainsi que les autres noms de produits et de services cités, sont des marques ou des noms de leurs titulaires respectifs.
 - Ces noms servent seulement à désigner les sites interrogés et les services compatibles.
 - JobScout n'utilise pas leurs logos.
 
@@ -208,7 +206,7 @@ Pensez à sauvegarder votre dossier de données.
 
 ## 11. Responsabilité
 
-- Vous êtes responsable de votre usage de JobScout : sources que vous laissez cochées, que vous ajoutez ou que vous interrogez une à une (les réglages par défaut sont décrits à la section 5 et modifiables avant tout scan), rythme des scans, respect des conditions des sites et des fournisseurs d'IA, contenu de vos candidatures, protection de votre ordinateur et de vos clés.
+- Vous êtes responsable de votre usage de JobScout : sources que vous activez ou que vous interrogez une à une (les réglages par défaut sont décrits à la section 5), rythme des scans, respect des conditions des sites et des fournisseurs d'IA, contenu de vos candidatures, protection de votre ordinateur et de vos clés.
 - Dans la limite permise par la loi, l'éditeur n'est pas responsable des dommages qui résultent :
   - de l'utilisation de JobScout, ou de l'impossibilité de l'utiliser ;
   - d'une perte de données ;

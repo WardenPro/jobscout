@@ -14,12 +14,20 @@ export type SourceMeta = {
    * à la demande et non embarqué dans l'installeur. Décochée par défaut.
    */
   requiresEngine?: boolean;
-  /** Source actuellement hors service côté site tiers : décochée par défaut. */
+  /**
+   * Source hors service ou suspendue : décochée par défaut, absente du menu « Scanner une
+   * source », et jamais interrogée, même si un ancien profil l'a gardée cochée (orchestrateur).
+   */
   unavailable?: boolean;
+  /**
+   * Les conditions du site interdisent l'extraction automatisée : la source reste décochée
+   * par défaut et ne s'active que par un choix explicite de l'utilisateur (CGU.md, § 5 et 6).
+   */
+  optIn?: boolean;
 };
 
 export const SOURCES_META: SourceMeta[] = [
-  { id: "wttj", label: "Welcome to the Jungle", sublabel: "Startups & scale-ups", scope: "world" },
+  { id: "wttj", label: "Welcome to the Jungle", sublabel: "Startups & scale-ups · à activer vous-même", scope: "world", optIn: true },
   {
     id: "linkedin",
     label: "LinkedIn",
@@ -34,22 +42,32 @@ export const SOURCES_META: SourceMeta[] = [
     scope: "world",
     unavailable: true,
   },
-  { id: "apec", label: "APEC", sublabel: "Offres cadres (France)", scope: "fr" },
-  { id: "hellowork", label: "HelloWork", sublabel: "Ex-RegionsJob (France)", scope: "fr" },
+  {
+    id: "apec",
+    label: "APEC",
+    sublabel: "Suspendue : le site bloque désormais les requêtes automatiques",
+    scope: "fr",
+    unavailable: true,
+  },
+  { id: "hellowork", label: "HelloWork", sublabel: "Ex-RegionsJob (France) · à activer vous-même", scope: "fr", optIn: true },
   { id: "francetravail", label: "France Travail", sublabel: "Ex-Pôle Emploi (France)", scope: "fr" },
-  { id: "talent", label: "Talent.com", sublabel: "Francophonie · Canada · USA", scope: "world" },
+  { id: "talent", label: "Talent.com", sublabel: "Francophonie · Canada · USA · à activer vous-même", scope: "world", optIn: true },
 ];
 
 export const SOURCE_IDS = SOURCES_META.map((s) => s.id);
 
 /**
  * Sources cochées par défaut : toutes sauf celles qui exigent un téléchargement
- * supplémentaire et celles qui sont hors service. Une installation neuve ne
- * télécharge donc rien de plus.
+ * supplémentaire, celles qui sont hors service et celles dont les conditions
+ * interdisent l'extraction automatisée (opt-in). Depuis la 3.4.13 : France Travail seule.
  */
-export const DEFAULT_SOURCE_IDS = SOURCES_META.filter((s) => !s.requiresEngine && !s.unavailable).map(
+export const DEFAULT_SOURCE_IDS = SOURCES_META.filter((s) => !s.requiresEngine && !s.unavailable && !s.optIn).map(
   (s) => s.id
 );
+
+export function sourceUnavailable(id: string): boolean {
+  return SOURCES_META.some((s) => s.id === id && s.unavailable === true);
+}
 
 export function sourceRequiresEngine(id: string): boolean {
   return SOURCES_META.some((s) => s.id === id && s.requiresEngine === true);

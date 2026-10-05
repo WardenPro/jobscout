@@ -6,7 +6,7 @@ Ce guide s'adresse à tout le monde, y compris si vous n'avez jamais ouvert un t
 
 | | |
 |---|---|
-| **Temps total** | environ 20 à 35 minutes, dont **10 à 15 minutes devant l'écran** |
+| **Temps total** | environ 10 à 20 minutes avec les réglages par défaut (jusqu'à 35 si vous activez d'autres sources), dont **10 à 15 minutes devant l'écran** |
 | **Ce qu'il faut** | un ordinateur (Windows, macOS ou Linux), une connexion internet, votre CV, et une IA : une clé API chez le fournisseur de votre choix (Anthropic, OpenAI, Google Gemini, Mistral, DeepSeek…) ou un modèle local gratuit (Ollama, LM Studio) |
 | **Coût** | logiciel gratuit ; l'IA est facturée par votre fournisseur sur votre clé — avec Claude (Anthropic), environ **0,12 à 0,20 $ par dossier** (CV + lettre) ; gratuite avec un modèle local. Le scan et le tri des offres sont gratuits. |
 | **Où vont vos données** | profil, offres, documents et candidatures restent sur votre ordinateur (dossier `data/`). Pour lire votre CV et rédiger, JobScout envoie le texte du CV, votre profil et l'offre au fournisseur d'IA choisi, avec votre clé — ou à aucun, avec un modèle local. Pendant un scan, les sites d'offres reçoivent vos mots-clés, vos pays cibles et votre adresse IP. L'éditeur de JobScout ne reçoit rien. Détail : [politique de confidentialité](CONFIDENTIALITE.md). |
@@ -22,7 +22,7 @@ Durées mesurées le 30/09/2026 sur un PC Windows 11 relié à la fibre. Avec un
 | 3. Installer les dépendances (`npm ci`) | environ 1 min (mesuré : 57 s), jusqu'à 5 min sur une connexion lente | **non**, laissez tourner |
 | 4. Premier démarrage (`npm run dev`) | environ 20 s (mesuré : 18 s) | non |
 | 5. Premier réglage : clé API, CV, préférences | 5 à 10 min | oui |
-| 6. Premier scan des offres | **10 à 20 min** (mesuré : 17 min pour environ 790 offres avec les 6 sources ; LinkedIn en représente à peu près la moitié) | **non**, JobScout travaille seul |
+| 6. Premier scan des offres | environ 1 à 3 minutes avec France Travail seule, le réglage par défaut (estimation d'après les plafonds du code : 50 offres au plus) ; **10 à 20 min** si vous activez d'autres sources (mesuré en 3.4.10 : 17 min pour environ 790 offres avec 6 sources, dont la moitié pour LinkedIn) | **non**, JobScout travaille seul |
 
 ### Faut-il laisser l'ordinateur tourner tout seul ?
 
@@ -121,13 +121,13 @@ L'assistant s'ouvre tout seul, en trois étapes : **Importer**, **Vérifier**, *
 3. **Vérifier** : relisez le profil extrait et corrigez ce qui doit l'être. JobScout ne rédigera jamais une compétence absente de ce profil : c'est le moment d'être complet.
 4. **Préférences** : pays visés, types de contrat, secteurs, et les sources à scanner.
 
-**LinkedIn (facultatif)** : c'est la seule source qui a besoin d'un petit navigateur intégré. Pour l'activer : **Profil › Sources**, puis **Installer le moteur LinkedIn** (environ 100 Mo à télécharger, 265 Mo sur le disque, 1 à 2 minutes).
+**LinkedIn (facultatif)** : c'est la seule source qui a besoin d'un petit navigateur intégré. Pour l'activer : **Profil › Recherche › Sources**, puis **Installer le moteur LinkedIn** (environ 100 Mo à télécharger, 265 Mo sur le disque, 1 à 2 minutes).
 
 ## Étape 6 — Premier scan
 
 Page **Offres** › **Lancer un scan**. JobScout interroge chaque source, puis note chaque offre selon votre profil. Ce tri est fait sur votre machine, sans IA ni coût.
 
-- Durée : **10 à 20 minutes** selon le nombre de pays et de sources ; environ deux fois moins sans LinkedIn.
+- Durée : **1 à 3 minutes** avec France Travail seule (réglage par défaut) ; **10 à 20 minutes** si vous activez d'autres sources, selon le nombre de pays ; environ deux fois moins sans LinkedIn.
 - Vous pouvez utiliser l'ordinateur et même JobScout pendant ce temps. Laissez simplement le terminal ouvert et évitez la mise en veille.
 - Une source indisponible (site en panne, protection anti-robot) est signalée dans le journal du scan ; les autres continuent.
 
@@ -153,7 +153,7 @@ Ensuite, sur la fiche d'une offre, **Générer les documents** produit un CV et 
 | « Modèle introuvable » | Cliquez sur **Charger la liste** dans Profil › Génération IA et choisissez un modèle proposé. |
 | « Impossible de joindre Ollama / LM Studio » | Lancez le logiciel (et, pour LM Studio, démarrez son serveur local), puis réessayez. |
 | Documents incomplets ou réponse « inexploitable » avec un modèle local | Choisissez un modèle plus grand ; pour Ollama, augmentez le contexte (`OLLAMA_CONTEXT_LENGTH=16384`) avant de le lancer. |
-| LinkedIn ne renvoie rien | Installez le moteur LinkedIn (Profil › Sources). Si LinkedIn bloque temporairement, relancez le scan plus tard : les autres sources ne sont pas concernées. |
+| LinkedIn ne renvoie rien | Installez le moteur LinkedIn (Profil › Recherche › Sources). Si LinkedIn bloque temporairement, relancez le scan plus tard : les autres sources ne sont pas concernées. |
 | `npm audit` signale des vulnérabilités | C'est attendu : elles concernent des outils de développement (Tailwind CSS), pas l'application (`npm audit --omit=dev` affiche 0). Ne lancez jamais `npm audit fix --force`. |
 
 Une question, un bug ? Ouvrez une *issue* sur le [dépôt GitHub](https://github.com/latenightsbeats1208-pixel/jobscout/issues) — sans jamais y coller votre CV ni une clé : les issues sont publiques.

@@ -1,6 +1,6 @@
 import "server-only";
 import { getEnabledScrapers } from "@/lib/scrapers/registry";
-import { DEFAULT_SOURCE_IDS } from "@/lib/sources-meta";
+import { DEFAULT_SOURCE_IDS, sourceLabel, sourceUnavailable } from "@/lib/sources-meta";
 import { upsertOffreFromSource, setOffreScore } from "@/lib/db/offres";
 import { scoreOffresLocal } from "@/lib/scoring/local";
 import { getProfile } from "@/lib/db/queries";
@@ -32,15 +32,19 @@ export async function* runScan(
     ? profile.sources_enabled
     : DEFAULT_SOURCE_IDS;
   // If onlySource is set, restrict to it (whether or not it's in the user's enabled list).
-  const enabled = opts.onlySource
-    ? [opts.onlySource]
-    : allEnabled;
+  const requested = opts.onlySource ? [opts.onlySource] : allEnabled;
+  // Une source suspendue (Civiweb, APEC) n'est jamais interrogée, même restée cochée
+  // dans un ancien profil ou dans un profil enregistré que l'on restaure.
+  const enabled = requested.filter((id) => !sourceUnavailable(id));
+  for (const id of requested.filter(sourceUnavailable)) onLog(`${sourceLabel(id)} : source suspendue, ignorée.`);
   const scrapers = getEnabledScrapers(enabled);
   if (scrapers.length === 0) {
     throw new Error(
       opts.onlySource
-        ? `Aucun scraper actif pour la source "${opts.onlySource}".`
-        : "Aucune source reconnue dans le profil : cochez-en au moins une dans Profil › Recherche."
+        ? sourceUnavailable(opts.onlySource)
+          ? `La source « ${sourceLabel(opts.onlySource)} » est suspendue.`
+          : `Aucun scraper actif pour la source "${opts.onlySource}".`
+        : "Aucune source active dans le profil : cochez-en au moins une dans Profil › Recherche."
     );
   }
 

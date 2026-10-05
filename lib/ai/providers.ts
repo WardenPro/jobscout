@@ -3,7 +3,7 @@
  *
  * Deux familles seulement côté code :
  * - « anthropic » : API Messages native (SDK officiel) — seule compatible avec
- *   le Pack JobScout, dont le relais parle le format Anthropic ;
+ *   le mode relais (pack), dont le relais parle le format Anthropic ;
  * - « openai-compatible » : format Chat Completions (POST {base}/chat/completions),
  *   parlé par OpenAI et, via leurs points d'accès compatibles, par Google Gemini,
  *   Mistral, DeepSeek, Groq, OpenRouter, Ollama, LM Studio et tout serveur

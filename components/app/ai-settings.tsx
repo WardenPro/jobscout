@@ -150,7 +150,7 @@ export function AiSettings({
       } else {
         setLicenseKey("");
         setApiKey("");
-        setInfo(mode === "pack" ? "Pack JobScout activé ✓" : `${preset.label} activé ✓`);
+        setInfo(mode === "pack" ? "Relais activé ✓" : `${preset.label} activé ✓`);
       }
       await refresh();
     } catch (e) {
@@ -191,7 +191,7 @@ export function AiSettings({
       </div>
       <p className="text-small text-textSecondary mb-4">
         L'extraction de CV et la rédaction des documents utilisent un modèle d'IA :{" "}
-        {status?.packAvailable ? "le pack inclus avec votre licence JobScout, " : ""}votre propre clé chez le
+        {status?.packAvailable ? "le relais configuré pour ce poste, " : ""}votre propre clé chez le
         fournisseur de votre choix (facturée à l'usage par ce fournisseur) ou un modèle qui tourne sur votre machine
         (Ollama, LM Studio). À configurer dès l'import du CV.
       </p>
@@ -199,7 +199,7 @@ export function AiSettings({
       {status?.packAvailable && (
         <div className="flex flex-wrap gap-2 mb-4">
           <ModeChip active={mode === "pack"} onClick={() => { setMode("pack"); setError(null); setInfo(null); }}>
-            Pack JobScout (licence)
+            Relais (licence)
           </ModeChip>
           <ModeChip active={mode === "byok"} onClick={() => { setMode("byok"); setError(null); setInfo(null); }}>
             Ma propre clé / mon modèle

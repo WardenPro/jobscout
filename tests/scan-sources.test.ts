@@ -62,8 +62,22 @@ describe("runScan — sources scannées", () => {
   });
 
   it("profil avec des sources cochées : exactement celles-là", async () => {
-    state.sourcesEnabled = ["apec", "linkedin"];
-    expect(await scannedSources()).toEqual(["apec", "linkedin"]);
+    state.sourcesEnabled = ["hellowork", "linkedin"];
+    expect(await scannedSources()).toEqual(["hellowork", "linkedin"]);
+  });
+
+  it("sources suspendues restées cochées (ancien profil) : jamais interrogées", async () => {
+    state.sourcesEnabled = ["apec", "civiweb", "talent"];
+    expect(await scannedSources()).toEqual(["talent"]);
+  });
+
+  it("source suspendue imposée : refusée avec un message clair", async () => {
+    state.sourcesEnabled = [];
+    const { runScan } = await import("@/lib/scan/orchestrator");
+    const run = async () => {
+      for await (const _ of runScan(() => {}, { onlySource: "apec" })) void _;
+    };
+    await expect(run()).rejects.toThrow(/suspendue/);
   });
 
   it("source imposée : elle seule, quel que soit le profil", async () => {
@@ -71,9 +85,11 @@ describe("runScan — sources scannées", () => {
     expect(await scannedSources({ onlySource: "talent" })).toEqual(["talent"]);
   });
 
-  it("les sources par défaut excluent LinkedIn (moteur à télécharger) et Civiweb (suspendue)", () => {
-    expect(DEFAULT_SOURCE_IDS.length).toBeGreaterThan(0);
-    expect(DEFAULT_SOURCE_IDS).not.toContain("linkedin");
-    expect(DEFAULT_SOURCE_IDS).not.toContain("civiweb");
+  it("les sources par défaut excluent LinkedIn (moteur), les suspendues et les sources opt-in", () => {
+    // 3.4.13 : seules les sources dont les conditions n'interdisent pas l'extraction automatisée.
+    expect(DEFAULT_SOURCE_IDS).toEqual(["francetravail"]);
+    for (const id of ["linkedin", "civiweb", "apec", "wttj", "hellowork", "talent"]) {
+      expect(DEFAULT_SOURCE_IDS).not.toContain(id);
+    }
   });
 });

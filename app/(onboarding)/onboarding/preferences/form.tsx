@@ -212,9 +212,17 @@ export function PreferencesForm() {
       <Card>
         <h2 className="text-h3 mb-1">Sources de scan</h2>
         <p className="text-small text-textSecondary mb-4">
-          Plateformes scannées à chaque recherche. 6 sources actives (Civiweb est suspendue :
-          Business France exige désormais une authentification) — les sources directes sont
-          activées par défaut.
+          Plateformes scannées à chaque recherche. Seule France Travail est cochée d'office : les
+          conditions des autres sites interdisent l'extraction automatisée — lisez les{" "}
+          <a
+            href="https://github.com/latenightsbeats1208-pixel/jobscout/blob/main/CGU.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline"
+          >
+            conditions d'utilisation de JobScout
+          </a>{" "}
+          avant de les activer. APEC et Civiweb sont suspendues.
         </p>
         <EngineNotice
           active={profile.sources_enabled.includes("linkedin")}

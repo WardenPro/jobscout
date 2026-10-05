@@ -88,34 +88,31 @@ Le classement des offres est calculé sur votre ordinateur. Un scan n'envoie don
 
 Un scan démarre seulement à votre demande, dans la page Offres :
 
-- « Lancer un scan » interroge les sources cochées dans votre profil (ou, si votre profil n'en indique aucune, les sources cochées par défaut) ;
+- « Lancer un scan » interroge les sources cochées dans votre profil (ou, si votre profil n'en indique aucune, France Travail seule, le réglage par défaut) ;
 - la flèche à côté ouvre le menu « Scanner une source ». Il interroge la seule source choisie, qu'elle soit cochée ou non.
+
+Les sources suspendues (APEC, Civiweb) ne sont jamais interrogées, même si elles sont restées cochées dans un ancien profil.
 
 **Ce qui est envoyé :**
 
 - vos secteurs, utilisés comme mots-clés de recherche ;
 - le pays visé, selon le site ;
 - votre adresse IP ;
-- des en-têtes techniques. Le plus souvent, JobScout se présente comme un navigateur Chrome ordinaire sous Windows, en français. Les exceptions : l'index de Welcome to the Jungle et l'API de France Travail, pour lesquels JobScout n'imite pas de navigateur, et le détail des offres APEC (voir plus bas).
+- des en-têtes techniques. Le plus souvent, JobScout se présente comme un navigateur Chrome ordinaire sous Windows, en français. Les exceptions : l'index de Welcome to the Jungle et l'API de France Travail, pour lesquels JobScout n'imite pas de navigateur.
 
 **Rien d'autre :** ni votre nom, ni votre CV, ni votre e-mail, ni les cookies de votre propre navigateur. Aucun compte n'est utilisé, sauf vos identifiants d'API France Travail si vous les avez fournis (voir 4.3).
 
 | Source | Serveur contacté | Cochée par défaut |
 |---|---|---|
-| Welcome to the Jungle | `csekhvms53-dsn.algolia.net` : l'index de recherche du site, hébergé chez Algolia | oui |
-| APEC | Si vous visez la France ou aucun pays précis : `www.apec.fr` | oui |
-| HelloWork | Si vous visez la France ou aucun pays précis : `www.hellowork.com` | oui |
+| Welcome to the Jungle | `csekhvms53-dsn.algolia.net` : l'index de recherche du site, hébergé chez Algolia | non : à activer vous-même |
+| HelloWork | Si vous visez la France ou aucun pays précis : `www.hellowork.com` | non : à activer vous-même |
 | France Travail | Si vous visez la France ou aucun pays précis : `candidat.francetravail.fr`, ou l'API officielle si vous avez fourni des identifiants (voir 4.3) | oui |
-| Talent.com | Le site de chaque pays visé : `fr.talent.com`, `be.talent.com`, `ch.talent.com`, `lu.talent.com`, `ca.talent.com`, `www.talent.com` (États-Unis), `ma.talent.com`, `tn.talent.com` ou `sn.talent.com`. `fr.talent.com` si vous n'indiquez aucun pays. Aucun site Talent.com n'est contacté si aucun de vos pays n'est dans cette liste | oui |
+| Talent.com | Le site de chaque pays visé : `fr.talent.com`, `be.talent.com`, `ch.talent.com`, `lu.talent.com`, `ca.talent.com`, `www.talent.com` (États-Unis), `ma.talent.com`, `tn.talent.com` ou `sn.talent.com`. `fr.talent.com` si vous n'indiquez aucun pays. Aucun site Talent.com n'est contacté si aucun de vos pays n'est dans cette liste | non : à activer vous-même |
 | LinkedIn | `www.linkedin.com`, pages publiques, sans compte | non : à cocher vous-même, puis le moteur doit être installé |
-| Civiweb (V.I.E) | `civiweb-api-prd.azurewebsites.net` (Business France), dans un seul cas : voir ci-dessous | non : suspendue, elle ne peut plus être cochée |
+| APEC | aucun : source suspendue depuis la 3.4.13, le site bloquant les requêtes automatiques | non : suspendue |
+| Civiweb (V.I.E) | aucun : source suspendue, Business France exigeant désormais une authentification | non : suspendue |
 
-**Civiweb** est suspendue : Business France exige désormais une authentification, et JobScout ne la gère pas. Mais si la source est restée cochée dans un profil créé avant la 3.4.9, ou dans un profil enregistré de cette époque que vous restaurez, chaque scan l'interroge encore. JobScout envoie alors deux requêtes au service de Business France, en indiquant `mon-vie-via.businessfrance.fr` comme origine. Elles échouent. Elles ne contiennent ni vos secteurs ni vos pays, mais le service voit votre adresse IP. Décochez Civiweb dans Profil › Recherche › Sources, puis enregistrez.
-
-Deux méthodes méritent d'être connues :
-
-- **Welcome to the Jungle :** JobScout interroge directement l'index de recherche du site. Il utilise la clé de recherche que le site emploie dans ses propres pages et indique `welcometothejungle.com` comme origine.
-- **APEC :** pour lire le détail d'une offre, JobScout se présente comme le robot d'aperçu de liens de Facebook (`facebookexternalhit/1.1`).
+Une méthode mérite d'être connue : pour **Welcome to the Jungle**, si vous l'activez, JobScout interroge directement l'index de recherche du site. Il utilise la clé de recherche que le site emploie dans ses propres pages et indique `welcometothejungle.com` comme origine.
 
 Ces en-têtes ne contiennent aucune donnée sur vous. Leur portée au regard des conditions des sites est traitée dans les [conditions d'utilisation](CGU.md), section 6.
 
@@ -125,7 +122,7 @@ Chaque site voit votre adresse IP et vos requêtes, et les traite selon sa propr
 
 ### 4.3 France Travail : vos identifiants d'API
 
-Ce cas se présente seulement si vous inscrivez `FT_CLIENT_ID` et `FT_CLIENT_SECRET` dans le fichier `.env`. JobScout envoie alors ces identifiants au serveur d'authentification de France Travail (`entreprise.francetravail.fr`) pour obtenir un jeton. Ce jeton est gardé en mémoire et sert à interroger `api.francetravail.io`. Les identifiants ne partent nulle part ailleurs.
+Ce cas se présente seulement si vous inscrivez `FT_CLIENT_ID` et `FT_CLIENT_SECRET` dans le fichier `.env`. JobScout envoie alors ces identifiants au serveur d'authentification de France Travail (`entreprise.francetravail.fr`) pour obtenir un jeton. Ce jeton est gardé en mémoire et sert à interroger `api.francetravail.io`. Les identifiants ne partent nulle part ailleurs. Si l'API ne renvoie aucune offre (identifiants refusés, erreur ou aucun résultat), JobScout charge alors les pages de `candidat.francetravail.fr`, comme sans identifiants.
 
 ### 4.4 Téléchargements techniques ponctuels
 
@@ -178,7 +175,7 @@ Ce que vous pouvez faire :
 - Chiffrez votre disque : BitLocker sous Windows, FileVault sous macOS, LUKS sous Linux.
 - Ne partagez pas votre dossier de données. Évitez de placer le projet dans un dossier synchronisé avec un service de stockage en ligne (celui de Microsoft, Dropbox, iCloud Drive, Google Drive…), sinon votre base et vos clés y seraient copiées.
 - Ne publiez jamais vos clés. `data/`, `.next/` et `.env` sont exclus de Git par le fichier `.gitignore` : vérifiez-le avant de publier une copie du projet. Si vous la partagez autrement (archive ZIP, clé USB), retirez d'abord ces dossiers et ce fichier. Ne collez jamais de clé, de CV, de base de données ou d'extrait de journal dans une issue.
-- Si votre fournisseur d'IA le permet, fixez un plafond de dépenses. Si une clé fuit, révoquez-la chez lui, puis cliquez sur « Réinitialiser » dans JobScout.
+- Si votre fournisseur d'IA le permet, fixez un plafond de dépenses. Si une clé fuit, révoquez-la chez lui, puis cliquez sur « Réinitialiser » dans Profil › Paramètres et données › Génération IA.
 
 Ce que fait JobScout pour limiter les risques :
 

@@ -310,7 +310,8 @@ export async function assemble({
     "Ce dossier est volontairement vide.\r\n\r\n" +
       `${variant.appName} ecrit toutes vos donnees (base, documents generes, moteur\r\n` +
       `LinkedIn) dans %LOCALAPPDATA%\\${variant.dataDirName}, jamais dans le repertoire\r\n` +
-      `d'installation. Desinstaller ${variant.appName} ne supprime pas ces donnees.\r\n`,
+      `d'installation. Desinstaller ${variant.appName} ne supprime ces donnees que si vous\r\n` +
+      `repondez Oui a la question posee a la fin de la desinstallation.\r\n`,
     "utf-8"
   );
 
@@ -350,7 +351,7 @@ export async function assemble({
     "",
     "Vos donnees (base, CV et lettres generes) sont dans :",
     `  %LOCALAPPDATA%\\${variant.dataDirName}`,
-    "Elles ne sont PAS supprimees par la desinstallation.",
+    "La desinstallation ne les supprime que si vous repondez Oui a sa derniere question.",
     "",
     `${variant.appName} n'ecoute que sur 127.0.0.1 : rien n'est expose au reseau.`,
     "",

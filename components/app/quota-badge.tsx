@@ -52,7 +52,7 @@ export function QuotaBadge({ compact = false }: { compact?: boolean }) {
     return (
       <p
         className="inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 text-caption text-textSecondary"
-        title={`Pack JobScout : ${points_remaining} points restants`}
+        title={`Relais : ${points_remaining} points restants`}
       >
         <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         <span>
@@ -67,7 +67,7 @@ export function QuotaBadge({ compact = false }: { compact?: boolean }) {
     <div className="px-3 pt-1">
       <p
         className="flex items-center gap-1.5 text-caption text-textSecondary"
-        title={`Pack JobScout : ${points_remaining} points restants`}
+        title={`Relais : ${points_remaining} points restants`}
       >
         <Sparkles className="h-3 w-3 shrink-0" />
         {`≈ ${dossiers} dossiers`}

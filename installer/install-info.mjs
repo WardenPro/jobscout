@@ -134,10 +134,9 @@ export function renderInstallInfo({ appName, dataDirName, version, signed, sizes
     "",
     "CE QUI N'EST PAS INSTALLÉ",
     "  - Le moteur LinkedIn (navigateur Chromium headless). Optionnel : il n'est",
-    "    téléchargé que si vous activez la source LinkedIn dans Profil › Sources.",
+    "    téléchargé qu'au clic sur « Installer le moteur LinkedIn » (Profil › Recherche › Sources).",
     `    Compter ${ENGINE_DOWNLOAD_LABEL} à télécharger et ${ENGINE_DISK_LABEL} sur le disque une fois décompressé.`,
-    "    Les autres sources (Welcome to the Jungle, APEC, HelloWork, France Travail,",
-    "    Talent.com) fonctionnent sans. Civiweb est suspendue.",
+    "    Les autres sources fonctionnent sans. APEC et Civiweb sont suspendues.",
     "  - Aucune clé d'IA embarquée. Pour importer un CV et générer CV et lettres,",
     "    choisissez votre fournisseur dans Profil › Génération IA (10 au choix) et",
     "    saisissez votre propre clé, ou utilisez un modèle local (Ollama, LM Studio).",
@@ -150,8 +149,8 @@ export function renderInstallInfo({ appName, dataDirName, version, signed, sizes
     "",
     "RÉSEAU",
     "  - Le serveur local n'écoute que sur 127.0.0.1 : rien n'est exposé sur le réseau.",
-    "  - Connexions sortantes uniquement pour scanner les sites d'offres, pour le",
-    "    service d'IA si vous l'avez configuré, et pour la vérification de mise à jour.",
+    "  - Connexions sortantes uniquement pour scanner les sites d'offres et pour le",
+    "    service d'IA si vous l'avez configuré. Voir CONFIDENTIALITE.md dans le dépôt.",
   ];
 
   if (!signed) {

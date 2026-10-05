@@ -74,7 +74,7 @@ export function proxyBaseUrl(): string {
   return normalizeProxyUrl(fromEnv || DEFAULT_PROXY_URL);
 }
 
-/** Le mode « Pack JobScout » n'est proposé que si un proxy est configuré. */
+/** Le mode « relais » (pack) n'est proposé que si un proxy est configuré. */
 export function packAvailable(): boolean {
   return proxyBaseUrl().length > 0;
 }
@@ -176,7 +176,7 @@ export function getLlmConfig(): LlmConfig {
   }
 
   // Rétro-compat développement UNIQUEMENT : une ANTHROPIC_API_KEY d'environnement
-  // ne doit JAMAIS être consommée par l'exécutable vendu (la clé perso d'un
+  // ne doit JAMAIS être consommée par un build de production (la clé perso d'un
   // utilisateur serait utilisée sans son consentement).
   if (process.env.NODE_ENV !== "production") {
     const envKey = clean(process.env.ANTHROPIC_API_KEY);

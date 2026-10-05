@@ -122,8 +122,8 @@ async function verifyPack(licenseKey: string): Promise<NextResponse> {
   }
   const messages: Record<string, string> = {
     LICENSE_INVALID: "Clé de licence invalide ou inconnue — vérifiez la saisie.",
-    LICENSE_SUSPENDED: "Licence suspendue — contactez le support JobScout.",
-    QUOTA_EXHAUSTED: "Licence valide mais pack épuisé — rechargez ou passez sur votre clé API.",
+    LICENSE_SUSPENDED: "Licence refusée par le relais — passez sur votre clé API.",
+    QUOTA_EXHAUSTED: "Licence valide mais crédits du relais épuisés — passez sur votre clé API.",
     RATE_LIMITED: "Trop de requêtes — patientez quelques minutes puis réessayez.",
   };
   const fallback =
@@ -202,13 +202,13 @@ export async function POST(req: NextRequest) {
   }
 
   if (mode !== "pack" && mode !== "byok") {
-    return NextResponse.json({ error: "Choisissez un mode : Pack JobScout ou clé API." }, { status: 400 });
+    return NextResponse.json({ error: "Choisissez un mode : relais ou clé API." }, { status: 400 });
   }
   // Sans proxy configuré, le mode Pack n'existe pas : aucune clé de licence ne
   // doit partir vers un hôte que personne ne contrôle.
   if (mode === "pack" && !packAvailable()) {
     return NextResponse.json(
-      { error: "Le Pack JobScout n'est pas disponible dans cette version — utilisez votre propre clé API." },
+      { error: "Aucun relais n'est configuré dans cette version — utilisez votre propre clé API." },
       { status: 400 }
     );
   }
