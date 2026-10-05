@@ -4,7 +4,7 @@ Trouvez des offres d'emploi grâce à un scan multi-plateformes, triez-les avec 
 
 Tout tourne sur votre machine : base SQLite locale, serveur limité à `127.0.0.1`, aucun compte à créer. Seuls sortent les recherches envoyées aux sites d'offres pendant un scan et, si vous utilisez une IA en ligne, les textes transmis au fournisseur que vous avez choisi, plus quelques requêtes techniques ([détail](CONFIDENTIALITE.md)).
 
-> Site et guide de démarrage : **https://latenightsbeats1208-pixel.github.io/jobscout/** · [Conditions d'utilisation](CGU.md) · [Confidentialité](CONFIDENTIALITE.md)
+> Site et guide de démarrage : **https://latenightsbeats1208-pixel.github.io/jobscout/** · [Installation](INSTALL.md) · [Guide de l'IA](GUIDE-IA.md) · [Conditions d'utilisation](CGU.md) · [Confidentialité](CONFIDENTIALITE.md)
 
 ## Stack
 
@@ -32,7 +32,7 @@ npm run dev
 
 L'app démarre sur http://127.0.0.1:3000 (écoute limitée à la machine locale, rien n'est exposé au réseau). Sous Windows, `scripts/Start-JobScout.ps1` lance le serveur de développement et ouvre le navigateur.
 
-**IA à configurer dès l'inscription** : l'onboarding lit votre CV avec un modèle d'IA pour créer le profil. Dans l'écran « Génération IA », choisissez votre fournisseur et collez votre clé :
+**IA à configurer dès l'inscription** : l'onboarding lit votre CV avec un modèle d'IA pour créer le profil. Pas à pas, pour une clé payante ou une IA gratuite en local (Ollama, LM Studio) : [guide de l'IA](GUIDE-IA.md). Dans l'écran « Génération IA », choisissez votre fournisseur et collez votre clé :
 
 | Fournisseur | Clé | Remarque |
 |---|---|---|

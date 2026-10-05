@@ -35,7 +35,7 @@ Durées mesurées le 30/09/2026 sur un PC Windows 11 relié à la fibre. Avec un
 
 - **Un ordinateur** Windows 10 ou 11, macOS ou Linux, avec 8 Go de mémoire de préférence (4 Go minimum) et **environ 1 Go d'espace disque libre** (plus 265 Mo si vous activez LinkedIn).
 - **Node.js 22.13 ou plus récent** : l'étape 1 explique comment l'installer.
-- **Une IA, au choix** :
+- **Une IA, au choix** ([guide de l'IA, pas à pas](GUIDE-IA.md)) :
   - **une clé API** chez un fournisseur. Anthropic (Claude) est la référence de JobScout : compte sur [platform.claude.com](https://platform.claude.com), crédits (paiement à l'usage), puis une clé dans « API Keys » (`sk-ant-…`). Fonctionnent aussi : [OpenAI](https://platform.openai.com/api-keys), [Google Gemini](https://aistudio.google.com/apikey) (offre gratuite limitée), [Mistral](https://console.mistral.ai/api-keys), [DeepSeek](https://platform.deepseek.com/api_keys), [Groq](https://console.groq.com/keys), [OpenRouter](https://openrouter.ai/keys). Gardez la clé pour l'étape 5 ; ne la partagez avec personne ;
   - **ou un modèle local gratuit**, sans clé, et sans que votre CV ni vos documents ne sortent de l'ordinateur (les scans, eux, interrogent toujours les sites d'offres) : installez [Ollama](https://ollama.com/download) (puis par exemple `ollama pull gemma4:12b`) ou [LM Studio](https://lmstudio.ai). Il faut une machine assez puissante (16 Go de mémoire conseillés) et la qualité des documents est en général en dessous des grands modèles en ligne.
 - **Votre CV** en PDF, DOCX, TXT ou image.
@@ -115,6 +115,8 @@ powershell -ExecutionPolicy Bypass -File scripts\Start-JobScout.ps1
 ## Étape 5 — Premier réglage (5 à 10 minutes)
 
 L'assistant s'ouvre tout seul, en trois étapes : **Importer**, **Vérifier**, **Préférences**.
+
+> **Pas encore de clé, ou envie d'une IA gratuite sur votre ordinateur ?** Le [guide de l'IA](GUIDE-IA.md) explique pas à pas comment créer une clé (Claude, OpenAI, Gemini…) ou installer Ollama et LM Studio, puis comment les brancher dans JobScout.
 
 1. **Génération IA** : choisissez votre **fournisseur**, collez votre clé (aucune pour Ollama ou LM Studio), puis **Charger la liste** pour choisir le modèle de rédaction et le modèle de relecture (les valeurs proposées conviennent en général). Cliquez sur **Vérifier**, puis **Enregistrer**. La clé est enregistrée dans la base locale, sur votre ordinateur. Pour un modèle local, lancez d'abord Ollama ou le serveur de LM Studio.
 2. **Importer** : déposez votre CV. L'IA en extrait votre profil (expériences, compétences, langues…). Comptez de quelques secondes à une minute.
