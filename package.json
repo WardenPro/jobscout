@@ -1,6 +1,6 @@
 {
   "name": "jobscout",
-  "version": "3.4.13",
+  "version": "3.4.14",
   "private": true,
   "engines": {
     "node": ">=22.13"
@@ -38,6 +38,7 @@
     "react-dom": "^19.0.0",
     "tailwind-merge": "^2.5.4",
     "tesseract.js": "^5.1.1",
+    "undici": "^7.30.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^3.23.8"
   },

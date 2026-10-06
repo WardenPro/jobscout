@@ -17,7 +17,16 @@ import {
 } from "@/lib/ai/client";
 import { listModels } from "@/lib/ai/llm";
 import { translateAiError } from "@/lib/ai/errors";
-import { PROVIDERS, PROVIDER_IDS, isProviderId, validateBaseURL, type ProviderId } from "@/lib/ai/providers";
+import {
+  PROVIDERS,
+  PROVIDER_IDS,
+  isProviderId,
+  missingModels,
+  noLocalModelMessage,
+  normalizeBaseURLInput,
+  validateBaseURL,
+  type ProviderId,
+} from "@/lib/ai/providers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -142,7 +151,7 @@ type ByokDraft = { ok: true; cfg: LlmConfig } | { ok: false; error: string };
  * Configuration clé personnelle construite à partir du formulaire, complétée
  * par ce qui est déjà enregistré (champ clé laissé vide = clé enregistrée).
  */
-function byokDraft(body: Record<string, unknown>): ByokDraft {
+function byokDraft(body: Record<string, unknown>, requireWriter = true): ByokDraft {
   const providerRaw = clean(body.provider) ?? "anthropic";
   if (!isProviderId(providerRaw)) return { ok: false, error: "Fournisseur d'IA inconnu." };
   const provider: ProviderId = providerRaw;
@@ -150,10 +159,15 @@ function byokDraft(body: Record<string, unknown>): ByokDraft {
 
   const apiKey = clean(body.key) ?? clean(body.byok_key) ?? clean(getSetting(providerKeySetting(provider)));
   if (preset.keyRequired && !apiKey) return { ok: false, error: `Saisissez votre clé API ${preset.label}.` };
+  // Espace insécable, caractère invisible ou apostrophe typographique collés avec la clé :
+  // l'en-tête serait refusé avant tout envoi, et l'erreur passait pour une panne réseau.
+  if (apiKey && /[^\x21-\x7E]/.test(apiKey)) {
+    return { ok: false, error: "La clé contient un espace ou un caractère invisible — copiez-la de nouveau depuis la console du fournisseur, sans rien autour." };
+  }
 
   let baseURL = provider === "anthropic" ? anthropicBaseUrl() : providerBaseUrl(provider);
   if (preset.editableBaseURL) {
-    const v = validateBaseURL(clean(body.base_url) ?? baseURL);
+    const v = validateBaseURL(normalizeBaseURLInput(clean(body.base_url) ?? baseURL, provider));
     if (!v.ok) return { ok: false, error: v.error };
     baseURL = v.url;
   }
@@ -161,7 +175,8 @@ function byokDraft(body: Record<string, unknown>): ByokDraft {
   const stored = providerModels(provider);
   const writer = clean(body.model_writer) ?? stored.writer;
   const reviewer = clean(body.model_reviewer) ?? (clean(body.model_writer) ? writer : stored.reviewer) ?? writer;
-  if (!writer) return { ok: false, error: "Indiquez le modèle de rédaction (bouton « Charger la liste » pour voir les modèles disponibles)." };
+  // « Charger la liste » doit marcher avant tout choix de modèle (LM Studio : champs vides par défaut).
+  if (!writer && requireWriter) return { ok: false, error: "Indiquez le modèle de rédaction (bouton « Charger la liste » pour voir les modèles disponibles)." };
 
   return {
     ok: true,
@@ -171,7 +186,7 @@ function byokDraft(body: Record<string, unknown>): ByokDraft {
       kind: preset.kind,
       apiKey,
       baseURL,
-      models: { writer, reviewer: reviewer || writer },
+      models: { writer: writer ?? "", reviewer: reviewer || writer || "" },
       source: "settings",
     },
   };
@@ -226,7 +241,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Action inconnue." }, { status: 400 });
   }
 
-  const draft = byokDraft(body);
+  const draft = byokDraft(body, action !== "models");
   if (!draft.ok) return NextResponse.json({ error: draft.error }, { status: 400 });
   const { cfg } = draft;
   const label = PROVIDERS[cfg.provider].label;
@@ -239,8 +254,13 @@ export async function POST(req: NextRequest) {
       return aiErrorResponse(e, `Vérification impossible auprès de ${label} — réessayez plus tard.`);
     }
     if (action === "models") return NextResponse.json({ ok: true, models });
-    // Un serveur peut renvoyer une liste vide (certains serveurs locaux) : on ne conclut alors rien sur les modèles.
-    const missing = models.length ? [cfg.models.writer, cfg.models.reviewer].filter((m, i, a) => a.indexOf(m) === i && !models.includes(m)) : [];
+    // Serveur local joint mais sans modèle : avant la 3.4.14, « Vérifier » affichait
+    // « Connexion réussie ✓ » et l'échec n'apparaissait qu'à l'import du CV.
+    if (PROVIDERS[cfg.provider].local && models.length === 0) {
+      return NextResponse.json({ error: noLocalModelMessage(cfg.provider, cfg.models.writer, cfg.models.reviewer) }, { status: 422 });
+    }
+    // Un serveur distant peut renvoyer une liste vide : on ne conclut alors rien sur les modèles.
+    const missing = models.length ? missingModels(models, [cfg.models.writer, cfg.models.reviewer]) : [];
     return NextResponse.json({ ok: true, mode: "byok", provider: cfg.provider, models, missing });
   }
 

@@ -279,3 +279,49 @@ export function validateBaseURL(raw: string): { ok: true; url: string } | { ok: 
     error: "Pour protéger votre clé et votre CV, seule une adresse en https:// est acceptée (http:// uniquement pour un serveur sur cette machine : localhost ou 127.0.0.1).",
   };
 }
+
+/**
+ * Corrige les saisies fréquentes d'une adresse de serveur (3.4.14) avant
+ * validation : « localhost:11434 » sans http://, adresse d'Ollama ou de LM
+ * Studio sans /v1 (ou avec /api pour Ollama), point d'accès complet collé par
+ * erreur (…/v1/chat/completions, …/v1/models). Une adresse sans /v1 s'enregistrait
+ * puis tout échouait en « Modèle introuvable (404 page not found) ».
+ */
+export function normalizeBaseURLInput(raw: string, provider: ProviderId): string {
+  let text = raw.trim();
+  if (/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/|$)/i.test(text)) text = `http://${text}`;
+  text = text.replace(/\/+$/, "").replace(/\/(chat\/completions|models)$/i, "");
+  if (!PROVIDERS[provider]?.local) return text;
+  try {
+    const u = new URL(text);
+    const path = u.pathname.replace(/\/+$/, "");
+    if (path === "" || (provider === "ollama" && path === "/api")) {
+      u.pathname = "/v1";
+      return u.toString().replace(/\/+$/, "");
+    }
+  } catch {
+    // Adresse invalide : validateBaseURL l'explique à l'utilisateur.
+  }
+  return text;
+}
+
+/**
+ * Modèles demandés absents de la liste du serveur. Ollama désigne un modèle
+ * sans étiquette par « nom:latest » : « llama3.2 » et « llama3.2:latest » sont
+ * le même modèle (avant la 3.4.14, Vérifier le déclarait introuvable).
+ */
+export function missingModels(available: string[], wanted: string[]): string[] {
+  const has = (m: string) => available.includes(m) || (!m.includes(":") && available.includes(`${m}:latest`));
+  return wanted.filter((m, i, a) => m && a.indexOf(m) === i && !has(m));
+}
+
+/** Serveur local joint, mais sans aucun modèle : quoi faire, selon le logiciel. */
+export function noLocalModelMessage(provider: ProviderId, writer?: string, reviewer?: string): string {
+  const label = PROVIDERS[provider]?.label ?? "Le serveur local";
+  if (provider === "ollama") {
+    const names = [writer?.trim() || PROVIDERS.ollama.models.writer, reviewer?.trim() ?? ""].filter((m, i, a) => m && a.indexOf(m) === i);
+    const cmds = names.map((m) => `« ollama pull ${m} »`).join(" puis ");
+    return `${label} répond, mais aucun modèle n'est installé — dans un terminal, tapez ${cmds}, attendez la fin du téléchargement, puis réessayez.`;
+  }
+  return `${label} répond, mais aucun modèle n'est chargé — chargez un modèle dans ${provider === "lmstudio" ? "LM Studio" : "le logiciel"}, puis réessayez.`;
+}

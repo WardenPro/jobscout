@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-import { PROVIDERS, PROVIDER_IDS, type ProviderId } from "@/lib/ai/providers";
+import { PROVIDERS, PROVIDER_IDS, noLocalModelMessage, type ProviderId } from "@/lib/ai/providers";
 
 type Quota = {
   points_remaining: number | null;
@@ -124,7 +124,8 @@ export function AiSettings({
       if (action === "models") {
         const list = Array.isArray(data?.models) ? (data.models as string[]) : [];
         setModels(list);
-        setInfo(list.length ? `${list.length} modèle(s) disponible(s) chez ${preset.label}.` : `${preset.label} n'a renvoyé aucun modèle — saisissez son nom à la main.`);
+        if (!list.length && preset.local) setError(noLocalModelMessage(provider, writer, reviewer));
+        else setInfo(list.length ? `${list.length} modèle(s) disponible(s) chez ${preset.label}.` : `${preset.label} n'a renvoyé aucun modèle — saisissez son nom à la main.`);
         return;
       }
       if (action === "verify") {

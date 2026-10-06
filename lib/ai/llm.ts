@@ -2,7 +2,9 @@ import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
 import { getClaude, getLlmConfig, LlmNotConfiguredError, type LlmConfig, type LlmRole } from "./client";
 import { PROVIDERS, type ProviderId } from "./providers";
+import { isTimeoutError, networkCode, providerFetch } from "./http";
 import { coerceToSchema, extractJsonObject, parseToolArguments } from "./json-extract";
+import { AiContentError } from "./errors";
 
 /**
  * Couche commune des appels IA : une seule primitive, `callStructured`, qui
@@ -66,14 +68,49 @@ export class LlmTransportError extends Error {
   readonly provider: ProviderId;
   readonly url: string;
   readonly timeout: boolean;
-  constructor(provider: ProviderId, url: string, timeout: boolean, cause?: unknown) {
-    super(`${timeout ? "délai dépassé" : "injoignable"} : ${url}`);
+  /** Code réseau de la cause (ECONNREFUSED, UND_ERR_SOCKET…) : choisit le message affiché. */
+  readonly code: string | undefined;
+  /** « liste » = liste des modèles (Vérifier, Charger la liste) ; « generation » = appel au modèle. */
+  readonly phase: "liste" | "generation";
+  /** Délai de la garde réellement appliqué (ms). */
+  readonly timeoutMs: number;
+  constructor(
+    provider: ProviderId,
+    url: string,
+    timeout: boolean,
+    cause?: unknown,
+    code?: string,
+    phase: "liste" | "generation" = "generation",
+    timeoutMs = 0
+  ) {
+    super(`${timeout ? "délai dépassé" : "injoignable"} : ${url}${code ? ` (${code})` : ""}`);
     this.name = "LlmTransportError";
     this.provider = provider;
     this.url = url;
     this.timeout = timeout;
+    this.code = code;
+    this.phase = phase;
+    this.timeoutMs = timeoutMs;
     if (cause !== undefined) (this as { cause?: unknown }).cause = cause;
   }
+}
+
+/**
+ * Échec réseau d'un appel compatible OpenAI → LlmTransportError, avec la cause
+ * écrite dans le journal du serveur (sans elle, « Impossible de joindre » ne se
+ * diagnostiquait pas : rien n'était journalisé). Ni clé ni contenu journalisés.
+ */
+function transportError(
+  provider: ProviderId,
+  url: string,
+  e: unknown,
+  phase: "liste" | "generation",
+  timeoutMs: number
+): LlmTransportError {
+  const code = networkCode(e);
+  const timeout = isTimeoutError(e);
+  console.warn(`[ia] ${provider} ${phase} ${timeout ? "délai dépassé" : "injoignable"} (${code ?? (e instanceof Error ? e.name : "erreur")}) : ${url}`);
+  return new LlmTransportError(provider, url, timeout, e, code, phase, timeoutMs);
 }
 
 export type LlmDeps = {
@@ -238,7 +275,7 @@ async function callOpenAICompatible(
   deps: LlmDeps
 ): Promise<StructuredResult> {
   const preset = PROVIDERS[cfg.provider];
-  const doFetch = deps.fetch ?? fetch;
+  const doFetch = deps.fetch ?? providerFetch;
   const sleep = deps.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
   const url = `${cfg.baseURL.replace(/\/+$/, "")}/chat/completions`;
   const systemText = blocksOf(req.system)
@@ -255,19 +292,22 @@ async function callOpenAICompatible(
 
   async function post(body: Record<string, unknown>): Promise<ChatResponse> {
     for (let attempt = 0; ; attempt++) {
+      // La garde couvre l'attente des en-têtes ET la lecture du corps (l'agent
+      // d'undici n'a plus de délai propre, lib/ai/http.ts) ; une coupure pendant
+      // la lecture est une erreur de transport comme une autre.
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), preset.timeoutMs);
       let res: Response;
+      let text: string;
       try {
         res = await doFetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: controller.signal });
+        text = await res.text();
       } catch (e) {
-        const timeout = e instanceof Error && e.name === "AbortError";
-        throw new LlmTransportError(cfg.provider, cfg.baseURL, timeout, e);
+        throw transportError(cfg.provider, cfg.baseURL, e, "generation", preset.timeoutMs);
       } finally {
         clearTimeout(timer);
       }
-      if (res.ok) return (await res.json()) as ChatResponse;
-      const text = await res.text().catch(() => "");
+      if (res.ok) return JSON.parse(text) as ChatResponse;
       if (RETRYABLE.has(res.status) && attempt < 1) {
         await sleep(2000);
         continue;
@@ -356,6 +396,9 @@ async function callOpenAICompatible(
 
 /* ------------------------------- Liste des modèles ------------------------------ */
 
+/** Garde de la liste des modèles (Vérifier, Charger la liste) : réponse immédiate attendue. */
+const LIST_TIMEOUT_MS = 15_000;
+
 /**
  * Liste les modèles disponibles chez le fournisseur (appel gratuit) : sert à
  * vérifier la clé et à proposer les modèles dans les réglages.
@@ -366,23 +409,37 @@ export async function listModels(cfg: LlmConfig, deps: LlmDeps = {}): Promise<st
     const page = await client.models.list({ limit: 100 });
     return page.data.map((m) => m.id);
   }
-  const doFetch = deps.fetch ?? fetch;
+  const doFetch = deps.fetch ?? providerFetch;
   const url = `${cfg.baseURL.replace(/\/+$/, "")}/models`;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15_000);
+  const timer = setTimeout(() => controller.abort(), LIST_TIMEOUT_MS);
   let res: Response;
+  let text: string;
   try {
     res = await doFetch(url, {
       headers: { accept: "application/json", ...(cfg.apiKey ? { authorization: `Bearer ${cfg.apiKey}` } : {}) },
       signal: controller.signal,
     });
+    text = await res.text();
   } catch (e) {
-    throw new LlmTransportError(cfg.provider, cfg.baseURL, e instanceof Error && e.name === "AbortError", e);
+    throw transportError(cfg.provider, cfg.baseURL, e, "liste", LIST_TIMEOUT_MS);
   } finally {
     clearTimeout(timer);
   }
-  if (!res.ok) throw new LlmHttpError(res.status, cfg.provider, (await res.text().catch(() => "")).slice(0, 300));
-  const body = (await res.json().catch(() => null)) as { data?: Array<{ id?: unknown }>; models?: Array<{ name?: unknown }> } | null;
+  if (!res.ok) throw new LlmHttpError(res.status, cfg.provider, text.slice(0, 300));
+  let body: { data?: Array<{ id?: unknown }> | null; models?: Array<{ name?: unknown }> | null } | null = null;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    body = null;
+  }
+  // Ollama sans modèle renvoie { "object": "list", "data": null } : liste vide, pas une erreur.
+  // Une page HTML, ou un JSON sans liste, vient d'un autre logiciel que celui choisi.
+  if (!body || typeof body !== "object" || !("data" in body || "models" in body)) {
+    throw new AiContentError(
+      `L'adresse ${cfg.baseURL} répond, mais pas comme ${PROVIDERS[cfg.provider].label} : un autre logiciel occupe sans doute cette adresse ou ce port. Vérifiez l'adresse du serveur dans Profil › Génération IA.`
+    );
+  }
   const ids = [
     ...(body?.data ?? []).map((m) => m.id),
     ...(body?.models ?? []).map((m) => m.name),

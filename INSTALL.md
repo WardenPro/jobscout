@@ -160,7 +160,7 @@ Ensuite, sur la fiche d'une offre, **Générer les documents** produit un CV et 
 | La page ne s'ouvre pas | Vérifiez que le terminal tourne toujours et affiche `Ready`. Utilisez bien `http://127.0.0.1:3000`. |
 | La clé API est refusée | Vérifiez que le bon fournisseur est choisi, que la clé est copiée en entier et qu'il reste des crédits sur votre compte chez ce fournisseur. |
 | « Modèle introuvable » | Cliquez sur **Charger la liste** dans Profil › Génération IA et choisissez un modèle proposé. |
-| « Impossible de joindre Ollama / LM Studio » | Lancez le logiciel (et, pour LM Studio, démarrez son serveur local), puis réessayez. |
+| « Rien ne répond à l'adresse http://127.0.0.1:… : Ollama (local) n'est pas lancé… » (ou LM Studio) | Lancez le logiciel (et, pour LM Studio, démarrez son serveur : onglet Developer › Start server), puis réessayez. JobScout et le logiciel d'IA doivent tourner sur le même ordinateur. Autres messages de l'IA locale : [guide de l'IA, section 6](GUIDE-IA.md#6-problèmes-fréquents). |
 | Documents incomplets ou réponse « inexploitable » avec un modèle local | Choisissez un modèle plus grand ; pour Ollama, augmentez le contexte (`OLLAMA_CONTEXT_LENGTH=16384`) avant de le lancer. |
 | LinkedIn ne renvoie rien | Installez le moteur LinkedIn (Profil › Recherche › Sources). Si LinkedIn bloque temporairement, relancez le scan plus tard : les autres sources ne sont pas concernées. |
 | `npm audit` signale des vulnérabilités | C'est attendu : elles concernent des outils de développement (Tailwind CSS), pas l'application (`npm audit --omit=dev` affiche 0). Ne lancez jamais `npm audit fix --force`. |

@@ -98,24 +98,8 @@ export function translateAiError(e: unknown): TranslatedAiError | null {
   // Fournisseurs compatibles OpenAI (lib/ai/llm.ts) — détection par nom : le
   // bundler duplique le module, instanceof ne suffit pas.
   if (e instanceof Error && e.name === "LlmTransportError") {
-    const t = e as Error & { provider?: string; url?: string; timeout?: boolean };
-    const label = providerLabel(t.provider);
-    if (t.timeout) {
-      return {
-        message: `${label} n'a pas répondu à temps — relancez la génération ; avec un modèle local, choisissez un modèle plus léger ou patientez.`,
-        status: 504,
-      };
-    }
-    // Serveur local : fournisseur local (Ollama, LM Studio) ou adresse de la machine même (« Autre »).
-    const local =
-      (t.provider && PROVIDERS[t.provider as ProviderId]?.local) ||
-      /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(t.url ?? "");
-    return {
-      message: local
-        ? `Impossible de joindre ${label} à l'adresse ${t.url} — vérifiez que le logiciel est lancé et que le serveur local est démarré.`
-        : `Impossible de joindre ${label} — vérifiez votre connexion internet puis réessayez.`,
-      status: 502,
-    };
+    const t = e as Error & { provider?: string; url?: string; timeout?: boolean; code?: string; phase?: string; timeoutMs?: number };
+    return transportMessage(t);
   }
   if (e instanceof Error && e.name === "LlmHttpError") {
     const h = e as Error & { status?: number; provider?: string; detail?: string };
@@ -190,6 +174,86 @@ export function translateAiError(e: unknown): TranslatedAiError | null {
 
 const providerLabel = (p: string | undefined): string =>
   (p && PROVIDERS[p as ProviderId]?.label) || "Le service d'IA";
+
+/**
+ * Message d'un échec réseau (lib/ai/llm.ts, LlmTransportError), selon le code
+ * de la cause. Avant la 3.4.14, tout échec réseau d'un serveur local donnait
+ * « Impossible de joindre… vérifiez que le logiciel est lancé », y compris une
+ * génération simplement trop lente ou une connexion coupée par Ollama : le
+ * conseil envoyait l'utilisateur vers une fausse piste.
+ */
+function transportMessage(t: {
+  provider?: string;
+  url?: string;
+  timeout?: boolean;
+  code?: string;
+  phase?: string;
+  timeoutMs?: number;
+}): TranslatedAiError {
+  const preset = t.provider ? PROVIDERS[t.provider as ProviderId] : undefined;
+  const label = providerLabel(t.provider);
+  const url = t.url ?? "";
+  // Serveur local : fournisseur local (Ollama, LM Studio) ou adresse de la machine même (« Autre »).
+  const local = !!preset?.local || /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(url);
+  const code = t.code ?? "";
+
+  if (t.timeout && t.phase === "liste") {
+    const seconds = Math.round((t.timeoutMs || 15_000) / 1000);
+    return {
+      message: `${label} n'a pas répondu en ${seconds} secondes à la demande de liste des modèles — le logiciel est peut-être figé, ou un autre programme occupe l'adresse ${url} : redémarrez-le, puis réessayez.`,
+      status: 504,
+    };
+  }
+  if (t.timeout) {
+    const minutes = Math.round((t.timeoutMs || preset?.timeoutMs || 0) / 60_000);
+    return {
+      message: local
+        ? `${label} n'a pas fini de répondre${minutes ? ` en ${minutes} minutes` : " à temps"} — le modèle est trop lent pour cette machine : choisissez un modèle plus léger dans Profil › Génération IA${t.provider === "ollama" ? " (la commande « ollama ps » indique s'il tourne sur la carte graphique ou sur le processeur)" : ""}.`
+        : `${label} n'a pas répondu à temps — relancez la génération ; si cela se reproduit, réessayez plus tard.`,
+      status: 504,
+    };
+  }
+  if (!local) {
+    // Le réseau fonctionne (l'hôte a répondu par un refus) : serveur arrêté ou adresse fausse.
+    if (code === "ECONNREFUSED") {
+      return {
+        message: `Le serveur à l'adresse ${url} refuse la connexion : il est arrêté, ou l'adresse ou le port est faux — vérifiez-la dans Profil › Génération IA.`,
+        status: 502,
+      };
+    }
+    // Nom d'hôte introuvable sur une adresse saisie à la main : faute de frappe plus probable qu'une coupure.
+    if (code === "ENOTFOUND" && t.provider === "custom") {
+      return { message: `Adresse introuvable : ${url} — vérifiez-la dans Profil › Génération IA.`, status: 502 };
+    }
+    return {
+      message: `Impossible de joindre ${label} — vérifiez votre connexion internet puis réessayez.${code ? ` (code ${code})` : ""}`,
+      status: 502,
+    };
+  }
+  if (code === "ECONNREFUSED") {
+    const lmStudio = t.provider === "lmstudio" ? ", ou son serveur n'est pas démarré (onglet Developer › Start server)" : "";
+    return {
+      message: `Rien ne répond à l'adresse ${url} : ${label} n'est pas lancé${lmStudio}, ou son serveur écoute sur une autre adresse ou un autre port${t.provider === "ollama" ? " (variable OLLAMA_HOST)" : ""}. Lancez-le, ou corrigez l'adresse dans Profil › Génération IA.`,
+      status: 502,
+    };
+  }
+  if (code === "UND_ERR_SOCKET" || code === "ECONNRESET" || code === "EPIPE") {
+    return {
+      message: `${label} a coupé la connexion pendant sa réponse (logiciel fermé ou redémarré, mémoire insuffisante pour ce modèle, antivirus) — relancez ; si cela se reproduit, choisissez un modèle plus léger.`,
+      status: 502,
+    };
+  }
+  if (code.startsWith("ERR_SSL") || code === "EPROTO") {
+    return {
+      message: `L'adresse ${url} commence par https://, mais ${label} répond en http:// — remplacez « https » par « http » dans Profil › Génération IA.`,
+      status: 502,
+    };
+  }
+  return {
+    message: `Impossible de joindre ${label} à l'adresse ${url} — vérifiez que le logiciel est lancé et que le serveur local est démarré.${code ? ` (code ${code})` : ""}`,
+    status: 502,
+  };
+}
 
 /** Erreur FR claire quand la réponse du modèle est tronquée (limite de longueur atteinte). */
 export function assertNotTruncated(

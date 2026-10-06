@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { callStructured, listModels, LlmHttpError, LlmTransportError, type StructuredRequest } from "@/lib/ai/llm";
 import { PROVIDERS } from "@/lib/ai/providers";
-import { translateAiError } from "@/lib/ai/errors";
+import { AiContentError, translateAiError } from "@/lib/ai/errors";
 import { cfgFor } from "./fixtures";
 
 const TOOL = {
@@ -268,6 +268,56 @@ describe("fournisseur compatible OpenAI", () => {
     expect(translateAiError(err)!.status).toBe(504);
   });
 
+  // 3.4.14 : le fetch de Node coupe à 300 s une réponse sans en-têtes (Ollama sans streaming) ;
+  // cette coupure était affichée « Impossible de joindre Ollama… vérifiez que le logiciel est lancé ».
+  const netErr = (code: string, name = "Error") =>
+    new TypeError("fetch failed", { cause: Object.assign(new Error(code), { code, name }) });
+
+  it("délai interne d'undici (en-têtes après 300 s) → délai dépassé, pas « injoignable »", async () => {
+    const { fn } = fakeFetch([netErr("UND_ERR_HEADERS_TIMEOUT", "HeadersTimeoutError")]);
+    const err = await callStructured(REQ, cfgFor("ollama"), { fetch: fn }).catch((e) => e);
+    expect(err).toBeInstanceOf(LlmTransportError);
+    expect(err.timeout).toBe(true);
+    const t = translateAiError(err)!;
+    expect(t.status).toBe(504);
+    expect(t.message).toContain("n'a pas fini de répondre en 15 minutes");
+    expect(t.message).toContain("ollama ps");
+    expect(t.message).not.toContain("Impossible de joindre");
+  });
+
+  it("connexion refusée → « Rien ne répond à l'adresse », y compris via une AggregateError (IPv6 puis IPv4)", async () => {
+    const refused = Object.assign(new Error("x"), { code: "ECONNREFUSED" });
+    for (const e of [netErr("ECONNREFUSED"), new TypeError("fetch failed", { cause: new AggregateError([refused]) })]) {
+      const { fn } = fakeFetch([e]);
+      const err = await callStructured(REQ, cfgFor("ollama"), { fetch: fn }).catch((x) => x);
+      expect(err.code).toBe("ECONNREFUSED");
+      const t = translateAiError(err)!;
+      expect(t.status).toBe(502);
+      expect(t.message).toContain("Rien ne répond à l'adresse http://127.0.0.1:11434/v1");
+      expect(t.message).toContain("OLLAMA_HOST");
+    }
+  });
+
+  it("connexion coupée pendant la réponse → message dédié", async () => {
+    const { fn } = fakeFetch([netErr("UND_ERR_SOCKET", "SocketError")]);
+    const err = await callStructured(REQ, cfgFor("lmstudio"), { fetch: fn }).catch((e) => e);
+    expect(translateAiError(err)!.message).toContain("LM Studio (local) a coupé la connexion pendant sa réponse");
+  });
+
+  it("https vers un serveur local qui parle http → conseil de remplacer https par http", async () => {
+    const { fn } = fakeFetch([netErr("ERR_SSL_WRONG_VERSION_NUMBER")]);
+    const cfg = { ...cfgFor("ollama"), baseURL: "https://127.0.0.1:11434/v1" };
+    const t = translateAiError(await callStructured(REQ, cfg, { fetch: fn }).catch((e) => e))!;
+    expect(t.message).toContain("remplacez « https » par « http »");
+  });
+
+  it("fournisseur distant injoignable → connexion internet, avec le code", async () => {
+    const { fn } = fakeFetch([netErr("ENOTFOUND")]);
+    const t = translateAiError(await callStructured(REQ, cfgFor("openai"), { fetch: fn }).catch((e) => e))!;
+    expect(t.message).toContain("vérifiez votre connexion internet");
+    expect(t.message).toContain("(code ENOTFOUND)");
+  });
+
   it("OpenRouter : en-têtes d'identification de l'application", async () => {
     const { fn, calls } = fakeFetch([{ body: toolAnswer({ title: "T", sections: {} }) }]);
     await callStructured(REQ, cfgFor("openrouter"), { fetch: fn });
@@ -286,5 +336,100 @@ describe("liste des modèles", () => {
   it("erreur HTTP → LlmHttpError", async () => {
     const { fn } = fakeFetch([{ status: 401, body: { error: "unauthorized" } }]);
     await expect(listModels(cfgFor("openai"), { fetch: fn })).rejects.toBeInstanceOf(LlmHttpError);
+  });
+});
+
+describe("garde de délai et lecture du corps (3.4.14)", () => {
+  /** Réponse 200 dont le corps commence puis se tait ; il échoue quand l'appelant abandonne. */
+  const stalledFetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+    const signal = init?.signal;
+    const stream = new ReadableStream({
+      start(c) {
+        c.enqueue(new TextEncoder().encode('{"choices":'));
+        signal?.addEventListener("abort", () => c.error(Object.assign(new Error("aborted"), { name: "AbortError" })));
+      },
+    });
+    return new Response(stream, { status: 200, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+
+  it("la garde couvre la lecture du corps de la liste des modèles (15 s), message propre à la liste", async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = listModels(cfgFor("ollama"), { fetch: stalledFetch }).catch((e) => e);
+      await vi.advanceTimersByTimeAsync(15_000);
+      const err = await pending;
+      expect(err).toBeInstanceOf(LlmTransportError);
+      expect(err.timeout).toBe(true);
+      expect(err.phase).toBe("liste");
+      const t = translateAiError(err)!;
+      expect(t.message).toContain("n'a pas répondu en 15 secondes à la demande de liste des modèles");
+      expect(t.message).not.toContain("trop lent");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("la garde couvre la lecture du corps d'une génération (15 min pour Ollama)", async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = callStructured(REQ, cfgFor("ollama"), { fetch: stalledFetch }).catch((e) => e);
+      await vi.advanceTimersByTimeAsync(900_000);
+      const err = await pending;
+      expect(err).toBeInstanceOf(LlmTransportError);
+      expect(err.phase).toBe("generation");
+      expect(translateAiError(err)!.message).toContain("n'a pas fini de répondre en 15 minutes");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("connexion coupée pendant la lecture du corps → « a coupé la connexion », pas un message générique", async () => {
+    const cut = (async () => {
+      const stream = new ReadableStream({
+        start(c) {
+          c.enqueue(new TextEncoder().encode('{"choices":'));
+          c.error(new TypeError("terminated", { cause: Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" }) }));
+        },
+      });
+      return new Response(stream, { status: 200 });
+    }) as typeof fetch;
+    const err = await callStructured(REQ, cfgFor("ollama"), { fetch: cut }).catch((e) => e);
+    expect(err).toBeInstanceOf(LlmTransportError);
+    expect(translateAiError(err)!.message).toContain("Ollama (local) a coupé la connexion pendant sa réponse");
+  });
+});
+
+describe("liste des modèles : réponses particulières (3.4.14)", () => {
+  it("Ollama sans modèle ({ data: null }) → liste vide, pas d'erreur", async () => {
+    const { fn } = fakeFetch([{ body: { object: "list", data: null } }]);
+    expect(await listModels(cfgFor("ollama"), { fetch: fn })).toEqual([]);
+  });
+
+  it("page HTML ou JSON sans liste → « répond, mais pas comme Ollama », pas « aucun modèle installé »", async () => {
+    for (const body of ["<!doctype html><html></html>", { hello: "world" }]) {
+      const { fn } = fakeFetch([{ body }]);
+      const err = await listModels(cfgFor("ollama"), { fetch: fn }).catch((e) => e);
+      expect(err).toBeInstanceOf(AiContentError);
+      expect(translateAiError(err)!.message).toContain("répond, mais pas comme Ollama (local)");
+    }
+  });
+});
+
+describe("messages réseau selon le fournisseur (3.4.14)", () => {
+  const netErr = (code: string) => new TypeError("fetch failed", { cause: Object.assign(new Error(code), { code }) });
+
+  it("LM Studio : connexion refusée → rappelle de démarrer son serveur", async () => {
+    const { fn } = fakeFetch([netErr("ECONNREFUSED")]);
+    const t = translateAiError(await callStructured(REQ, cfgFor("lmstudio"), { fetch: fn }).catch((e) => e))!;
+    expect(t.message).toContain("onglet Developer › Start server");
+  });
+
+  it("serveur distant « Autre » : refus → serveur arrêté ou adresse fausse ; nom introuvable → adresse à vérifier", async () => {
+    const cfg = cfgFor("custom", { baseURL: "https://llm.exemple.com/v1" });
+    const refused = translateAiError(await callStructured(REQ, cfg, { fetch: fakeFetch([netErr("ECONNREFUSED")]).fn }).catch((e) => e))!;
+    expect(refused.message).toContain("refuse la connexion");
+    expect(refused.message).not.toContain("connexion internet");
+    const unknown = translateAiError(await callStructured(REQ, cfg, { fetch: fakeFetch([netErr("ENOTFOUND")]).fn }).catch((e) => e))!;
+    expect(unknown.message).toContain("Adresse introuvable : https://llm.exemple.com/v1");
   });
 });

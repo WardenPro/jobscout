@@ -19,6 +19,8 @@ const nextConfig: NextConfig = {
     "mammoth",
     "tesseract.js",
     "@react-pdf/renderer",
+    // Transport des appels IA compatibles OpenAI (lib/ai/http.ts) : chargé tel quel depuis node_modules.
+    "undici",
   ],
   experimental: {
     serverActions: { bodySizeLimit: "20mb" },

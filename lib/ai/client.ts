@@ -1,7 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { getSetting } from "@/lib/db";
-import { PROVIDERS, isProviderId, type ProviderId, type ProviderKind } from "./providers";
+import { PROVIDERS, isProviderId, normalizeBaseURLInput, type ProviderId, type ProviderKind } from "./providers";
 
 /**
  * Configuration de la génération IA, relue à CHAQUE appel.
@@ -134,7 +134,9 @@ export function providerBaseUrl(p: ProviderId): string {
   const preset = PROVIDERS[p];
   if (preset.editableBaseURL) {
     const stored = clean(getSetting(providerBaseUrlSetting(p)));
-    if (stored) return stored.replace(/\/+$/, "");
+    // Adresse enregistrée avant la 3.4.14 (ex. « http://127.0.0.1:11434 » sans /v1) :
+    // corrigée à la lecture, pour que Vérifier, l'affichage et la génération utilisent la même.
+    if (stored) return normalizeBaseURLInput(stored, p).replace(/\/+$/, "");
   }
   return preset.baseURL.replace(/\/+$/, "");
 }

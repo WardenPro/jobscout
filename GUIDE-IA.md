@@ -327,7 +327,7 @@ Un contexte plus long consomme plus de mémoire. Si tout devient très lent, pas
 
 - Ollama doit tourner **pendant que vous utilisez JobScout** : l'icône de lama doit être près de l'horloge.
 - Fermer la fenêtre de chat d'Ollama ne l'arrête pas : il continue en arrière-plan. C'est parfait.
-- En revanche, **Quit Ollama** (dans le menu de l'icône) l'arrête. JobScout affiche alors « Impossible de joindre Ollama (local)… ».
+- En revanche, **Quit Ollama** (dans le menu de l'icône) l'arrête. JobScout affiche alors « Rien ne répond à l'adresse http://127.0.0.1:11434/v1 : Ollama (local) n'est pas lancé, ou son serveur écoute sur une autre adresse ou un autre port (variable OLLAMA_HOST). … »
 - Ollama démarre tout seul avec Windows. Si vous avez désactivé ce démarrage (Gestionnaire des tâches › « Applications de démarrage »), lancez-le depuis le menu Démarrer avant JobScout.
 - JobScout alterne entre deux modèles. Si les deux ne tiennent pas ensemble en mémoire, Ollama les recharge à chaque bascule : quelques secondes de plus, c'est normal. Après usage, un modèle reste 5 minutes en mémoire.
 
@@ -345,7 +345,7 @@ Regardez la colonne `PROCESSOR` :
 - `100% CPU` : il tourne sur le processeur. Ça marche, mais lentement.
 - un partage, par exemple `48%/52% CPU/GPU` : le modèle déborde de la carte graphique. Prenez un modèle plus léger.
 
-Un modèle trop gros fonctionne quand même, mais très lentement, sans message d'erreur clair. JobScout l'attend jusqu'à 15 minutes par requête. Les modèles `gemma4` et `qwen3.5` « réfléchissent » avant de répondre, ce qui allonge aussi l'attente.
+Un modèle trop gros fonctionne quand même, mais très lentement. JobScout l'attend jusqu'à 15 minutes par requête, puis affiche « Ollama (local) n'a pas fini de répondre en 15 minutes… ». Avant la version 3.4.14, la connexion était coupée au bout de 5 minutes et JobScout affichait à tort « Impossible de joindre Ollama ». Les modèles `gemma4` et `qwen3.5` « réfléchissent » avant de répondre, ce qui allonge aussi l'attente.
 
 ### Espace disque, mises à jour, désinstallation
 
@@ -423,14 +423,14 @@ Avant de commencer : Ollama tourne (icône près de l'horloge) et `ollama list` 
 2. **Adresse du serveur** : laissez `http://127.0.0.1:11434/v1`.
 3. Cliquez sur **Charger la liste**.
    - C'est réussi si le message indique « 2 modèle(s) disponible(s) chez Ollama (local). » (ou plus).
-   - Si vous lisez « Ollama (local) n'a renvoyé aucun modèle — saisissez son nom à la main. », c'est qu'**aucun modèle n'est téléchargé**. Ne saisissez rien à la main : retournez à l'[étape B5](#étape-b5--télécharger-les-deux-modèles) (`ollama pull …`).
+   - Si vous lisez « Ollama (local) répond, mais aucun modèle n'est installé — dans un terminal, tapez « ollama pull gemma4:12b », attendez la fin du téléchargement, puis réessayez. », c'est qu'**aucun modèle n'est téléchargé**. Ne saisissez rien à la main : retournez à l'[étape B5](#étape-b5--télécharger-les-deux-modèles) (`ollama pull …`).
 4. **Modèles** : `gemma4:12b` et `qwen3.5:9b` sont déjà inscrits. Si ce sont vos modèles, ne touchez à rien. Sinon :
    - pour changer un modèle, cliquez dans le champ, **effacez son contenu** (`Ctrl + A` puis `Suppr`) : la liste de vos modèles s'affiche. Choisissez le nom **exact**, sans l'abréger, par exemple `qwen3.5:4b`, ou `gemma4:latest` pour un modèle pris dans l'application Ollama ;
    - un seul modèle pour les deux rôles (par exemple `qwen3.5:4b`) : mettez-le en rédaction et **videz complètement** le champ de relecture. Sinon, « Vérifier » répondra « modèle introuvable : qwen3.5:9b ».
 5. Cliquez sur **Vérifier** : « Connexion à Ollama (local) réussie ✓ — 2 modèle(s) disponible(s) ».
 6. Cliquez sur **Enregistrer** : « Ollama (local) activé ✓ ».
 
-> **Piège : « Vérifier » peut afficher « réussie ✓ » alors qu'aucun modèle n'est installé.** Ce bouton teste seulement qu'Ollama répond. Ce qui compte, c'est que **« Charger la liste » trouve vos modèles**. Sinon, l'import du CV échouera avec « Modèle introuvable chez Ollama (local)… ».
+> **Avant la version 3.4.14, « Vérifier » pouvait afficher « réussie ✓ » alors qu'aucun modèle n'était installé.** Depuis, « Vérifier » et « Charger la liste » le signalent tous les deux. Dans tous les cas, ce qui compte, c'est que **« Charger la liste » trouve vos modèles**. Sinon, l'import du CV échouera avec « Modèle introuvable chez Ollama (local)… ».
 
 ### Cas 3 — avec LM Studio
 
@@ -464,10 +464,14 @@ Dans les messages ci-dessous, *[fournisseur]* est remplacé à l'écran par le n
 | Le terminal affiche « Sign up / sign in », des modèles marqués « Sign in required » ou « Upgrade required », ou la question « Upgrade to use … ? » | Vous avez tapé `ollama` tout seul, comme le proposait l'écran « Run Ollama ». Rien n'est payé : fermez la fenêtre PowerShell sans rien choisir, ouvrez-en une nouvelle et passez à l'[étape B5](#étape-b5--télécharger-les-deux-modèles) (`ollama pull …`). |
 | PowerShell répond que le terme « ollama » n'est pas reconnu | La fenêtre a été ouverte avant l'installation. Fermez-la et ouvrez un **nouveau** PowerShell. Toujours pas ? Fermez votre session Windows, puis réessayez. |
 | `ollama pull` s'arrête sur une ligne qui commence par `Error:` | Coupure internet, disque plein ou faute de frappe. Vérifiez la commande et l'espace disque, puis relancez-la : le téléchargement reprend où il s'était arrêté. |
-| « Ollama (local) n'a renvoyé aucun modèle — saisissez son nom à la main. » | Aucun modèle n'est téléchargé. Lancez `ollama pull gemma4:12b` et `ollama pull qwen3.5:9b` ([étape B5](#étape-b5--télécharger-les-deux-modèles)). |
+| « Ollama (local) répond, mais aucun modèle n'est installé — dans un terminal, tapez « ollama pull gemma4:12b », attendez la fin du téléchargement, puis réessayez. » (avant la 3.4.14 : « Ollama (local) n'a renvoyé aucun modèle — saisissez son nom à la main. ») | Aucun modèle n'est téléchargé. Lancez `ollama pull gemma4:12b` et `ollama pull qwen3.5:9b` ([étape B5](#étape-b5--télécharger-les-deux-modèles)). |
 | « Modèle introuvable chez Ollama (local) — vérifiez le nom du modèle dans Profil › Génération IA (« Charger la liste »). (détail : model 'gemma4:12b' not found) » | Le modèle n'est pas téléchargé, ou il porte un autre nom. Tapez `ollama list`, puis téléchargez le modèle manquant, ou effacez le champ et choisissez un nom proposé par « Charger la liste ». |
 | « Connexion à *[fournisseur]* réussie, mais modèle introuvable : … — choisissez-en un dans la liste. » | Le nom du modèle ne correspond à aucun modèle disponible. Cliquez dans le champ, effacez son contenu (`Ctrl + A` puis `Suppr`), puis choisissez un nom proposé. Un seul modèle local ? Videz le champ de relecture. |
-| « Impossible de joindre Ollama (local) à l'adresse http://127.0.0.1:11434/v1 — vérifiez que le logiciel est lancé et que le serveur local est démarré. » | Ollama est arrêté. Lancez-le depuis le menu Démarrer, puis vérifiez http://127.0.0.1:11434. Pour LM Studio : onglet **Developer**, **Start server**. |
+| « Rien ne répond à l'adresse http://127.0.0.1:11434/v1 : Ollama (local) n'est pas lancé, ou son serveur écoute sur une autre adresse ou un autre port (variable OLLAMA_HOST). … » | Ollama est arrêté, ou il écoute ailleurs. Lancez-le depuis le menu Démarrer, puis ouvrez http://127.0.0.1:11434 dans votre navigateur : la page doit afficher « Ollama is running ». Si elle ne s'affiche pas alors qu'Ollama tourne, une variable `OLLAMA_HOST` a changé son adresse ou son port : supprimez-la, ou reportez le même port dans l'adresse du serveur. JobScout et Ollama doivent tourner sur le **même ordinateur** ; ouvrir un port dans le pare-feu n'y change rien. Pour LM Studio, le message ajoute « ou son serveur n'est pas démarré (onglet Developer › Start server) » : démarrez-le dans l'onglet **Developer**. |
+| « Ollama (local) a coupé la connexion pendant sa réponse (logiciel fermé ou redémarré, mémoire insuffisante pour ce modèle, antivirus) … » | Ollama s'est arrêté en pleine génération : vous l'avez quitté, un réglage l'a redémarré, ou le modèle ne tient pas en mémoire. Relancez ; si cela se répète, prenez un modèle plus léger (par exemple `qwen3.5:4b`). |
+| « Ollama (local) n'a pas fini de répondre en 15 minutes — le modèle est trop lent pour cette machine … » | Tapez `ollama ps` pendant une génération : si vous voyez `CPU`, ou un partage `CPU/GPU`, prenez un modèle plus léger (par exemple `qwen3.5:4b`) pour la rédaction et videz le champ de relecture. |
+| « L'adresse https://… commence par https://, mais Ollama (local) répond en http:// … » | Remettez l'adresse par défaut, en `http://` : `http://127.0.0.1:11434/v1`. |
+| « Impossible de joindre Ollama (local) à l'adresse … (code …) » | Cause inhabituelle. Vérifiez http://127.0.0.1:11434 dans le navigateur, mettez l'antivirus en pause pour un essai, puis ouvrez une *issue* en indiquant le code entre parenthèses. |
 | « Impossible de joindre *[fournisseur]* — vérifiez votre connexion internet puis réessayez. » (avec Claude : « Impossible de joindre le service de génération… ») | Coupure d'internet, ou fournisseur injoignable. Vérifiez votre connexion, puis relancez. |
 | « *[fournisseur]* est momentanément indisponible (HTTP 5xx) — réessayez dans un instant. » | Panne passagère chez le fournisseur. Patientez quelques minutes, puis relancez. |
 | « Clé API refusée par *[fournisseur]* — vérifiez-la dans Profil › Génération IA. » | Clé mal copiée, supprimée, expirée, ou collée sous le mauvais fournisseur. Recopiez-la en entier, ou créez-en une nouvelle. |
@@ -478,12 +482,12 @@ Dans les messages ci-dessous, *[fournisseur]* est remplacé à l'écran par le n
 | « Erreur de *[fournisseur]* (HTTP …) — vérifiez votre configuration dans Profil › Génération IA. » | Erreur inhabituelle. Vérifiez la clé, le modèle et l'adresse du serveur. Si cela persiste, essayez un autre modèle. |
 | Avec Claude : « Erreur du service de génération (HTTP …) — réessayez ; si le problème persiste, vérifiez votre configuration dans Profil › Génération IA. » | Avec Anthropic, JobScout affiche ce même message pour toutes les erreurs. Le numéro vous oriente. **HTTP 400** : plafond de dépenses atteint, ou clé valable pour plusieurs espaces de travail (recréez-la sur le seul « Default Workspace », voir la fiche Claude). **HTTP 401** : clé mal copiée, supprimée ou **expirée** : créez-en une nouvelle. **HTTP 429** : limite de débit, fréquente sur un compte neuf : patientez une minute. Dans tous les cas, vérifiez aussi votre solde (Settings > Billing). |
 | Avec Claude : « La génération a dépassé le délai d'attente — relancez-la ; si cela se reproduit, réessayez plus tard. » | Claude n'a pas répondu à temps. Relancez. Une demande interrompue peut être facturée. |
-| « *[fournisseur]* n'a pas répondu à temps — relancez la génération ; avec un modèle local, choisissez un modèle plus léger ou patientez. » | En local, l'ordinateur peine. Tapez `ollama ps` : si vous voyez `CPU`, prenez un modèle plus léger (par exemple `qwen3.5:4b`). |
+| « *[fournisseur]* n'a pas répondu à temps — relancez la génération ; si cela se reproduit, réessayez plus tard. » | Fournisseur en ligne surchargé. Relancez un peu plus tard. |
 | Documents incomplets, réponse « inexploitable », vide ou « tronquée » | Avec Ollama, réglez le contexte à 16k ([étape B6](#étape-b6--laisser-ollama-lire-un-cv-entier-16k)) ; avec LM Studio, **Context Length** = 16384. Sinon, choisissez un modèle plus grand ou plus capable. |
 | « *[fournisseur]* a refusé la demande — le modèle choisi ne gère peut-être pas les réponses structurées, ou le document est trop long pour lui. … » | Essayez un autre modèle, de préférence un modèle conseillé dans ce guide. |
 | « Génération IA non configurée — choisissez un fournisseur d'IA et renseignez votre clé dans Profil › Génération IA. » | Vous n'avez pas cliqué sur **Enregistrer**, ou vous avez cliqué sur **Réinitialiser**. Refaites la [section 5](#5-brancher-lia-dans-jobscout). |
 | Le bouton **Enregistrer** reste grisé | Il manque la clé (fournisseur en ligne), le modèle de rédaction ou l'adresse du serveur. |
-| « Pour protéger votre clé et votre CV, seule une adresse en https:// est acceptée … » | L'adresse du serveur a été modifiée. Remettez celle par défaut : `http://127.0.0.1:11434/v1` (Ollama) ou `http://127.0.0.1:1234/v1` (LM Studio). |
+| « Pour protéger votre clé et votre CV, seule une adresse en https:// est acceptée … » | L'adresse du serveur a été modifiée. Remettez celle par défaut : `http://127.0.0.1:11434/v1` (Ollama) ou `http://127.0.0.1:1234/v1` (LM Studio). Un Ollama installé sur **un autre ordinateur** du réseau n'est pas pris en charge (votre CV y circulerait en clair) : installez-le sur le même ordinateur que JobScout. |
 | Votre clé Gemini ne commence pas par `AIza` | C'est normal pour les clés récentes. Collez-la telle quelle. |
 
 Toujours bloqué ? Ouvrez une *issue* sur le dépôt GitHub de JobScout, **sans jamais y coller votre clé ni votre CV** : les issues sont publiques. Si vous joignez les journaux d'Ollama (icône › « View logs »), relisez-les d'abord : ils contiennent des chemins de fichiers de votre ordinateur.
