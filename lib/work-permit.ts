@@ -52,12 +52,12 @@ export function letterPermitInstruction(p: WorkPermit | null | undefined): strin
     citizen: "de nationalité suisse : aucune autorisation de travail n'est nécessaire",
     c: "titulaire d'un permis C : il peut travailler en Suisse sans démarche",
     b: "titulaire d'un permis B : il peut travailler en Suisse",
-    g: "frontalier titulaire d'un permis G : il réside en France et se rend chaque jour sur son lieu de travail en Suisse",
-    eu_g: "ressortissant de l'UE/AELE résidant en France : il travaillera en frontalier, le permis G s'obtient sur simple contrat de travail",
-    eu_b: "ressortissant de l'UE/AELE prêt à s'installer en Suisse : le permis B s'obtient sur simple contrat de travail",
+    g: "frontalier titulaire d'un permis G",
+    eu_g: "ressortissant de l'UE/AELE souhaitant travailler en frontalier, avec un permis G à obtenir",
+    eu_b: "ressortissant de l'UE/AELE prêt à s'installer en Suisse",
   };
   const mobility = isCrossBorder(p)
-    ? "Ne parle PAS de déménagement ni de relocalisation : le candidat fait l'aller-retour depuis la France."
+    ? "Ne parle PAS de déménagement ni de relocalisation. Utilise uniquement la ville déclarée dans le profil ; n'invente ni pays de résidence ni fréquence de déplacement."
     : "";
   return `## Statut de travail en Suisse (fait du profil)\nLe candidat est ${facts[p]}. Mentionne-le en une phrase dans le §4 (disponibilité). ${mobility}`.trim();
 }

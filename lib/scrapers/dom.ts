@@ -122,16 +122,15 @@ const SALARY_UNITS: Record<string, string> = { YEAR: "/ an", MONTH: "/ mois", WE
 
 /**
  * baseSalary schema.org → « 77 672 – 117 672 CHF / an ». Montants arrondis à l'unité
- * (jobs.ch publie 77672.22222…), séparateur de milliers selon la devise.
+ * (jobs.ch publie 77672.22222…), séparateur de milliers stable sur tous les systèmes.
  */
 export function formatLdSalary(base: any): string | null {
   const v = base?.value;
   if (!v || typeof v !== "object") return null;
   const currency = typeof base.currency === "string" ? base.currency.trim() : typeof v.currency === "string" ? v.currency.trim() : "";
-  const locale = currency === "CHF" ? "fr-CH" : "fr-FR";
   const fmt = (n: unknown) => {
     const x = Number(n);
-    return Number.isFinite(x) && x > 0 ? Math.round(x).toLocaleString(locale) : null;
+    return Number.isFinite(x) && x > 0 ? String(Math.round(x)).replace(/\B(?=(\d{3})+(?!\d))/g, " ") : null;
   };
   const single = fmt(v.value);
   const min = fmt(v.minValue);

@@ -152,7 +152,7 @@ En bref : les conditions de LinkedIn, Welcome to the Jungle, HelloWork, Talent.c
 ### jobup.ch et jobs.ch (JobCloud, Suisse)
 
 - **Par défaut** : décochées, à activer vous-même. JobScout ne les interroge que si votre profil cible la Suisse ou ne cible aucun pays.
-- **Ce que fait JobScout** : il charge les pages de résultats en français, puis la page de chaque offre, en se présentant comme un navigateur Chrome. Les deux sites appartiennent au même groupe et partagent une partie de leurs offres : une offre déjà enregistrée depuis l'un n'est pas rechargée depuis l'autre.
+- **Ce que fait JobScout** : il charge les pages de résultats en français, puis la page de chaque offre, en se présentant comme un navigateur Chrome. Les deux sites appartiennent au même groupe et partagent une partie de leurs offres : une offre déjà enregistrée avec une description complète depuis l'un n'est pas rechargée depuis l'autre ; une offre incomplète peut être récupérée depuis le site jumeau.
 - **Conditions du site** : [conditions d'utilisation de JobCloud](https://www.jobup.ch/fr/conditions-utilisation/), lues le 7 octobre 2026 sur jobup.ch. Elles interdisent les crawlers, scrapers et outils d'extraction de données, ainsi que les scripts et bots qui accèdent aux services, sauf outils officiels de JobCloud.
 
 ### Job-Room (service public suisse de l'emploi, SECO)
@@ -160,7 +160,7 @@ En bref : les conditions de LinkedIn, Welcome to the Jungle, HelloWork, Talent.c
 Job-Room est la recherche d'emploi du portail travail.swiss (arbeit.swiss) : y activer Job-Room couvre les offres de ce portail.
 
 - **Par défaut** : décochée, à activer vous-même. JobScout ne l'interroge que si votre profil cible la Suisse ou ne cible aucun pays.
-- **Ce que fait JobScout** : il interroge sans compte l'interface que le site utilise pour sa propre recherche publique (`www.job-room.ch/jobadservice/api/…`), en se présentant comme un navigateur Chrome : une recherche par secteur, puis le détail de chaque annonce. Les annonces que Job-Room reprend de jobup.ch ou jobs.ch, et déjà enregistrées depuis ces sources, sont écartées. Les coordonnées nominatives des recruteurs ne sont pas enregistrées.
+- **Ce que fait JobScout** : il interroge sans compte l'interface que le site utilise pour sa propre recherche publique (`www.job-room.ch/jobadservice/api/…`), en se présentant comme un navigateur Chrome : une recherche par secteur, puis le détail de chaque annonce. Les annonces que Job-Room reprend de jobup.ch ou jobs.ch, et déjà enregistrées avec une description complète depuis ces sources, sont écartées. Les champs structurés de contact des recruteurs ne sont pas enregistrés ; la description conservée peut contenir un nom, un téléphone ou une adresse e-mail.
 - **Conditions du site** : [informations juridiques de travail.swiss](https://www.arbeit.swiss/secoalv/fr/home/service/rechtliche-hinweise.html), lues le 7 octobre 2026. Elles réservent les droits sur les contenus, postes vacants compris, au SECO ou à leurs détenteurs, et soumettent leur reproduction à une autorisation écrite préalable. Aucune interdiction expresse des robots n'y a été relevée, mais le `robots.txt` de Job-Room demande de ne pas explorer les annonces. Le SECO réserve l'accès par programme à des partenaires (placeurs privés) liés par un accord.
 
 ### Civiweb (V.I.E, Business France)

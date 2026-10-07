@@ -2,6 +2,7 @@ import "server-only";
 import { getDb, parseJson, asJson, transaction } from "./index";
 import type { ProfileFull, Profile, Experience, Education, Skill, Language } from "@/lib/cv/types";
 import { WORK_PERMITS, type WorkPermit } from "@/lib/work-permit";
+import { WorkloadRangeSchema } from "@/lib/workload";
 
 export function getProfile(): ProfileFull | null {
   const db = getDb();
@@ -64,10 +65,8 @@ export function getProfile(): ProfileFull | null {
 }
 
 function parseWorkloadRange(raw: string | null): [number, number] | null {
-  const v = parseJson<unknown>(raw, null);
-  return Array.isArray(v) && v.length === 2 && v.every((n) => typeof n === "number") && v[0] <= v[1]
-    ? [v[0], v[1]]
-    : null;
+  const parsed = WorkloadRangeSchema.safeParse(parseJson<unknown>(raw, null));
+  return parsed.success ? parsed.data : null;
 }
 
 export function saveProfile(input: Omit<ProfileFull, "id" | "created_at" | "updated_at">): number {

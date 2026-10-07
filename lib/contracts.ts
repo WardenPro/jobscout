@@ -42,7 +42,26 @@ export function classifyContract(input: {
     return "vie";
   }
 
-  const haystack = `${strip(input.contract_type)} ${strip(input.title)} ${strip(input.description_text).slice(0, 1500)}`;
+  // Le contrat explicite de la source prime sur les prérequis de la description.
+  const stated = classifyText(strip(input.contract_type));
+  if (stated) return stated;
+  const inferred = classifyText(`${strip(input.title)} ${strip(input.description_text).slice(0, 1500)}`);
+  if (inferred) return inferred;
+
+  // Les libellés FULL_TIME / PART_TIME ne donnent pas la nature du contrat :
+  // ils restent un recours après les indications du titre et de la description.
+  const ct = strip(input.contract_type);
+  if (ct.includes("intern")) return "stage";
+  if (ct.includes("temporary") || ct.includes("contractor")) return "cdd";
+  if (ct.includes("full_time") || ct.includes("part_time") || ct.includes("full time") || ct.includes("part time")) {
+    return "cdi";
+  }
+  return "autre";
+}
+
+function classifyText(text: string): ContractCategory | null {
+  // Une négation explicite allemande n'est pas un contrat à durée déterminée.
+  const haystack = text.replace(/\b(?:nicht|nie)\s+befristet\w*\b/g, "unbefristet");
 
   // 2. Alternance / apprentissage (very specific keywords)
   //    Suisse alémanique : Lehrstelle. Pas « Lehre » seul : « abgeschlossene Lehre » est un prérequis.
@@ -69,13 +88,5 @@ export function classifyContract(input: {
     return "cdi";
   }
 
-  // 6. JSON-LD employmentType fallback
-  const ct = strip(input.contract_type);
-  if (ct.includes("intern")) return "stage";
-  if (ct.includes("temporary") || ct.includes("contractor")) return "cdd";
-  if (ct.includes("full_time") || ct.includes("part_time") || ct.includes("full time") || ct.includes("part time")) {
-    return "cdi";
-  }
-
-  return "autre";
+  return null;
 }

@@ -82,7 +82,29 @@ export async function generateLM(
   // Relecture (orthographe, accords, typographie, faits non étayés) — jamais bloquante.
   const proofread = await proofreadLM(shaped, profile, lang);
   // Garde-fou mobilité : le lieu de l'offre doit être nommé quand il diffère de la ville du candidat.
-  return ensureMobility(proofread, profile, offre, lang);
+  return ensureMobility(enforceCrossBorderMobility(proofread, profile, offre, lang), profile, offre, lang);
+}
+
+const RELOCATION = /\b(?:d[ée]m[ée]nag\w*|relocalis\w*|relocat\w*|(?:move|moving)\s+(?:to|there)|(?:m['’]|me\s+)(?:installer|[ée]tablir))\b/i;
+
+/** Retire les phrases explicites de relocalisation, même si le lieu est déjà cité. */
+export function enforceCrossBorderMobility(
+  lm: GeneratedLM,
+  profile: ProfileFull,
+  offre: { country: string | null },
+  lang: DocLang
+): GeneratedLM {
+  if (!isSwissOffer(offre.country) || !isCrossBorder(profile.work_permit)) return lm;
+  const body_paragraphs = lm.body_paragraphs.map((p) =>
+    p.split(/(?<=[.!?])\s+|\n+/).filter((sentence) => !RELOCATION.test(sentence)).join(" ").trim()
+  );
+  const last = body_paragraphs.length - 1;
+  if (last >= 0 && !body_paragraphs[last]) {
+    body_paragraphs[last] = lang === "en"
+      ? "I am available for an interview by video call. Thank you for considering my application."
+      : "Je suis disponible pour un entretien en visioconférence. Je vous remercie de l'attention portée à ma candidature.";
+  }
+  return { ...lm, body_paragraphs };
 }
 
 /**
@@ -179,8 +201,8 @@ async function ensureMobility(
       maxTokens: 800,
       system: commute
         ? lang === "en"
-          ? "You edit ONE paragraph of a cover letter. Insert, naturally, an explicit sentence of availability that names the job location given: the candidate is a cross-border commuter living in France and can travel daily to that location (on-site interview there or by video call). Do NOT mention relocating or moving. Keep every other sentence unchanged, same language (English), no salutation, no sign-off. Return only the paragraph via the tool."
-          : "Tu modifies UN paragraphe d'une lettre de motivation. Insère, naturellement, une phrase explicite de disponibilité qui nomme le lieu de l'offre indiqué : le candidat est frontalier, il réside en France et peut se rendre chaque jour sur ce lieu (entretien sur place ou en visioconférence). Ne parle PAS de déménagement. Conserve toutes les autres phrases à l'identique, même langue (français), sans salutation ni formule de politesse. Renvoie uniquement le paragraphe via l'outil."
+          ? "You edit ONE paragraph of a cover letter. Insert an interview availability sentence naming the job location given (on-site or by video call). The candidate is a cross-border worker. Use only the candidate location supplied; do not invent a residence country or commuting frequency. Do NOT mention relocating or moving. Keep every other sentence unchanged, same language (English), no salutation, no sign-off. Return only the paragraph via the tool."
+          : "Tu modifies UN paragraphe d'une lettre de motivation. Insère une phrase de disponibilité pour un entretien qui nomme le lieu de l'offre (sur place ou en visioconférence). Le candidat est frontalier. Utilise uniquement le lieu du candidat fourni ; n'invente ni pays de résidence ni fréquence de déplacement. Ne parle PAS de déménagement. Conserve les autres phrases à l'identique, même langue (français), sans salutation ni formule de politesse. Renvoie uniquement le paragraphe via l'outil."
         : lang === "en"
           ? "You edit ONE paragraph of a cover letter. Insert, naturally, an explicit sentence of availability and mobility that names the job location given (on-site interview there or by video call, readiness to relocate). Keep every other sentence unchanged, same language (English), no salutation, no sign-off. Return only the paragraph via the tool."
           : "Tu modifies UN paragraphe d'une lettre de motivation. Insère, naturellement, une phrase explicite de disponibilité et de mobilité qui nomme le lieu de l'offre indiqué (entretien sur place ou en visioconférence, mobilité vers ce lieu). Conserve toutes les autres phrases à l'identique, même langue (français), sans salutation ni formule de politesse. Renvoie uniquement le paragraphe via l'outil.",
@@ -189,6 +211,7 @@ async function ensureMobility(
     });
     const out = message.input ? (message.input as { paragraph?: unknown }).paragraph : null;
     if (typeof out !== "string" || out.trim().length < 20) throw new Error("paragraphe vide");
+    if (commute && RELOCATION.test(out)) throw new Error("relocalisation incompatible avec le statut frontalier");
     if (!names.some((n) => foldText(out).includes(foldText(n)))) throw new Error("lieu toujours absent");
     const body_paragraphs = [...lm.body_paragraphs];
     body_paragraphs[idx] = out.trim();

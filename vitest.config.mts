@@ -5,6 +5,8 @@ import { defineConfig } from "vitest/config";
 const root = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  // Next compile le JSX ; les tests de composants ont besoin du même runtime.
+  oxc: { jsx: { runtime: "automatic" } },
   resolve: {
     alias: {
       "@": root,

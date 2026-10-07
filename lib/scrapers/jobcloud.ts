@@ -170,7 +170,7 @@ async function fetchDetail(site: Site, card: Card): Promise<ScrapedOffre> {
 function knownOnSibling(site: Site, ids: string[]): Set<string> {
   if (!ids.length) return new Set();
   const rows = getDb()
-    .prepare(`SELECT source_id FROM offres WHERE source = ? AND source_id IN (${ids.map(() => "?").join(",")})`)
+    .prepare(`SELECT source_id FROM offres WHERE source = ? AND description_status = 'ok' AND source_id IN (${ids.map(() => "?").join(",")})`)
     .all(site.sibling, ...ids) as { source_id: string }[];
   return new Set(rows.map((r) => r.source_id));
 }
@@ -202,8 +202,9 @@ function makeScraper(site: Site): Scraper {
             for (const c of cards) if (!seen.has(c.id)) seen.set(c.id, c);
             if (page >= numPages) break;
             await sleep(1200);
-          } catch {
-            break;
+          } catch (e) {
+            const message = e instanceof Error ? e.message : String(e);
+            throw new Error(`${site.label} : recherche impossible (page ${page}) : ${message}`, { cause: e });
           }
         }
         if (seen.size >= max) break;

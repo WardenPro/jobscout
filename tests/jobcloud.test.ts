@@ -169,6 +169,14 @@ describe("classifyContract — vocabulaire suisse", () => {
     expect(c("Lehrstelle")).toBe("alternance");
   });
 
+  it("le contrat explicite prime sur un stage passé ou un contrat nié", () => {
+    expect(c("Unbefristet", "Sie haben ein Praktikum absolviert.")).toBe("cdi");
+    expect(c("Unbefristet", "Die Stelle ist nicht befristet.")).toBe("cdi");
+    expect(c("nicht befristet")).toBe("cdi");
+    expect(c("", "Die Stelle ist nicht befristet.")).toBe("cdi");
+    expect(classifyContract({ contract_type: "FULL_TIME", title: "Praktikum", description_text: "" })).toBe("stage");
+  });
+
   it("« capacité d'apprentissage » (qualité demandée) n'en fait pas une alternance", () => {
     expect(c("Durée déterminée · 100 %", "Bonne capacité d'apprentissage et d'autonomie.")).toBe("cdd");
     expect(c("", "Contrat d'apprentissage de 3 ans.")).toBe("alternance");
