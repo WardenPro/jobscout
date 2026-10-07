@@ -71,7 +71,7 @@ L'app démarre sur http://127.0.0.1:3000 (écoute limitée à la machine locale,
 | Talent.com | HTML SSR multi-domaines + JSON-LD | France, Belgique, Suisse, Luxembourg, Canada, USA, Maroc, Tunisie, Sénégal | à activer vous-même |
 | jobup.ch | État JSON des pages de résultats + JSON-LD (groupe JobCloud) | Suisse (surtout romande) | à activer vous-même |
 | jobs.ch | Idem jobup.ch ; une offre déjà vue sur jobup.ch n'est pas reprise | Suisse | à activer vous-même |
-| Job-Room (SECO) | Interface JSON de la recherche publique du site ; annonces reprises de jobup.ch / jobs.ch déjà vues écartées | Suisse | à activer vous-même |
+| Job-Room (SECO, travail.swiss / arbeit.swiss) | Interface JSON de la recherche publique du site ; annonces reprises de jobup.ch / jobs.ch déjà vues écartées | Suisse | à activer vous-même |
 | LinkedIn | Playwright (pages publiques « guest ») | International (tous pays cibles) | à activer vous-même, moteur à installer |
 | APEC | — | France (cadres) | **suspendue** : le site bloque désormais les requêtes automatiques |
 | Civiweb (V.I.E) | — | International | **suspendue** : Business France exige désormais une authentification que JobScout ne gère pas |

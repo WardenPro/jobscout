@@ -157,6 +157,8 @@ En bref : les conditions de LinkedIn, Welcome to the Jungle, HelloWork, Talent.c
 
 ### Job-Room (service public suisse de l'emploi, SECO)
 
+Job-Room est la recherche d'emploi du portail travail.swiss (arbeit.swiss) : y activer Job-Room couvre les offres de ce portail.
+
 - **Par défaut** : décochée, à activer vous-même. JobScout ne l'interroge que si votre profil cible la Suisse ou ne cible aucun pays.
 - **Ce que fait JobScout** : il interroge sans compte l'interface que le site utilise pour sa propre recherche publique (`www.job-room.ch/jobadservice/api/…`), en se présentant comme un navigateur Chrome : une recherche par secteur, puis le détail de chaque annonce. Les annonces que Job-Room reprend de jobup.ch ou jobs.ch, et déjà enregistrées depuis ces sources, sont écartées. Les coordonnées nominatives des recruteurs ne sont pas enregistrées.
 - **Conditions du site** : [informations juridiques de travail.swiss](https://www.arbeit.swiss/secoalv/fr/home/service/rechtliche-hinweise.html), lues le 7 octobre 2026. Elles réservent les droits sur les contenus, postes vacants compris, au SECO ou à leurs détenteurs, et soumettent leur reproduction à une autorisation écrite préalable. Aucune interdiction expresse des robots n'y a été relevée, mais le `robots.txt` de Job-Room demande de ne pas explorer les annonces. Le SECO réserve l'accès par programme à des partenaires (placeurs privés) liés par un accord.

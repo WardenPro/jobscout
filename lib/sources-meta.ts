@@ -56,8 +56,8 @@ export const SOURCES_META: SourceMeta[] = [
   { id: "jobsch", label: "jobs.ch", sublabel: "Toute la Suisse · à activer vous-même", scope: "ch", optIn: true },
   {
     id: "jobroom",
-    label: "Job-Room",
-    sublabel: "Service public suisse de l'emploi (SECO) · à activer vous-même",
+    label: "Job-Room (travail.swiss)",
+    sublabel: "Service public suisse de l'emploi (SECO, arbeit.swiss) · à activer vous-même",
     scope: "ch",
     optIn: true,
   },
