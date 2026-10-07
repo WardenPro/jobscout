@@ -9,8 +9,8 @@ import { GET } from "@/app/api/offres/search/route";
 import { NextRequest } from "next/server";
 
 let seq = 0;
-function add(location: string | null, over: Partial<ScrapedOffre> = {}) {
-  return upsertOffreFromSource("jobroom", { source_id: `geo-${++seq}`, url: "https://example.org/offre", title: "Comptable", company: "Exemple", country: "Suisse", location, contract_type: "CDI", salary: null, description_text: "Offre de comptable", description_html: "", description_status: "ok", posted_at: null, is_vie: false, raw_payload: {}, ...over });
+function add(location: string | null, over: Partial<ScrapedOffre> = {}, source = "jobroom") {
+  return upsertOffreFromSource(source, { source_id: `geo-${++seq}`, url: "https://example.org/offre", title: "Comptable", company: "Exemple", country: "Suisse", location, contract_type: "CDI", salary: null, description_text: "Offre de comptable", description_html: "", description_status: "ok", posted_at: null, is_vie: false, raw_payload: {}, ...over });
 }
 beforeEach(() => { getDb().exec("DELETE FROM documents; DELETE FROM offres; DELETE FROM profile"); });
 
@@ -43,6 +43,50 @@ describe("cantons et villes", () => {
     const id = add("Neuchâtel");
     getDb().prepare("UPDATE offres SET canton = NULL WHERE id = ?").run(id);
     expect(searchOffres({ canton: "NE" }).offers.map(o => o.id)).toEqual([id]);
+  });
+
+  it.each([
+    ["Geneva, Geneva, Switzerland", "GE"], ["Lausanne, Vaud, Suisse", "VD"], ["Genève, CH", "GE"],
+    ["1003 Lausanne", "VD"], ["Biel/Bienne", "BE"], ["Basel, Basel-Stadt, Schweiz", "BS"],
+  ] as const)("reconnaît le canton dans un lieu composé : %s", (location, canton) => {
+    expect(resolveSwissCanton(null, location)).toBe(canton);
+    const id = add(location);
+    expect(searchOffres({ canton }).offers.map(o => o.id)).toEqual([id]);
+  });
+
+  it("ne déduit pas un canton d'un lieu contradictoire ou de plusieurs villes", () => {
+    for (const location of ["Genève, Lausanne", "Genève, Vaud, Suisse", "Biel/Lausanne"]) expect(resolveSwissCanton(null, location)).toBeNull();
+  });
+
+  it("le filtre canton reste indépendant de la présence sur site", () => {
+    const id = add("Télétravail, VD");
+    expect(searchOffres({ canton: "VD" }).offers.map(o => o.id)).toEqual([id]);
+  });
+
+  it.each(["linkedin", "talent"])("les offres suisses de %s restent accessibles, même sans canton enregistré", source => {
+    const first = add("Geneva, Geneva, Switzerland", {}, source);
+    const second = add("Genève, CH", {}, source);
+    const third = add("Lausanne, Vaud, Suisse", {}, source);
+    // Offres anciennes : aucun nouveau scan n'est nécessaire pour bénéficier du correctif.
+    getDb().exec("UPDATE offres SET canton = NULL");
+    expect(searchOffres({ source, canton: "GE", city: "Genève" }).offers.map(o => o.id).sort()).toEqual([first, second].sort());
+    expect(searchOffres({ source, canton: "VD" }).offers.map(o => o.id)).toEqual([third]);
+  });
+
+  it("préserve les lieux, pays, contrats et filtres des offres françaises", async () => {
+    const paris = add("75008 Paris, Île-de-France, France", { country: "France" }, "francetravail");
+    const lyon = add("69003 Lyon, Auvergne-Rhône-Alpes, France", { country: "France" }, "hellowork");
+    const alias = add("Geneva, Geneva, Switzerland", { country: "France", canton: "GE" }, "talent");
+    add("Geneva, Geneva, Switzerland");
+    const france = searchOffres({ country: "France" });
+    expect(france.total).toBe(3);
+    expect(france.offers.every(o => o.canton === null && o.contract_category === "cdi" && o.score === 0)).toBe(true);
+    expect(searchOffres({ country: "France", city: "PARIS", source: "francetravail" }).offers.map(o => o.id)).toEqual([paris]);
+    expect(searchOffres({ country: "France", city: "lyon" }).offers.map(o => o.id)).toEqual([lyon]);
+    expect(france.offers.find(o => o.id === alias)!.location).toBe("Geneva, Geneva, Switzerland");
+    expect(searchOffres({ country: "France", canton: "GE" }).total).toBe(0);
+    const response = await GET(new NextRequest("http://localhost/api/offres/search?country=France&city=Paris"));
+    expect((await response.json()).offers).toEqual([expect.objectContaining({ id: paris, country: "France", location: "75008 Paris, Île-de-France, France", canton: null })]);
   });
 
   it("analyse aussi les exigences après l'extrait de 1 000 caractères et suit le profil actualisé", () => {

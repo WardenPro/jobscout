@@ -21,7 +21,7 @@ const ALIASES: Record<JobLanguage, string> = {
 };
 const NAMES = new RegExp(`\\b(?:${Object.values(ALIASES).join("|")})\\b`, "g");
 const REQUIRED = /\b(?:obligatoire|exige\w*|indispensable|imperatif|requis\w*|required|mandatory|essential|must|voraussetzung|erforderlich|zwingend|maitris\w*|parlez|parler|speak|speaking|sprechen|(?:deutsch|franzosisch|englisch|italienisch)?kenntnisse|connaissances|niveau|level|courant\w*|fluent\w*|fliessend\w*|verhandlungssicher|professionnel\w*|professional|business|suffisant\w*|sufficient|native|natif|maternelle|muttersprache|bilingue|bilingual|b[12]|c[12]|a[12])\b/;
-const PREFERRED = /\b(?:atout|souhaite\w*|apprecie\w*|idealement|prefer\w*|desirable|advantage|plus|asset|facultatif|optional|wunschenswert|von vorteil|idealerweise)\b/;
+const PREFERRED = /\b(?:atout|souhaite\w*|apprecie\w*|idealement|prefer\w*|desirable|advantage|un\s+plus|asset|facultatif|optional|wunschenswert|von vorteil|idealerweise)\b/;
 const NEGATED = /(?:\b(?:pas|non|not|nicht|keine?)\s+(?:(?:de|d['’]|necessarily|unbedingt)\s*)?(?:necessaire\w*|exige\w*|requis\w*|obligatoire\w*|imperatif\w*|indispensable|connaissances|required|mandatory|essential|erforderlich|notwendig|kenntnisse)|\b(?:aucune?|no)\s+(?:exigence|requirement)|\bnicht\s+zwingend|\b(?:exige\w*|requier\w*)\s+pas\b)/;
 const OR = /^\s*(?:ou|or|oder|oppure|\/)\s*(?:(?:de|du|en|in)\s+|[dl]['’])*\s*$/;
 const ALTERNATIVE_QUALIFIERS = /\b(?:[abc][12]|courant\w*|fluent\w*|fliessend\w*|professionnel\w*|professional|business|niveau|level)\b/g;

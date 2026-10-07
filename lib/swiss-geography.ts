@@ -48,13 +48,60 @@ export function normalizeCanton(value: string | null | undefined): SwissCanton |
   return CANTON_CODES.find(c => normalizePlace(SWISS_CANTONS[c]) === normalized) ?? CANTON_ALIASES[normalized] ?? null;
 }
 
-/** Région structurée d'abord, code explicite ensuite, ville reconnue en dernier recours. */
+const SWISS_COUNTRY_NAMES = new Set(["ch", "suisse", "switzerland", "schweiz", "svizzera"]);
+const CITY_NAMES: Record<string, string> = {
+  geneve: "Genève", bale: "Bâle", neuchatel: "Neuchâtel", bienne: "Bienne", berne: "Berne", lucerne: "Lucerne",
+};
+const CANTON_SUFFIX = /(?:\(([A-Z]{2})\)|\s+([A-Z]{2}))\s*$/;
+
+/** Seulement pour les villes suisses : NPA retiré, variantes linguistiques réunies. */
+export function normalizeSwissCity(value: string): string {
+  let city = value.trim().replace(/^\d{4}\s+|\s+\d{4}$/g, "").trim();
+  city = city.replace(CANTON_SUFFIX, (match, parenthesized: string, suffix: string) => {
+    const code = parenthesized ?? suffix;
+    return normalizeCanton(code) || SWISS_COUNTRY_NAMES.has(normalizePlace(code)) ? "" : match;
+  }).trim();
+  if (/^(?:biel\s*\/\s*bienne|bienne\s*\/\s*biel)$/i.test(city)) return "Bienne";
+  return CITY_NAMES[normalizeCity(city)] ?? city;
+}
+
+/** Ville, canton, NPA, pays : les répétitions sont permises, pas les villes distinctes. */
+export function parseSwissLocation(location: string | null | undefined): { city: string | null; canton: SwissCanton | null } {
+  const cities = new Map<string, string>();
+  const cantons = new Set<SwissCanton>();
+  let remote = false;
+  for (const part of (location ?? "").split(",").map(value => value.trim()).filter(Boolean)) {
+    if (SWISS_COUNTRY_NAMES.has(normalizePlace(part)) || /^\d{4}$/.test(part)) continue;
+    const suffix = CANTON_SUFFIX.exec(part);
+    const code = normalizeCanton(suffix?.[1] ?? suffix?.[2]);
+    if (code) cantons.add(code);
+    const city = normalizeSwissCity(part);
+    const normalized = normalizeCity(city);
+    const knownCityCanton = CITIES[normalized];
+    const region = normalizeCanton(part);
+    if (region) cantons.add(region);
+    if (knownCityCanton) cantons.add(knownCityCanton);
+    // Un canton seul (Vaud, VD...) n'est pas une destination ; Genève peut être les deux.
+    if (region && !knownCityCanton) continue;
+    if (/\b(?:remote|teletravail)\b/.test(normalized)) {
+      remote = true;
+      continue;
+    }
+    if (!city || city.includes("/") || /\b(?:suisse|switzerland|schweiz|svizzera|toute|divers|et|ou)\b/.test(normalized)) {
+      return { city: null, canton: null };
+    }
+    cities.set(normalized, city);
+  }
+  const unambiguous = cities.size <= 1 && cantons.size <= 1;
+  return {
+    city: unambiguous && !remote ? [...cities.values()][0] ?? null : null,
+    canton: unambiguous ? [...cantons][0] ?? null : null,
+  };
+}
+
+/** Région structurée d'abord, puis composants concordants du lieu publié. Usage suisse uniquement. */
 export function resolveSwissCanton(region: string | null | undefined, location: string | null | undefined): SwissCanton | null {
   const structured = normalizeCanton(region);
   if (structured) return structured;
-  const text = location ?? "";
-  const code = /(?:\(|,|\s)([A-Z]{2})(?:\)|\s*$)/.exec(text)?.[1];
-  if (code && normalizeCanton(code)) return normalizeCanton(code);
-  const normalized = normalizePlace(text).replace(/^\d{4}\s+/, "");
-  return normalizeCanton(normalized) ?? CITIES[normalized] ?? null;
+  return parseSwissLocation(location).canton;
 }
