@@ -204,7 +204,11 @@ function makeScraper(site: Site): Scraper {
             await sleep(1200);
           } catch (e) {
             const message = e instanceof Error ? e.message : String(e);
-            throw new Error(`${site.label} : recherche impossible (page ${page}) : ${message}`, { cause: e });
+            const error = new Error(`${site.label} : recherche impossible (page ${page}) : ${message}`, { cause: e });
+            if (!seen.size) throw error;
+            // Conserver les offres déjà collectées et poursuivre les autres recherches.
+            onEvent({ kind: "error", source: site.id, message: error.message });
+            break;
           }
         }
         if (seen.size >= max) break;

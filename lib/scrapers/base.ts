@@ -31,6 +31,7 @@ export type ScrapeCriteria = {
 };
 
 export type ProgressEvent =
+  | { kind: "error"; source: string; message: string }
   | { kind: "start"; source: string }
   | { kind: "list"; source: string; total: number }
   | { kind: "offre"; source: string; index: number; total: number; status: "ok" | "failed" }

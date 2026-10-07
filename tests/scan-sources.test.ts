@@ -14,6 +14,7 @@ import { profile } from "./fixtures";
 
 const state = vi.hoisted(() => ({
   sourcesEnabled: null as string[] | null,
+  searchError: false,
 }));
 
 vi.mock("@/lib/db/queries", async (importOriginal) => ({
@@ -26,6 +27,7 @@ vi.mock("@/lib/scrapers/registry", () => {
     name: id,
     async *scrape(_criteria, onEvent: (e: ProgressEvent) => void) {
       onEvent({ kind: "start", source: id });
+      if (state.searchError) onEvent({ kind: "error", source: id, message: "recherche impossible (page 2) : HTTP 503" });
       onEvent({ kind: "done", source: id, seen: 0, ok: 0, failed: 0 });
     },
   });
@@ -92,4 +94,22 @@ describe("runScan — sources scannées", () => {
       expect(DEFAULT_SOURCE_IDS).not.toContain(id);
     }
   });
+});
+
+
+it("runScan conserve les erreurs de recherche non fatales dans le journal", async () => {
+  state.sourcesEnabled = ["jobup"];
+  state.searchError = true;
+  try {
+    const { runScan } = await import("@/lib/scan/orchestrator");
+    const events = [];
+    for await (const event of runScan(() => {})) events.push(event);
+    expect(events).toContainEqual({ kind: "error", source: "jobup", message: "recherche impossible (page 2) : HTTP 503" });
+    expect(events).toContainEqual({ kind: "done", source: "jobup", seen: 0, ok: 0, failed: 0 });
+    const last = getDb().prepare("SELECT status, log FROM scan_runs ORDER BY id DESC LIMIT 1").get() as { status: string; log: string };
+    expect(last.status).toBe("done");
+    expect(last.log).toContain("[jobup] erreur de recherche: recherche impossible (page 2) : HTTP 503");
+  } finally {
+    state.searchError = false;
+  }
 });
