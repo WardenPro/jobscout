@@ -8,6 +8,7 @@ import { isSwissOffer } from "@/lib/work-permit";
 import { assessLanguages, type LanguageAssessment } from "@/lib/language-requirements";
 import { getProfile } from "./queries";
 import { cachedCommute, type CommuteEstimate } from "@/lib/commute";
+import { countryMatcher, normalizeCountryName } from "@/lib/countries";
 
 export type { ScrapedOffre };
 
@@ -122,6 +123,19 @@ type OffresCache = {
 const ORDER_TTL_MS = 60_000;
 let offresCache: OffresCache | null = null;
 
+function searchFacets(rows: CachedOffre[]): OffersSearch["facets"] {
+  const contractCounts = Object.fromEntries(CONTRACT_ORDER.map(contract => [contract, 0])) as Record<ContractCategory, number>;
+  const countries = new Set<string>();
+  const sources = new Set<string>();
+  for (const row of rows) {
+    contractCounts[row.contract_category]++;
+    const country = normalizeCountryName(row.country);
+    if (country) countries.add(country);
+    sources.add(row.source);
+  }
+  return { total: rows.length, countries: [...countries].sort((a, b) => a.localeCompare(b, "fr")), sources: [...sources].sort(), contractCounts, hasVie: contractCounts.vie > 0 };
+}
+
 /**
  * Empreinte de la base, lue à chaque appel (deux lectures de quelques microsecondes) :
  * - `PRAGMA data_version` change dès qu’une AUTRE connexion valide une écriture
@@ -157,16 +171,10 @@ function buildOffresCache(fingerprint: string): OffresCache {
     FROM offres o ORDER BY ${SMART_ORDER}
   `).all() as CacheRow[];
 
-  const contractCounts = Object.fromEntries(CONTRACT_ORDER.map((contract) => [contract, 0])) as Record<ContractCategory, number>;
-  const countries = new Set<string>();
-  const sources = new Set<string>();
   const byId = new Map<number, CachedOffre>();
   const smart: CachedOffre[] = [];
   for (const row of rows) {
     const contract_category = classifyContract({ ...row, description_text: row.head ?? "" });
-    contractCounts[contract_category]++;
-    if (row.country) countries.add(row.country);
-    sources.add(row.source);
     const offer: CachedOffre = {
       id: row.id, source: row.source, url: row.url, title: row.title,
       company: row.company, country: row.country, location: row.location,
@@ -183,13 +191,7 @@ function buildOffresCache(fingerprint: string): OffresCache {
   }
   return {
     fingerprint, byId, smart, orderedAt: Date.now(), haystacks: null,
-    facets: {
-      total: rows.length,
-      countries: [...countries].sort((a, b) => a.localeCompare(b, "fr")),
-      sources: [...sources].sort(),
-      contractCounts,
-      hasVie: contractCounts.vie > 0,
-    },
+    facets: searchFacets(smart),
   };
 }
 
@@ -248,15 +250,20 @@ export function searchOffres(opts: {
   page?: number;
 } = {}): OffersSearch {
   const cache = getOffresCache();
+  const profile = getProfile();
+  const targetCountries = profile?.target_countries ?? [];
+  const inProfile = countryMatcher(targetCountries);
+  const inCountry = countryMatcher(opts.country ? [opts.country] : []);
+  const scoped = targetCountries.length ? cache.smart.filter(row => inProfile(row.country)) : cache.smart;
   const query = normalizeSearch((opts.query ?? "").trim());
   const haystacks = query ? getHaystacks(cache) : null;
   const contracts = new Set(opts.contracts ?? []);
   const minScore = opts.minScore === true ? 60 : typeof opts.minScore === "number" ? opts.minScore : 0;
   const commutes = new Map<number, CommuteEstimate | null>();
-  const filtered = cache.smart.filter((row) => {
+  const filtered = scoped.filter((row) => {
     if (haystacks && !(haystacks.get(row.id) ?? "").includes(query)) return false;
     if (opts.source && row.source !== opts.source) return false;
-    if (opts.country && row.country !== opts.country) return false;
+    if (!inCountry(row.country)) return false;
     if (opts.canton && row.canton !== opts.canton) return false;
     if (!matchesCity(row.location, opts.city ?? "")) return false;
     // Le filtre frontalier ne change pas la visibilité des offres des autres pays.
@@ -283,7 +290,7 @@ export function searchOffres(opts: {
   }
   const page = Math.max(1, Math.min(10000, Math.trunc(opts.page ?? 1) || 1));
   const visible = filtered.slice((page - 1) * OFFER_PAGE_SIZE, page * OFFER_PAGE_SIZE);
-  const profileLanguages = getProfile()?.languages ?? null;
+  const profileLanguages = profile?.languages ?? null;
   const fullDescription = getDb().prepare("SELECT description_text FROM offres WHERE id = ?");
   return {
     offers: visible.map((row) => ({
@@ -301,18 +308,17 @@ export function searchOffres(opts: {
     })),
     total: filtered.length,
     pageSize: OFFER_PAGE_SIZE,
-    facets: cache.facets,
+    facets: targetCountries.length ? searchFacets(scoped) : cache.facets,
   };
 }
 
 /** Les six premières suggestions suffisent au tableau de bord. */
 export function suggestedOffres(limit: number, untracked = false): Pick<OffreRow, "id" | "title" | "company" | "country" | "location" | "posted_at" | "score">[] {
-  return getDb().prepare(`
-    SELECT o.id, o.title, o.company, o.country, o.location, o.posted_at, o.score
-    FROM offres o
-    ${untracked ? "WHERE NOT EXISTS(SELECT 1 FROM candidatures c WHERE c.offre_id = o.id)" : ""}
-    ORDER BY ${SMART_ORDER} LIMIT ?
-  `).all(Math.max(1, Math.min(20, Math.trunc(limit)))) as Pick<OffreRow, "id" | "title" | "company" | "country" | "location" | "posted_at" | "score">[];
+  const inProfile = countryMatcher(getProfile()?.target_countries ?? []);
+  const tracked = new Set(untracked ? (getDb().prepare("SELECT offre_id FROM candidatures WHERE offre_id IS NOT NULL").all() as { offre_id: number }[]).map(row => row.offre_id) : []);
+  return getOffresCache().smart.filter(row => inProfile(row.country) && !tracked.has(row.id))
+    .slice(0, Math.max(1, Math.min(20, Math.trunc(limit))))
+    .map(({ id, title, company, country, location, posted_at, score }) => ({ id, title, company, country, location, posted_at, score }));
 }
 
 // Filet de sécurité anti-mojibake : répare l'UTF-8 double-décodé (é→Ã©, ’→â€™…)
@@ -388,6 +394,7 @@ export function setOffreScore(id: number, score: ScoreResult) {
 }
 
 export function listOffres(opts?: {
+  targetCountries?: string[];
   country?: string;
   source?: string;
   vieOnly?: boolean;
@@ -396,10 +403,8 @@ export function listOffres(opts?: {
   const db = getDb();
   const conds: string[] = [];
   const params: any[] = [];
-  if (opts?.country) {
-    conds.push("country = ?");
-    params.push(opts.country);
-  }
+  const inCountry = countryMatcher(opts?.country ? [opts.country] : []);
+  const inTargets = countryMatcher(opts?.targetCountries ?? []);
   if (opts?.source) {
     conds.push("source = ?");
     params.push(opts.source);
@@ -422,7 +427,7 @@ export function listOffres(opts?: {
     )
     .all(...params) as any[];
 
-  return rows.map((r) => ({
+  return rows.filter(r => inTargets(r.country) && inCountry(r.country)).map((r) => ({
     ...r,
     score_breakdown: parseJson(r.score_breakdown, null),
     has_cv: !!r.has_cv,
@@ -470,14 +475,13 @@ export function getOffre(id: number): OffreFiltered | null {
 
 export function offresCounts() {
   const db = getDb();
-  const total = (db.prepare("SELECT COUNT(*) as c FROM offres").get() as { c: number }).c;
-  const today = (
-    db.prepare("SELECT COUNT(*) as c FROM offres WHERE date(posted_at) = date('now')").get() as {
-      c: number;
-    }
-  ).c;
+  const inProfile = countryMatcher(getProfile()?.target_countries ?? []);
+  const rows = (db.prepare("SELECT country, is_vie, date(posted_at) = date('now') AS today FROM offres").all() as { country: string | null; is_vie: number; today: number | null }[])
+    .filter(row => inProfile(row.country));
+  const total = rows.length;
+  const today = rows.filter(row => row.today).length;
   // Colonne is_vie figée au scan : pour un chiffre qui corresponde à /offres?vie=1,
   // lire searchOffres().facets.contractCounts.vie (page /offres) ou vieFigure() (accueil).
-  const vie = (db.prepare("SELECT COUNT(*) as c FROM offres WHERE is_vie = 1").get() as { c: number }).c;
+  const vie = rows.filter(row => row.is_vie).length;
   return { total, today, vie };
 }

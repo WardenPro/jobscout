@@ -1,6 +1,8 @@
 import "server-only";
 import { getDb } from "./index";
 import { detectVie } from "@/lib/vie";
+import { getProfile } from "./queries";
+import { countryMatcher } from "@/lib/countries";
 
 // Requêtes propres à l'accueil. Les chiffres affichés doivent concorder avec la page
 // vers laquelle chaque carte renvoie : on réutilise donc les mêmes règles que la liste.
@@ -20,12 +22,13 @@ const RECENT_SQL = `(posted_at IS NOT NULL AND julianday('now') - julianday(post
  */
 export function vieFigure(): DashboardFigure {
   const rows = getDb()
-    .prepare(`SELECT source, url, title, substr(description_text, 1, 4000) AS description, ${RECENT_SQL} AS recent FROM offres`)
-    .all() as { source: string; url: string | null; title: string | null; description: string | null; recent: number }[];
+    .prepare(`SELECT country, source, url, title, substr(description_text, 1, 4000) AS description, ${RECENT_SQL} AS recent FROM offres`)
+    .all() as { country: string | null; source: string; url: string | null; title: string | null; description: string | null; recent: number }[];
+  const inProfile = countryMatcher(getProfile()?.target_countries ?? []);
   let total = 0;
   let recent = 0;
   for (const row of rows) {
-    if (!detectVie(row)) continue;
+    if (!inProfile(row.country) || !detectVie(row)) continue;
     total++;
     if (row.recent) recent++;
   }
@@ -34,21 +37,20 @@ export function vieFigure(): DashboardFigure {
 
 /** Offres dont le score atteint `threshold` (70 par défaut). */
 export function highScoreFigure(threshold = 70): DashboardFigure {
-  const row = getDb()
+  const inProfile = countryMatcher(getProfile()?.target_countries ?? []);
+  const rows = getDb()
     .prepare(
-      `SELECT COUNT(*) AS total,
-              COALESCE(SUM(${RECENT_SQL}), 0) AS recent
+      `SELECT country, ${RECENT_SQL} AS recent
        FROM offres WHERE score >= ?`
     )
-    .get(threshold) as { total: number; recent: number };
-  return { total: row.total, recent: row.recent };
+    .all(threshold) as { country: string | null; recent: number }[];
+  const scoped = rows.filter(row => inProfile(row.country));
+  return { total: scoped.length, recent: scoped.filter(row => row.recent).length };
 }
 
 /** Nombre d'offres qui ne sont pas encore dans le suivi des candidatures. */
 export function untrackedOffresCount(): number {
-  return (
-    getDb()
-      .prepare("SELECT COUNT(*) AS c FROM offres o WHERE NOT EXISTS(SELECT 1 FROM candidatures c WHERE c.offre_id = o.id)")
-      .get() as { c: number }
-  ).c;
+  const inProfile = countryMatcher(getProfile()?.target_countries ?? []);
+  return (getDb().prepare("SELECT country FROM offres o WHERE NOT EXISTS(SELECT 1 FROM candidatures c WHERE c.offre_id = o.id)").all() as { country: string | null }[])
+    .filter(row => inProfile(row.country)).length;
 }

@@ -4,6 +4,7 @@ import { calculateCommutes } from "@/lib/commute";
 import { listOffres } from "@/lib/db/offres";
 import { isSwissOffer } from "@/lib/work-permit";
 import { CANTON_CODES, matchesCity, resolveSwissCanton } from "@/lib/swiss-geography";
+import { getProfile } from "@/lib/db/queries";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
   running = true;
   try {
     const { origin, canton, city } = parsed.data;
-    const locations = listOffres().filter(o => isSwissOffer(o.country) &&
+    const locations = listOffres({ targetCountries: getProfile()?.target_countries ?? [] }).filter(o => isSwissOffer(o.country) &&
       (!canton || resolveSwissCanton(o.canton, o.location) === canton) &&
       matchesCity(o.location, city))
       .map(o => o.location).filter((place): place is string => !!place);

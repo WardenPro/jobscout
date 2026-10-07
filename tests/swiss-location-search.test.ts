@@ -100,10 +100,10 @@ describe("cantons et villes", () => {
   });
 
   it("analyse aussi les exigences après l'extrait de 1 000 caractères et suit le profil actualisé", () => {
-    saveProfile(ProfileFullSchema.parse({ ...profile, languages: [{ name: "Allemand", level: "A2" }] }));
+    saveProfile(ProfileFullSchema.parse({ ...profile, target_countries: ["Suisse"], languages: [{ name: "Allemand", level: "A2" }] }));
     add("Genève", { description_text: "Contexte. ".repeat(150) + " Allemand B2 obligatoire." });
     expect(searchOffres().offers[0].language_assessment.checks[0].status).toBe("gap");
-    saveProfile(ProfileFullSchema.parse({ ...profile, languages: [{ name: "Allemand", level: "C1" }] }));
+    saveProfile(ProfileFullSchema.parse({ ...profile, target_countries: ["Suisse"], languages: [{ name: "Allemand", level: "C1" }] }));
     expect(searchOffres().offers[0].language_assessment.checks[0].status).toBe("compatible");
     expect(searchOffres().offers[0].description_text).toHaveLength(1000);
   });

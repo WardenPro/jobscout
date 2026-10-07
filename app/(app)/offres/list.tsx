@@ -13,6 +13,7 @@ import { SOURCES_META } from "@/lib/sources-meta";
 import { CANTON_CODES, SWISS_CANTONS } from "@/lib/swiss-geography";
 import { LanguageRequirements } from "@/components/app/language-requirements";
 import { isSwissOffer } from "@/lib/work-permit";
+import { countryMatcher } from "@/lib/countries";
 
 const sourceLabels = Object.fromEntries(SOURCES_META.map((source) => [source.id, source.label]));
 const numberFormat = new Intl.NumberFormat("fr-FR");
@@ -76,15 +77,22 @@ export function OffresList({
   const initialVieRef = useRef(initialVieOnly);
   const contractKey = [...contracts].sort().join(",");
   const vieFilter = contracts.has("vie");
-  const showSwissFilters = (!targetCountries.length || targetCountries.some(isSwissOffer)) && (!country || isSwissOffer(country));
+  const selectedCountryAllowed = !country || countryMatcher(targetCountries)(country);
+  const activeCountry = selectedCountryAllowed ? country : "";
+  const showSwissFilters = (!targetCountries.length || targetCountries.some(isSwissOffer)) && (!activeCountry || isSwissOffer(activeCountry));
   const activeCanton = showSwissFilters ? canton : "";
   const activeCommute = showSwissFilters && commuteActive;
-  const hasFilters = !!query || !!source || !!country || !!activeCanton || !!city || activeCommute || contracts.size > 0 || minScore;
-  const activeFilterCount = Number(!!source) + Number(!!country) + Number(!!activeCanton) + Number(!!city) + Number(activeCommute) + contracts.size + Number(minScore);
+  const hasFilters = !!query || !!source || !!activeCountry || !!activeCanton || !!city || activeCommute || contracts.size > 0 || minScore;
+  const activeFilterCount = Number(!!source) + Number(!!activeCountry) + Number(!!activeCanton) + Number(!!city) + Number(activeCommute) + contracts.size + Number(minScore);
   const { countries, sources, contractCounts } = result.facets;
   const shown = result.offers;
   const remaining = Math.max(0, result.total - shown.length);
   const selected = shown.find((offer) => offer.id === selectedId) ?? shown[0] ?? null;
+
+  useEffect(() => {
+    if (selectedCountryAllowed) return;
+    setCountry(""); setPage(1);
+  }, [selectedCountryAllowed]);
 
   useEffect(() => {
     if (showSwissFilters || (!canton && !commuteActive)) return;
@@ -134,7 +142,7 @@ export function OffresList({
     const params = new URLSearchParams({ page: String(page), sort: sortBy });
     if (query) params.set("q", query);
     if (source) params.set("source", source);
-    if (country) params.set("country", country);
+    if (activeCountry) params.set("country", activeCountry);
     if (activeCanton) params.set("canton", activeCanton);
     if (city) params.set("city", city);
     if (activeCommute) {
@@ -164,7 +172,7 @@ export function OffresList({
       }
     }, page > 1 ? 0 : query || city ? 250 : 0);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [query, source, country, activeCanton, city, origin, maxMinutes, includeUnknown, activeCommute, contractKey, minScore, scoreThreshold, sortBy, page, refreshKey]);
+  }, [query, source, activeCountry, activeCanton, city, origin, maxMinutes, includeUnknown, activeCommute, contractKey, minScore, scoreThreshold, sortBy, page, refreshKey]);
 
   function reset() {
     setQuery(""); setSource(""); setCountry(""); setContracts(new Set()); setMinScore(false); setSelectedId(null); setFiltersExpanded(false); setPage(1);
@@ -239,8 +247,8 @@ export function OffresList({
             <option value="">Toutes les sources</option>
             {sources.map((item) => <option key={item} value={item}>{sourceLabels[item] ?? item}</option>)}
           </select>
-          <select value={country} disabled={calculating} onChange={(event) => { setCountry(event.target.value); setPage(1); }} aria-label="Filtrer par pays" className="h-9 max-w-full rounded-md border border-border bg-bg px-3 text-small text-text focus:border-accent focus:outline-none">
-            <option value="">Tous les pays</option>
+          <select value={activeCountry} disabled={calculating} onChange={(event) => { setCountry(event.target.value); setPage(1); }} aria-label="Filtrer par pays" className="h-9 max-w-full rounded-md border border-border bg-bg px-3 text-small text-text focus:border-accent focus:outline-none">
+            <option value="">{targetCountries.length ? "Tous les pays ciblés" : "Tous les pays"}</option>
             {countries.map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
           {showSwissFilters && <select value={canton} disabled={calculating} onChange={(event) => { setCanton(event.target.value); setPage(1); }} aria-label="Filtrer par canton suisse" className="h-9 max-w-full rounded-md border border-border bg-bg px-3 text-small text-text focus:border-accent focus:outline-none">
@@ -250,6 +258,7 @@ export function OffresList({
           <label className="text-small text-textSecondary">Ville <input value={city} disabled={calculating} maxLength={100} onChange={(event) => { setCity(event.target.value); setPage(1); }} placeholder={showSwissFilters ? "Genève, Lausanne, Bâle…" : "Paris, Lyon, Bordeaux…"} className="h-9 max-w-full rounded-md border border-border bg-bg px-3 text-small text-text focus:border-accent focus:outline-none" /></label>
           {hasFilters && <button type="button" disabled={calculating} onClick={reset} className="inline-flex h-9 items-center gap-1.5 px-2 text-small font-semibold text-accent hover:underline disabled:opacity-50"><RotateCcw className="h-3.5 w-3.5" /> Effacer les filtres</button>}
         </div>
+        {targetCountries.length > 0 && <p className="mt-2 text-caption text-textSecondary">Recherche limitée aux pays du profil : {targetCountries.join(" · ")}.</p>}
         {showSwissFilters && <><p className="mt-2 text-caption text-textSecondary">Un canton sélectionné limite la recherche aux offres suisses dont le canton est connu. La ville est recherchée dans le lieu publié.</p>
         <details className="mt-4 border-t border-border pt-3">
           <summary className="cursor-pointer text-small font-semibold">Trajet maximal en voiture depuis la France</summary>

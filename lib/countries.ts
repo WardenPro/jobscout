@@ -228,6 +228,12 @@ export function nameToCode(name: string | null | undefined): string | null {
   return COUNTRY_NAME_TO_CODE[norm(name)] ?? null;
 }
 
+/** Périmètre de recherche : aucun pays ciblé = tous ; pays inconnu exclu si un périmètre est défini. */
+export function countryMatcher(targetCountries: readonly string[]): (country: string | null | undefined) => boolean {
+  const targets = new Set(targetCountries.map(country => norm(normalizeCountryName(country) ?? "")).filter(Boolean));
+  return country => !targets.size || targets.has(norm(normalizeCountryName(country) ?? ""));
+}
+
 // Noms anglais des pays, pour les documents générés en anglais (lettre :
 // « Acme / Germany » et non « Allemagne » dans une lettre anglophone).
 const COUNTRY_CODE_TO_NAME_EN: Record<string, string> = {

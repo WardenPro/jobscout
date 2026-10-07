@@ -213,6 +213,21 @@ it("la page masque les filtres suisses pour un profil France, même avec des off
   expect(doc.querySelector('input[placeholder="Paris, Lyon, Bordeaux…"]')).not.toBeNull();
 });
 
+it.each(["France", "Suisse"])("la page et le sélecteur de pays respectent le profil %s uniquement", async country => {
+  saveProfile(ProfileFullSchema.parse({ ...profile, target_countries: [country] }));
+  for (const destination of ["France", "Suisse"]) {
+    upsertOffreFromSource(destination === "France" ? "francetravail" : "jobroom", {
+      ...offer(`symmetric-${destination}`, "ok"), country: destination, title: `Offre symétrique ${destination}`, location: "Genève",
+    });
+  }
+  const html = renderToStaticMarkup(await OffresPage({ searchParams: Promise.resolve({}) }));
+  const select = parseDocument(html).querySelector('select[aria-label="Filtrer par pays"]') as HTMLSelectElement;
+  expect(Array.from(select.options).map(option => option.value)).toEqual(["", country]);
+  expect(select.options[0].textContent).toBe("Tous les pays ciblés");
+  expect(html).toContain(`Offre symétrique ${country}`);
+  expect(html).not.toContain(`Offre symétrique ${country === "France" ? "Suisse" : "France"}`);
+});
+
 it("la page affiche les filtres suisses pour un profil France et Suisse", async () => {
   saveProfile(ProfileFullSchema.parse({ ...profile, target_countries: ["France", "Suisse"] }));
   const html = renderToStaticMarkup(await OffresPage({ searchParams: Promise.resolve({}) }));
@@ -221,7 +236,7 @@ it("la page affiche les filtres suisses pour un profil France et Suisse", async 
 });
 
 it("l'aperçu et la fiche distinguent une obligation non couverte d'un simple atout", async () => {
-  saveProfile(ProfileFullSchema.parse({ ...profile, languages: [{ name: "Allemand", level: "A2" }] }));
+  saveProfile(ProfileFullSchema.parse({ ...profile, target_countries: ["Suisse"], languages: [{ name: "Allemand", level: "A2" }] }));
   const description = "Allemand B2 obligatoire. Anglais un atout.";
   const id = upsertOffreFromSource("jobroom", { ...offer("language-display", "ok"), location: "Genève", description_text: description, description_html: `<p>${description}</p>` });
   const result = searchOffres({ query: "Allemand B2 obligatoire" });
@@ -237,7 +252,7 @@ it("l'aperçu et la fiche distinguent une obligation non couverte d'un simple at
 });
 
 it.each(["France", "Suisse"])("%s : plus de cinq ans d'expérience ne masque pas le badge d'écart linguistique", country => {
-  saveProfile(ProfileFullSchema.parse({ ...profile, languages: [{ name: "Français", level: "C2" }] }));
+  saveProfile(ProfileFullSchema.parse({ ...profile, target_countries: [country], languages: [{ name: "Français", level: "C2" }] }));
   upsertOffreFromSource(country === "France" ? "francetravail" : "jobroom", {
     ...offer(`plus-badge-${country}`, "ok"), country, description_text: "Allemand courant obligatoire, plus de 5 ans d'expérience",
   });
