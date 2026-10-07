@@ -4,9 +4,14 @@ import { createRequire } from "node:module";
 import { SwissSettings } from "@/components/app/swiss-settings";
 import { jobupScraper, jobschScraper } from "@/lib/scrapers/jobcloud";
 import { jobroomScraper, adToOffre, type JobAd } from "@/lib/scrapers/jobroom";
-import { upsertOffreFromSource } from "@/lib/db/offres";
+import { upsertOffreFromSource, searchOffres } from "@/lib/db/offres";
 import type { ProgressEvent, Scraper, ScrapedOffre } from "@/lib/scrapers/base";
 import { parseDocument } from "@/lib/scrapers/dom";
+import { OffresList } from "@/app/(app)/offres/list";
+import OffreDetailPage from "@/app/(app)/offres/[id]/page";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }), notFound: () => { throw new Error("not found"); } }));
+vi.mock("@/app/(app)/offres/[id]/actions", () => ({ ActionsPanel: () => null }));
 
 const { renderToStaticMarkup } = createRequire(import.meta.url)("react-dom/server") as {
   renderToStaticMarkup: (element: React.ReactNode) => string;
@@ -98,4 +103,19 @@ it("les sélecteurs affichent les taux importés 75 et 95, avec leurs labels", (
   const selects = Array.from(doc.querySelectorAll("select"));
   expect(selects.map(s => s.value)).toEqual(["75", "95"]);
   expect(selects.every(s => !!doc.querySelector(`label[for="${s.id}"]`))).toBe(true);
+});
+
+it("un extrait Job-Room reste visible et signalé comme incomplet dans la liste et la fiche", async () => {
+  const id = upsertOffreFromSource("jobroom", {
+    ...offer("partial-display", "partial"), description_text: DESCRIPTION, description_html: `<p>${DESCRIPTION}</p>`,
+  });
+  const result = searchOffres({ query: "Comptable", source: "jobroom" });
+  const list = renderToStaticMarkup(React.createElement(OffresList, { initialResult: result }));
+  expect(list).toContain("Annonce partielle");
+  expect(list).toContain("Description incomplète");
+  expect(list).toContain(DESCRIPTION);
+  const detail = renderToStaticMarkup(await OffreDetailPage({ params: Promise.resolve({ id: String(id) }) }));
+  expect(detail).toContain("Description incomplète");
+  expect(detail).toContain(DESCRIPTION);
+  expect(detail).not.toContain("Description indisponible");
 });
