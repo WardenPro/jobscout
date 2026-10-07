@@ -99,12 +99,7 @@ export function extractJobPostingLd(doc: Document): JobPostingLd | null {
       const addr =
         j.jobLocation?.address ?? (Array.isArray(j.jobLocation) ? j.jobLocation[0]?.address : null) ?? {};
       const rawCountry = addr?.addressCountry?.name ?? addr?.addressCountry ?? null;
-      const salary =
-        j.baseSalary?.value?.value != null
-          ? `${j.baseSalary.value.value} ${j.baseSalary.currency ?? ""}`.trim()
-          : j.baseSalary?.value?.minValue != null
-          ? `${j.baseSalary.value.minValue}-${j.baseSalary.value.maxValue ?? ""} ${j.baseSalary.currency ?? ""}`.trim()
-          : null;
+      const salary = formatLdSalary(j.baseSalary);
 
       return {
         title: j.title ?? null,
@@ -121,6 +116,30 @@ export function extractJobPostingLd(doc: Document): JobPostingLd | null {
     }
   }
   return null;
+}
+
+const SALARY_UNITS: Record<string, string> = { YEAR: "/ an", MONTH: "/ mois", WEEK: "/ semaine", DAY: "/ jour", HOUR: "/ heure" };
+
+/**
+ * baseSalary schema.org → « 77 672 – 117 672 CHF / an ». Montants arrondis à l'unité
+ * (jobs.ch publie 77672.22222…), séparateur de milliers selon la devise.
+ */
+export function formatLdSalary(base: any): string | null {
+  const v = base?.value;
+  if (!v || typeof v !== "object") return null;
+  const currency = typeof base.currency === "string" ? base.currency.trim() : typeof v.currency === "string" ? v.currency.trim() : "";
+  const locale = currency === "CHF" ? "fr-CH" : "fr-FR";
+  const fmt = (n: unknown) => {
+    const x = Number(n);
+    return Number.isFinite(x) && x > 0 ? Math.round(x).toLocaleString(locale) : null;
+  };
+  const single = fmt(v.value);
+  const min = fmt(v.minValue);
+  const max = fmt(v.maxValue);
+  const amount = single ?? (min && max && min !== max ? `${min} – ${max}` : min ?? max);
+  if (!amount) return null;
+  const unit = SALARY_UNITS[String(v.unitText ?? "").toUpperCase()] ?? "";
+  return [amount, currency, unit].filter(Boolean).join(" ");
 }
 
 export const BROWSER_HEADERS = {

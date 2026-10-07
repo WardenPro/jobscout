@@ -52,6 +52,10 @@ function answer(tool: string, userText: string): unknown {
     const parts = userText.split(/\n\n?\[\d+\] /).slice(1);
     return { items: parts.map((p) => p.trim()), changes: [] };
   }
+  if (tool === "return_paragraph") {
+    // Réparation « mobilité » : renvoie le §4 avec le lieu de l'offre.
+    return { paragraph: "Frontalier, je peux me rendre chaque jour à Genève et suis disponible pour un entretien sur place ou en visioconférence." };
+  }
   if (tool === "return_translations") {
     const parts = userText.split(/\n\[\d+\] /).slice(1);
     return { items: parts.map((p) => p.trim()) };
@@ -119,5 +123,38 @@ describe("génération de bout en bout via un serveur compatible OpenAI", () => 
     expect(lm.body_paragraphs.every((p) => p.length > 20)).toBe(true);
     expect(lm.object).toContain("chef de projet digital");
     expect(seen.map((s) => s.tool)).toEqual(["build_lm", "return_corrections"]);
+  });
+
+  it("offre en Suisse, candidat frontalier : statut dans la lettre, réparation sans déménagement, permis dans le CV", async () => {
+    const frontalier = { ...profile, location: "Annemasse, France", work_permit: "g" } as typeof profile;
+    const swissOffre = { ...offre, country: "Suisse", location: "Genève" } as typeof offre;
+
+    seen.length = 0;
+    const lm = await generateLM(frontalier, swissOffre, "fr");
+    const userOf = (tool: string) => {
+      const call = seen.find((x) => x.tool === tool)!;
+      const msgs = call.body.messages as Array<{ role: string; content: string }>;
+      return { user: msgs.find((m) => m.role === "user")!.content, system: msgs.find((m) => m.role === "system")!.content };
+    };
+    expect(userOf("build_lm").user).toContain("frontalier titulaire d'un permis G");
+    expect(userOf("build_lm").user).toContain("Ne parle PAS de déménagement");
+    // Genève absent de la lettre scriptée → réparation ciblée, en mode frontalier.
+    expect(userOf("return_paragraph").system).toContain("frontalier");
+    expect(userOf("return_paragraph").system).toContain("Ne parle PAS de déménagement");
+    expect(lm.body_paragraphs[3]).toContain("Genève");
+
+    const cv = await generateCV(frontalier, swissOffre, "fr");
+    expect(cv.identity.location).toBe("Lyon, France · Permis G (frontalier)");
+  });
+
+  it("offre en France : aucun statut suisse, ni dans la lettre ni dans le CV", async () => {
+    const frontalier = { ...profile, work_permit: "g" } as typeof profile;
+    seen.length = 0;
+    await generateLM(frontalier, offre, "fr");
+    const call = seen.find((x) => x.tool === "build_lm")!;
+    const user = (call.body.messages as Array<{ role: string; content: string }>).find((m) => m.role === "user")!.content;
+    expect(user).not.toContain("Statut de travail en Suisse (fait du profil)");
+    const cv = await generateCV(frontalier, offre, "fr");
+    expect(cv.identity.location).toBe("Lyon, France");
   });
 });

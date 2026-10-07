@@ -90,8 +90,18 @@ WTTJ est interrogée avec la clé de recherche (lecture seule) qu'utilise l'inte
 - **Contrat** (±10) — selon les contrats recherchés du profil (`preferred_contracts`, par défaut CDI et CDD) : +10 si le contrat de l'offre en fait partie, neutre s'il est inconnu, −6 s'il est identifié mais non recherché
 - **Bonus Langue** (jusqu'à +8) — +8 si l'offre est rédigée dans une langue maîtrisée (B2+) ; +2,4 si elle n'est pas en anglais mais que l'utilisateur maîtrise l'anglais
 - **Bonus Durée V.I.E** (jusqu'à +5, V.I.E uniquement) — +5 pour 12–24 mois, +3 pour 6–11 mois
+- **Taux d'activité** (+4 / −8) — si le profil indique une fourchette souhaitée (ex. 80–100 %) : +4 si le taux de l'offre la recoupe, −8 sinon ; neutre si l'offre n'indique pas de taux. Taux lu dans le contrat, le titre, ou la description après un mot-clé (« taux d'activité », « Pensum »…)
 
-Aucun appel IA : instantané et illimité. Re-scoring global : `POST /api/offres/rescore` (après modification du profil).
+Aucun appel IA : instantané et illimité. Les offres déjà en base sont re-scorées à chaque enregistrement du profil (et via `POST /api/offres/rescore`).
+
+## Marché suisse
+
+Quand la Suisse fait partie des pays cibles, le profil propose deux réglages facultatifs (Profil › Recherche, ou l'étape Préférences de l'onboarding) :
+
+- **Statut de travail** (nationalité suisse, permis C, B, G frontalier, frontalier ou résident UE/AELE à venir) : pour une offre en Suisse, il est cité au dernier paragraphe de la lettre et suit la ville dans l'en-tête du CV (« Permis G (frontalier) »). Un frontalier n'est jamais présenté comme prêt à déménager, y compris par la réparation automatique de la phrase de mobilité.
+- **Taux d'activité souhaité** : critère du score (ci-dessus). Le taux de l'offre s'affiche aussi sur sa fiche.
+
+Les contrats suisses et alémaniques (« durée indéterminée », Festanstellung, befristet, Praktikum, Lehrstelle…) sont reconnus, et le salaire publié (CHF ou autre devise, par an ou par mois) s'affiche sur la fiche de l'offre.
 
 ## Extraction du CV
 

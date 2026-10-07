@@ -1,5 +1,6 @@
 import "server-only";
 import type { ProfileFull } from "@/lib/cv/types";
+import { WORK_PERMIT_LABELS } from "@/lib/work-permit";
 
 /**
  * Digest FACTUEL du profil, injecté dans les prompts de génération et de
@@ -27,5 +28,7 @@ export function profileFacts(profile: ProfileFull): string {
   }
   lines.push(`Compétences déclarées : ${profile.skills.map((s) => s.name).join(", ")}`);
   lines.push(`Langues : ${profile.languages.map((l) => `${l.name} ${l.level ?? ""}`.trim()).join(", ")}`);
+  // Fait déclaré par le candidat : la relecture ne doit pas le traiter comme une affirmation non étayée.
+  if (profile.work_permit) lines.push(`Statut de travail en Suisse : ${WORK_PERMIT_LABELS[profile.work_permit]}`);
   return lines.join("\n");
 }

@@ -118,7 +118,7 @@ describe("jobcloud — scan", () => {
     expect(o.location).toBe("Jura");
     expect(o.company).toBe("Actual Switzerland");
     expect(o.contract_type).toBe("Durée indéterminée · 100 %");
-    expect(o.salary).toMatch(/^77.672-117.672 CHF$/);
+    expect(o.salary?.replace(/\s/g, " ")).toBe("77 672 – 117 672 CHF / an");
     expect(o.posted_at).toBe("2026-09-28");
     expect(o.description_status).toBe("ok");
   });
