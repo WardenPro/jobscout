@@ -42,32 +42,51 @@ export function classifyContract(input: {
     return "vie";
   }
 
-  const haystack = `${strip(input.contract_type)} ${strip(input.title)} ${strip(input.description_text).slice(0, 1500)}`;
+  // Le contrat explicite de la source prime sur les prérequis de la description.
+  const stated = classifyText(strip(input.contract_type));
+  if (stated) return stated;
+  const inferred = classifyText(`${strip(input.title)} ${strip(input.description_text).slice(0, 1500)}`);
+  if (inferred) return inferred;
 
-  // 2. Alternance / apprentissage (very specific keywords)
-  if (/\b(alternance|alternant|apprentissage|apprenti|contrat\s+pro|professionnalisation)\b/.test(haystack)) {
-    return "alternance";
-  }
-  // 3. Stage / internship
-  if (/\b(stage|stagiaire|internship|intern)\b/.test(haystack)) {
-    return "stage";
-  }
-  // 4. CDD
-  if (/\bcdd\b|\bfixed[\s-]term\b|\btemporary\b|\btemporaire\b|\bcontrat\s+a\s+duree\s+determinee\b/.test(haystack)) {
-    return "cdd";
-  }
-  // 5. CDI
-  if (/\bcdi\b|\bpermanent\b|\bcontrat\s+a\s+duree\s+indeterminee\b/.test(haystack)) {
-    return "cdi";
-  }
-
-  // 6. JSON-LD employmentType fallback
+  // Les libellés FULL_TIME / PART_TIME ne donnent pas la nature du contrat :
+  // ils restent un recours après les indications du titre et de la description.
   const ct = strip(input.contract_type);
   if (ct.includes("intern")) return "stage";
   if (ct.includes("temporary") || ct.includes("contractor")) return "cdd";
   if (ct.includes("full_time") || ct.includes("part_time") || ct.includes("full time") || ct.includes("part time")) {
     return "cdi";
   }
-
   return "autre";
+}
+
+function classifyText(text: string): ContractCategory | null {
+  // Une négation explicite allemande n'est pas un contrat à durée déterminée.
+  const haystack = text.replace(/\b(?:nicht|nie)\s+befristet\w*\b/g, "unbefristet");
+
+  // 2. Alternance / apprentissage (very specific keywords)
+  //    Suisse alémanique : Lehrstelle. Pas « Lehre » seul : « abgeschlossene Lehre » est un prérequis.
+  //    « capacité d'apprentissage » (qualité demandée) n'est pas un contrat d'apprentissage.
+  if (
+    /\b(alternance|alternant|(?<!(?:capacite|capacites|facilite|aptitude|aptitudes|courbe|soif|gout|sens)\s+d.)apprentissage|apprenti|contrat\s+pro|professionnalisation|lehrstelle)\b/.test(
+      haystack
+    )
+  ) {
+    return "alternance";
+  }
+  // 3. Stage / internship
+  if (/\b(stage|stagiaire|internship|intern|praktikum|praktikant(?:in)?)\b/.test(haystack)) {
+    return "stage";
+  }
+  // 4. CDD
+  //    Suisse : « Durée déterminée » (jobup.ch, jobs.ch), befristet, temporär.
+  if (/\bcdd\b|\bfixed[\s-]term\b|\btemporary\b|\btemporaire\b|\b(?:contrat\s+a\s+)?duree\s+determinee\b|\bbefristet|\btemporar\b/.test(haystack)) {
+    return "cdd";
+  }
+  // 5. CDI
+  //    Suisse : « Durée indéterminée », « engagement fixe », unbefristet, Festanstellung.
+  if (/\bcdi\b|\bpermanent\b|\b(?:contrat\s+a\s+)?duree\s+indeterminee\b|\bengagement\s+fixe\b|\bunbefristet|\bfestanstellung\b/.test(haystack)) {
+    return "cdi";
+  }
+
+  return null;
 }

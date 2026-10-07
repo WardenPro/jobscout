@@ -25,6 +25,11 @@ export function getDb(): DatabaseSync {
       `ALTER TABLE profile ADD COLUMN preferred_contracts TEXT NOT NULL DEFAULT '["cdi","cdd"]'`
     );
   } catch {}
+  for (const col of ["work_permit TEXT", "workload_range TEXT"]) {
+    try {
+      db.exec(`ALTER TABLE profile ADD COLUMN ${col}`);
+    } catch {}
+  }
 
   _db = db;
   return db;

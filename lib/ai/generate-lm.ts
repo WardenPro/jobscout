@@ -9,6 +9,7 @@ import { profileFacts } from "./profile-facts";
 import { lmLanguageInstruction } from "./lang-prompts";
 import { detectDocLanguage, sourceLanguageHint, type DocLang } from "@/lib/text/lang";
 import { countryNameEnglish } from "@/lib/countries";
+import { isCrossBorder, isSwissOffer, letterPermitInstruction } from "@/lib/work-permit";
 import type { ProfileFull } from "@/lib/cv/types";
 import type { OffreFiltered } from "@/lib/db/offres";
 
@@ -46,6 +47,8 @@ export async function generateLM(
   lang: DocLang = detectDocLanguage(offre.title, offre.description_text, sourceLanguageHint(offre.source, offre.raw_payload), offre.country)
 ): Promise<GeneratedLM> {
   if (!_system) _system = fs.readFileSync(path.join(process.cwd(), "prompts", "generate-lm.md"), "utf-8");
+  // Offre en Suisse : statut de travail du profil (frontalier, permis…), cité au §4.
+  const permit = isSwissOffer(offre.country) ? letterPermitInstruction(profile.work_permit) : null;
   const message = await callStructured({
     role: "writer",
     maxTokens: 2000,
@@ -55,7 +58,7 @@ export async function generateLM(
       `${lmLanguageInstruction(lang)}
 
 ## Faits du profil — SEULE source autorisée pour le §2 (dates, puces, outils par expérience)\n${profileFacts(profile)}\n\n` +
-      `## Offre\n- Titre: ${offre.title}\n- Entreprise: ${offre.company || "(non précisée dans l'annonce)"}\n- Lieu de l'offre: ${[offre.location, offre.country].filter(Boolean).join(", ") || "(non précisé)"}\n- Ville du candidat: ${profile.location ?? "(non précisée)"}\n- Description:\n${offre.description_text.slice(0, 5000)}\n\nRédige la lettre de motivation${lang === "en" ? " — entièrement en anglais" : ""}.`,
+      `## Offre\n- Titre: ${offre.title}\n- Entreprise: ${offre.company || "(non précisée dans l'annonce)"}\n- Lieu de l'offre: ${[offre.location, offre.country].filter(Boolean).join(", ") || "(non précisé)"}\n- Ville du candidat: ${profile.location ?? "(non précisée)"}\n- Description:\n${offre.description_text.slice(0, 5000)}\n\nRédige la lettre de motivation${lang === "en" ? " — entièrement en anglais" : ""}.${permit ? `\n\n${permit}` : ""}`,
   });
   assertNotTruncated(message, "la lettre de motivation");
   if (!message.input)
@@ -79,7 +82,29 @@ export async function generateLM(
   // Relecture (orthographe, accords, typographie, faits non étayés) — jamais bloquante.
   const proofread = await proofreadLM(shaped, profile, lang);
   // Garde-fou mobilité : le lieu de l'offre doit être nommé quand il diffère de la ville du candidat.
-  return ensureMobility(proofread, profile, offre, lang);
+  return ensureMobility(enforceCrossBorderMobility(proofread, profile, offre, lang), profile, offre, lang);
+}
+
+const RELOCATION = /\b(?:d[ée]m[ée]nag\w*|relocalis\w*|relocat\w*|(?:move|moving)\s+(?:to|there)|(?:m['’]|me\s+)(?:installer|[ée]tablir))\b/i;
+
+/** Retire les phrases explicites de relocalisation, même si le lieu est déjà cité. */
+export function enforceCrossBorderMobility(
+  lm: GeneratedLM,
+  profile: ProfileFull,
+  offre: { country: string | null },
+  lang: DocLang
+): GeneratedLM {
+  if (!isSwissOffer(offre.country) || !isCrossBorder(profile.work_permit)) return lm;
+  const body_paragraphs = lm.body_paragraphs.map((p) =>
+    p.split(/(?<=[.!?])\s+|\n+/).filter((sentence) => !RELOCATION.test(sentence)).join(" ").trim()
+  );
+  const last = body_paragraphs.length - 1;
+  if (last >= 0 && !body_paragraphs[last]) {
+    body_paragraphs[last] = lang === "en"
+      ? "I am available for an interview by video call. Thank you for considering my application."
+      : "Je suis disponible pour un entretien en visioconférence. Je vous remercie de l'attention portée à ma candidature.";
+  }
+  return { ...lm, body_paragraphs };
 }
 
 /**
@@ -166,14 +191,19 @@ async function ensureMobility(
 
   const idx = lm.body_paragraphs.map((p, i) => (p && p.trim() ? i : -1)).filter((i) => i >= 0).pop();
   if (idx === undefined) return lm;
+  // Frontalier vers la Suisse : il fera l'aller-retour, la phrase ne parle pas de déménager.
+  const commute = isSwissOffer(offre.country) && isCrossBorder(profile.work_permit);
   const place = [city, lang === "en" ? countryEn || countryFr : countryFr].filter(Boolean).join(", ");
   console.log(`[generateLM] mobilité : lieu « ${place} » absent de la lettre — réparation du §4`);
   try {
     const message = await callStructured({
       role: "reviewer",
       maxTokens: 800,
-      system:
-        lang === "en"
+      system: commute
+        ? lang === "en"
+          ? "You edit ONE paragraph of a cover letter. Insert an interview availability sentence naming the job location given (on-site or by video call). The candidate is a cross-border worker. Use only the candidate location supplied; do not invent a residence country or commuting frequency. Do NOT mention relocating or moving. Keep every other sentence unchanged, same language (English), no salutation, no sign-off. Return only the paragraph via the tool."
+          : "Tu modifies UN paragraphe d'une lettre de motivation. Insère une phrase de disponibilité pour un entretien qui nomme le lieu de l'offre (sur place ou en visioconférence). Le candidat est frontalier. Utilise uniquement le lieu du candidat fourni ; n'invente ni pays de résidence ni fréquence de déplacement. Ne parle PAS de déménagement. Conserve les autres phrases à l'identique, même langue (français), sans salutation ni formule de politesse. Renvoie uniquement le paragraphe via l'outil."
+        : lang === "en"
           ? "You edit ONE paragraph of a cover letter. Insert, naturally, an explicit sentence of availability and mobility that names the job location given (on-site interview there or by video call, readiness to relocate). Keep every other sentence unchanged, same language (English), no salutation, no sign-off. Return only the paragraph via the tool."
           : "Tu modifies UN paragraphe d'une lettre de motivation. Insère, naturellement, une phrase explicite de disponibilité et de mobilité qui nomme le lieu de l'offre indiqué (entretien sur place ou en visioconférence, mobilité vers ce lieu). Conserve toutes les autres phrases à l'identique, même langue (français), sans salutation ni formule de politesse. Renvoie uniquement le paragraphe via l'outil.",
       tool: MOBILITY_TOOL as unknown as StructuredTool,
@@ -181,6 +211,7 @@ async function ensureMobility(
     });
     const out = message.input ? (message.input as { paragraph?: unknown }).paragraph : null;
     if (typeof out !== "string" || out.trim().length < 20) throw new Error("paragraphe vide");
+    if (commute && RELOCATION.test(out)) throw new Error("relocalisation incompatible avec le statut frontalier");
     if (!names.some((n) => foldText(out).includes(foldText(n)))) throw new Error("lieu toujours absent");
     const body_paragraphs = [...lm.body_paragraphs];
     body_paragraphs[idx] = out.trim();

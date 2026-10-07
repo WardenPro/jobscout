@@ -69,11 +69,14 @@ L'app démarre sur http://127.0.0.1:3000 (écoute limitée à la machine locale,
 | Welcome to the Jungle | Index de recherche Algolia du site, avec la clé de recherche de son interface (lecture seule, aucune page HTML) | International (filtré par pays cibles) | à activer vous-même |
 | HelloWork | HTML SSR + JSON-LD | France | à activer vous-même |
 | Talent.com | HTML SSR multi-domaines + JSON-LD | France, Belgique, Suisse, Luxembourg, Canada, USA, Maroc, Tunisie, Sénégal | à activer vous-même |
+| jobup.ch | État JSON des pages de résultats + JSON-LD (groupe JobCloud) | Suisse (surtout romande) | à activer vous-même |
+| jobs.ch | Idem jobup.ch ; une offre déjà complète sur jobup.ch n'est pas reprise | Suisse | à activer vous-même |
+| Job-Room (SECO, travail.swiss / arbeit.swiss) | Interface JSON de la recherche publique du site ; annonces reprises de jobup.ch / jobs.ch déjà complètes écartées | Suisse | à activer vous-même |
 | LinkedIn | Playwright (pages publiques « guest ») | International (tous pays cibles) | à activer vous-même, moteur à installer |
 | APEC | — | France (cadres) | **suspendue** : le site bloque désormais les requêtes automatiques |
 | Civiweb (V.I.E) | — | International | **suspendue** : Business France exige désormais une authentification que JobScout ne gère pas |
 
-**Avant d'activer une source, lisez les [conditions d'utilisation](CGU.md) (sections 5 et 6)** : les conditions de Welcome to the Jungle, HelloWork, Talent.com et LinkedIn interdisent l'extraction automatisée. C'est pourquoi, depuis la 3.4.13, seule France Travail est cochée d'office. Chaque source s'active ou se désactive dans Profil › Recherche › Sources (ou à l'étape Préférences de l'onboarding). Une source suspendue n'est jamais interrogée, même si elle est restée cochée dans un ancien profil. Une source hors périmètre géographique (ex. HelloWork quand le profil ne cible pas la France) est automatiquement sautée. La disponibilité des sources dépend des sites tiers (anti-bot, changements d'API) ; une source en échec est signalée dans le journal du scan.
+**Avant d'activer une source, lisez les [conditions d'utilisation](CGU.md) (sections 5 et 6)** : les conditions de Welcome to the Jungle, HelloWork, Talent.com, jobup.ch, jobs.ch et LinkedIn interdisent l'extraction automatisée ; Job-Room demande de ne pas explorer ses annonces. C'est pourquoi, depuis la 3.4.13, seule France Travail est cochée d'office. Chaque source s'active ou se désactive dans Profil › Recherche › Sources (ou à l'étape Préférences de l'onboarding). Une source suspendue n'est jamais interrogée, même si elle est restée cochée dans un ancien profil. Une source hors périmètre géographique (ex. HelloWork quand le profil ne cible pas la France, jobup.ch quand il ne cible pas la Suisse) est automatiquement sautée. La disponibilité des sources dépend des sites tiers (anti-bot, changements d'API) ; une source en échec est signalée dans le journal du scan.
 
 WTTJ est interrogée avec la clé de recherche (lecture seule) qu'utilise l'interface du site. Si elle cesse de fonctionner, décochez la source.
 
@@ -87,8 +90,22 @@ WTTJ est interrogée avec la clé de recherche (lecture seule) qu'utilise l'inte
 - **Contrat** (±10) — selon les contrats recherchés du profil (`preferred_contracts`, par défaut CDI et CDD) : +10 si le contrat de l'offre en fait partie, neutre s'il est inconnu, −6 s'il est identifié mais non recherché
 - **Bonus Langue** (jusqu'à +8) — +8 si l'offre est rédigée dans une langue maîtrisée (B2+) ; +2,4 si elle n'est pas en anglais mais que l'utilisateur maîtrise l'anglais
 - **Bonus Durée V.I.E** (jusqu'à +5, V.I.E uniquement) — +5 pour 12–24 mois, +3 pour 6–11 mois
+- **Taux d'activité** (+4 / −8) — si le profil indique une fourchette souhaitée (ex. 80–100 %) : +4 si le taux de l'offre la recoupe, −8 sinon ; neutre si l'offre n'indique pas de taux. Taux lu dans le contrat, le titre, ou la description après un mot-clé (« taux d'activité », « Pensum »…)
 
-Aucun appel IA : instantané et illimité. Re-scoring global : `POST /api/offres/rescore` (après modification du profil).
+Aucun appel IA : instantané et illimité. Les offres déjà en base sont re-scorées à chaque enregistrement du profil (et via `POST /api/offres/rescore`).
+
+## Marché suisse
+
+Quand la Suisse fait partie des pays cibles, le profil propose deux réglages facultatifs (Profil › Recherche, ou l'étape Préférences de l'onboarding) :
+
+- **Statut de travail** (nationalité suisse, permis C, B, G frontalier, frontalier ou résident UE/AELE à venir) : pour une offre en Suisse, il est demandé au dernier paragraphe de la lettre et suit la ville dans l'en-tête du CV (« Permis G (frontalier) »). Les consignes utilisent le lieu déclaré du candidat sans inventer son pays de résidence ni son rythme de déplacement. Pour un frontalier, un garde-fou retire les phrases explicites de déménagement et rejette une réparation de mobilité qui en réintroduit ; une relecture humaine reste nécessaire.
+- **Taux d'activité souhaité** : critère du score (ci-dessus). Le taux de l'offre s'affiche aussi sur sa fiche.
+
+Les contrats suisses et alémaniques (« durée indéterminée », Festanstellung, befristet, Praktikum, Lehrstelle…) sont reconnus, et le salaire publié (CHF ou autre devise, par an ou par mois) s'affiche sur la fiche de l'offre.
+
+Le contrat explicite de la source prime sur les prérequis de la description. Les pourcentages de télétravail sont exclus du taux d'activité. Le salaire utilise un séparateur de milliers stable, indépendant des locales du système. Les taux souhaités peuvent être choisis à l'unité et sont validés de la même façon à l'enregistrement et à la lecture.
+
+Une recherche en erreur est signalée dans le journal du scan. Une offre en échec ou partielle peut être récupérée depuis une autre source ; si la fiche détaillée Job-Room est indisponible, l'extrait de recherche est conservé avec un statut incomplet.
 
 ## Extraction du CV
 

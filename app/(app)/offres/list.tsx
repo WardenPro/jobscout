@@ -267,7 +267,7 @@ function OfferRowContent({ offer }: { offer: OffreSummary }) {
           <Badge>{sourceLabels[offer.source] ?? offer.source}</Badge>
           {offer.contract_category !== "autre" && <Badge variant={offer.contract_category === "vie" ? "info" : "default"}>{CONTRACT_LABELS[offer.contract_category]}</Badge>}
           {(offer.has_cv || offer.has_lm) && <Badge variant="success">Dossier prêt</Badge>}
-          {offer.description_status === "failed" && <Badge variant="warning">Annonce partielle</Badge>}
+          {offer.description_status !== "ok" && <Badge variant="warning">Annonce partielle</Badge>}
         </span>
       </span>
       <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-textSecondary group-hover:text-accent xl:hidden" />
@@ -311,6 +311,7 @@ function OfferPreview({ offer }: { offer: OffreSummary }) {
       </div>
       <div className="border-t border-border py-5">
         <p className="text-small font-semibold">En bref</p>
+        {offer.description_status === "partial" && <p className="mt-2 text-small text-warning">Description incomplète : consultez l'annonce d'origine avant de préparer votre candidature.</p>}
         <p className="mt-2 line-clamp-5 text-small leading-relaxed text-textSecondary">{offer.description_status === "failed" || !excerpt ? "La description n'est pas disponible ici. Consultez l'annonce d'origine pour en savoir plus." : excerpt}</p>
       </div>
       <div className="space-y-2 border-t border-border pt-5">

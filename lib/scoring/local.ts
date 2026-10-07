@@ -1,6 +1,7 @@
 import "server-only";
 import type { ProfileFull, Language } from "@/lib/cv/types";
 import { classifyContract, type ContractCategory } from "@/lib/contracts";
+import { extractWorkload, formatWorkload } from "@/lib/workload";
 
 export type ScoreResult = {
   score: number;
@@ -11,6 +12,8 @@ export type ScoreResult = {
     language: number;
     duration: number;
     contract: number;
+    /** null : pas de fourchette dans le profil, ou taux de l'offre inconnu. */
+    workload: number | null;
   };
   reason: string;
 };
@@ -250,6 +253,22 @@ function scoreContract(
 }
 
 // ----------------------------------------------------------------------------
+// Taux d'activité — fourchette souhaitée PAR PROFIL (workload_range, Suisse surtout)
+// ----------------------------------------------------------------------------
+//
+//   taux de l'offre compatible (fourchettes qui se recoupent) → 100 (bonus +4)
+//   taux de l'offre hors fourchette → 0 (malus −8)
+//   pas de fourchette dans le profil, ou taux inconnu → null (neutre)
+
+function scoreWorkload(range: [number, number] | null | undefined, offre: ScoringInput) {
+  if (!range) return { score: null, label: null };
+  const w = extractWorkload(offre);
+  if (!w) return { score: null, label: null };
+  const overlaps = w.max >= range[0] && w.min <= range[1];
+  return { score: overlaps ? 100 : 0, label: formatWorkload(w) };
+}
+
+// ----------------------------------------------------------------------------
 // Final scoring : weighted base + language/duration bonuses on top, capped 100
 // ----------------------------------------------------------------------------
 
@@ -271,6 +290,7 @@ export function scoreOffreLocal(
   const language = scoreLanguage(profile.languages, offre.title, offre.description_text);
   const contract = scoreContract(profile.preferred_contracts, offre);
   const duration = scoreDuration(contract.category, offre.description_text);
+  const workload = scoreWorkload(profile.workload_range, offre);
 
   // Weighted base, same balance as before (sector 30 / skills 50 / country 20)
   const base =
@@ -283,9 +303,10 @@ export function scoreOffreLocal(
   const durationBonus = (duration.score / 100) * 5;   // up to +5
   // Contrat : centré sur 50 → contrat recherché (preferred_contracts) +10, inconnu 0, identifié mais non recherché −6
   const contractDelta = ((contract.score - 50) / 50) * 10;
+  const workloadDelta = workload.score === null ? 0 : workload.score === 100 ? 4 : -8;
 
   const finalScore = Math.round(
-    Math.max(0, Math.min(100, base + languageBonus + durationBonus + contractDelta))
+    Math.max(0, Math.min(100, base + languageBonus + durationBonus + contractDelta + workloadDelta))
   );
 
   // Build human-readable reason
@@ -305,6 +326,8 @@ export function scoreOffreLocal(
     parts.push(`${contract.category.toUpperCase()} recherché`);
   else if (contract.score === 20)
     parts.push(`${contract.category} (non ciblé)`);
+  if (workload.score === 100) parts.push(`taux ${workload.label} OK`);
+  else if (workload.score === 0) parts.push(`taux ${workload.label} hors souhait`);
   const reason = parts.length ? parts.join(" · ") : "Faible recouvrement avec votre profil";
 
   return {
@@ -316,6 +339,7 @@ export function scoreOffreLocal(
       language: language.score,
       duration: duration.score,
       contract: contract.score,
+      workload: workload.score,
     },
     reason,
   };
