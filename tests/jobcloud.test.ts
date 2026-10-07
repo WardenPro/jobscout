@@ -169,6 +169,11 @@ describe("classifyContract — vocabulaire suisse", () => {
     expect(c("Lehrstelle")).toBe("alternance");
   });
 
+  it("« capacité d'apprentissage » (qualité demandée) n'en fait pas une alternance", () => {
+    expect(c("Durée déterminée · 100 %", "Bonne capacité d'apprentissage et d'autonomie.")).toBe("cdd");
+    expect(c("", "Contrat d'apprentissage de 3 ans.")).toBe("alternance");
+  });
+
   it("« abgeschlossene Lehre » (prérequis) n'en fait pas une alternance", () => {
     expect(c("Festanstellung", "Sie verfügen über eine abgeschlossene Lehre als Elektroinstallateur.")).toBe("cdi");
   });
