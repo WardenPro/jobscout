@@ -183,3 +183,16 @@ it("l'aperçu et la fiche distinguent une obligation non couverte d'un simple at
     expect(section.textContent).toContain("Atout non couvert");
   }
 });
+
+it.each(["France", "Suisse"])("%s : plus de cinq ans d'expérience ne masque pas le badge d'écart linguistique", country => {
+  saveProfile(ProfileFullSchema.parse({ ...profile, languages: [{ name: "Français", level: "C2" }] }));
+  upsertOffreFromSource(country === "France" ? "francetravail" : "jobroom", {
+    ...offer(`plus-badge-${country}`, "ok"), country, description_text: "Allemand courant obligatoire, plus de 5 ans d'expérience",
+  });
+  const list = renderToStaticMarkup(React.createElement(OffresList, { initialResult: searchOffres({ country }) }));
+  expect(list).toContain("Écart linguistique");
+  const section = parseDocument(list).querySelector('section[aria-label="Langues demandées"]')!;
+  expect(section.textContent).toContain("Exigé");
+  expect(section.textContent).toContain("Écart avec les langues déclarées");
+  expect(section.textContent).not.toContain("Souhaité / atout");
+});

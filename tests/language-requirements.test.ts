@@ -61,4 +61,12 @@ describe("langues explicitement demandées", () => {
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ importance: "required", level: "C1" });
   });
+
+  it.each(["Allemand courant obligatoire, plus de 5 ans d'expérience", "Anglais indispensable et en plus une expérience bancaire"])("ne confond pas une obligation avec le mot plus : %s", description => {
+    expect(assessLanguages(description, []).checks[0]).toMatchObject({ importance: "required", status: "gap" });
+  });
+
+  it.each(["Anglais un plus", "Anglais est un plus", "Anglais serait un plus", "Anglais courant serait un plus"])("conserve un atout explicite : %s", description => {
+    expect(extractLanguageRequirements(description)[0]).toMatchObject({ languages: ["en"], importance: "preferred" });
+  });
 });

@@ -1,6 +1,6 @@
 import "server-only";
 import { getDb } from "@/lib/db";
-import { normalizePlace, normalizeCity } from "@/lib/swiss-geography";
+import { normalizePlace, normalizeCity, normalizeSwissCity, parseSwissLocation } from "@/lib/swiss-geography";
 
 export type CommuteEstimate = { minutes: number; distanceKm: number; calculatedAt: string };
 type Coordinates = [number, number];
@@ -10,11 +10,7 @@ const FAILURE_TTL = 60 * 60 * 1000;
 
 /** Plusieurs villes, un canton seul ou une localisation distante ne donnent pas un trajet fiable. */
 export function commuteCity(location: string | null | undefined): string | null {
-  const parts = (location ?? "").split(",").map(part => part.trim());
-  if (parts.slice(1).some(part => !/^(?:CH|Suisse|Switzerland|Schweiz|[A-Z]{2}|\d{4})$/i.test(part))) return null;
-  const city = parts[0].replace(/\s*(?:\([A-Z]{2}\)|[A-Z]{2})\s*$/, "").trim();
-  if (!city || city.includes("/") || /\b(?:remote|teletravail|suisse|switzerland|toute|divers|et|ou)\b/.test(normalizePlace(city))) return null;
-  return city;
+  return parseSwissLocation(location).city;
 }
 
 function recent(updated: string, ttl: number): boolean {
@@ -48,12 +44,15 @@ async function geocode(place: string, country: "FR" | "CH"): Promise<Coordinates
   url.searchParams.set("lang", "fr");
   url.searchParams.set("limit", "5");
   const data = await requestJson(url) as { features?: { properties?: Record<string, unknown>; geometry?: { coordinates?: unknown } }[] } | null;
-  const postcode = /\b\d{4,5}\b/.exec(place)?.[0];
-  const name = normalizeCity(place.replace(/\b\d{4,5}\b/g, "").replace(/,\s*(?:France|Suisse)$/i, ""));
+  // Le départ français garde son code postal pour lever les homonymes ; le trajet suisse vise le centre-ville.
+  const postcode = country === "FR" ? /\b\d{4,5}\b/.exec(place)?.[0] : undefined;
+  const name = country === "CH" ? normalizePlace(normalizeSwissCity(place))
+    : normalizeCity(place.replace(/\b\d{4,5}\b/g, "").replace(/,\s*(?:France|Suisse)$/i, ""));
   const candidates = (Array.isArray(data?.features) ? data.features : []).filter(feature => {
     const props = feature?.properties;
     const coordinates = feature?.geometry?.coordinates;
-    return props && typeof props.name === "string" && normalizeCity(props.name) === name &&
+    return props && typeof props.name === "string" &&
+      (country === "CH" ? normalizePlace(normalizeSwissCity(props.name)) : normalizeCity(props.name)) === name &&
       typeof props.countrycode === "string" && props.countrycode.toUpperCase() === country &&
       ["city", "town", "village", "municipality", "hamlet"].includes(String(props.osm_value)) &&
       (!postcode || String(props.postcode) === postcode) && Array.isArray(coordinates) && coordinates.length === 2 &&
@@ -72,7 +71,7 @@ async function geocode(place: string, country: "FR" | "CH"): Promise<Coordinates
 
 /** Calcul routier OSRM en voiture, sans trafic ; aucun calcul n'est lancé pendant une recherche. */
 export async function calculateCommutes(origin: string, locations: string[]): Promise<{ calculated: number; remaining: number; unknown: { city: string; reason: string }[] }> {
-  const cities = [...new Set(locations.map(commuteCity).filter((city): city is string => !!city))];
+  const cities = [...new Map(locations.map(commuteCity).filter((city): city is string => !!city).map(city => [normalizePlace(city), city])).values()];
   const unknown: { city: string; reason: string }[] = [];
   const pending = cities.filter(city => {
     if (cachedCommute(origin, city)) return false;
