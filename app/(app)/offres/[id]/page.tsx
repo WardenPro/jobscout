@@ -104,6 +104,12 @@ export default async function OffreDetailPage({ params }: { params: Promise<{ id
               <h2 className="font-display text-h2">À propos du poste</h2>
             </div>
           </div>
+          {offre.description_status === "partial" && (
+            <div className="glass-panel mb-4 flex items-start gap-3 p-5">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
+              <div><p className="font-semibold">Description incomplète</p><p className="mt-1 text-small text-textSecondary">Seul un extrait a été récupéré. Consultez l'annonce d'origine avant de préparer votre candidature, ou relancez un scan.</p></div>
+            </div>
+          )}
           {offre.description_status === "failed" ? (
             <div className="glass-panel flex items-start gap-3 p-5">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
