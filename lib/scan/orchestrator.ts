@@ -67,7 +67,14 @@ export async function* runScan(
     try {
       const criteria = { sectors: profile.sectors, countries: profile.target_countries };
       const progressQueue: ProgressEvent[] = [];
-      const onEvent = (e: ProgressEvent) => progressQueue.push(e);
+      const onEvent = (e: ProgressEvent) => {
+        if (e.kind === "error") {
+          const message = `[${e.source}] erreur de recherche: ${e.message}`;
+          onLog(message);
+          log.push(message);
+        }
+        progressQueue.push(e);
+      };
 
       for await (const offre of scraper.scrape(criteria, onEvent)) {
         // Drain progress events emitted before this offre

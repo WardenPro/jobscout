@@ -236,7 +236,11 @@ export const jobroomScraper: Scraper = {
           await sleep(1200);
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
-          throw new Error(`Job-Room : recherche impossible (page ${page + 1}) : ${message}`, { cause: e });
+          const error = new Error(`Job-Room : recherche impossible (page ${page + 1}) : ${message}`, { cause: e });
+          if (!seen.size) throw error;
+          // Conserver les offres déjà collectées et poursuivre les autres recherches.
+          onEvent({ kind: "error", source: SOURCE, message: error.message });
+          break;
         }
       }
       if (seen.size >= max) break;
