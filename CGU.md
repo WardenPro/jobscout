@@ -11,7 +11,7 @@ Elles ne constituent pas un conseil juridique. L'éditeur ne peut pas vous dire 
 - JobScout est un logiciel libre et gratuit qui tourne sur votre ordinateur. Pas de compte, pas d'abonnement, pas de serveur de l'éditeur.
 - JobScout n'envoie aucune de vos données à l'éditeur. L'éditeur ne collecte, ne stocke et ne revend aucune offre.
 - C'est vous qui lancez les recherches, depuis votre ordinateur et votre connexion. Vous choisissez les sites interrogés et vous devez respecter leurs conditions.
-- Par défaut, seule France Travail est cochée. Sans identifiants d'API, elle charge les pages du site comme un navigateur (section 6). Les conditions de Welcome to the Jungle, HelloWork, Talent.com, jobup.ch, jobs.ch et LinkedIn interdisent l'extraction automatisée : ces sources restent décochées, et c'est à vous de décider de les activer. Lisez les sections 5 et 6 avant de le faire.
+- Par défaut, seule France Travail est cochée. Sans identifiants d'API, elle charge les pages du site comme un navigateur (section 6). Les conditions de Welcome to the Jungle, HelloWork, Talent.com, jobup.ch, jobs.ch et LinkedIn interdisent l'extraction automatisée, et Job-Room demande de ne pas explorer ses annonces : ces sources restent décochées, et c'est à vous de décider de les activer. Lisez les sections 5 et 6 avant de le faire.
 - Les offres récupérées ne doivent servir qu'à votre propre recherche d'emploi, sans but commercial.
 - Les documents rédigés par l'IA peuvent contenir des erreurs. Relisez-les avant de les envoyer.
 - JobScout est fourni « en l'état », sans garantie.
@@ -81,11 +81,11 @@ Ces interdits portent sur l'usage des offres et des sites tiers. Ils ne retirent
 - Elles contiennent vos secteurs, utilisés comme mots-clés, et, selon le site, le pays visé. Elles ne contiennent ni votre nom, ni votre CV, ni les cookies de votre navigateur.
 - Vous choisissez les sources à l'étape Préférences de l'inscription, puis dans **Profil › Recherche › Sources**. Le bouton « Lancer un scan » interroge les sources cochées.
 - Sur la page Offres, la flèche à côté de « Lancer un scan » ouvre le menu « Scanner une source ». Ce menu permet d'interroger une seule source, **même si elle est décochée** (sauf les sources suspendues).
-- Vous devez respecter les conditions d'utilisation de chaque site que vous interrogez. Celles de Welcome to the Jungle, HelloWork, Talent.com, jobup.ch, jobs.ch et LinkedIn interdisent expressément l'extraction automatisée (section 6). Si vous activez l'une de ces sources, ou si vous la choisissez dans « Scanner une source », vous le faites en connaissance de cause et sous votre responsabilité.
+- Vous devez respecter les conditions d'utilisation de chaque site que vous interrogez. Celles de Welcome to the Jungle, HelloWork, Talent.com, jobup.ch, jobs.ch et LinkedIn interdisent expressément l'extraction automatisée (section 6). Celles de Job-Room soumettent la reproduction des annonces à une autorisation écrite du SECO. Si vous activez l'une de ces sources, ou si vous la choisissez dans « Scanner une source », vous le faites en connaissance de cause et sous votre responsabilité.
 
 **Ce qui est coché par défaut**
 
-Depuis la 3.4.13, sur une installation neuve, seule France Travail est cochée. Welcome to the Jungle, HelloWork, Talent.com, jobup.ch, jobs.ch et LinkedIn sont décochées : à vous de les activer, après avoir lu leurs conditions. LinkedIn demande en plus l'installation d'un moteur de navigation. L'APEC et Civiweb sont suspendues : JobScout ne les interroge plus, même si elles sont restées cochées dans un ancien profil.
+Depuis la 3.4.13, sur une installation neuve, seule France Travail est cochée. Welcome to the Jungle, HelloWork, Talent.com, jobup.ch, jobs.ch, Job-Room et LinkedIn sont décochées : à vous de les activer, après avoir lu leurs conditions. LinkedIn demande en plus l'installation d'un moteur de navigation. L'APEC et Civiweb sont suspendues : JobScout ne les interroge plus, même si elles sont restées cochées dans un ancien profil.
 
 Si votre profil ne contient aucune source (profil restauré, par exemple), « Lancer un scan » interroge France Travail seule.
 
@@ -103,13 +103,13 @@ Si votre profil ne contient aucune source (profil restauré, par exemple), « La
 
 - Il ne se connecte à aucun compte d'utilisateur sur ces sites. La seule exception est l'API France Travail, et seulement si vous fournissez vos propres identifiants.
 - Il n'utilise pas les cookies de votre navigateur et ne résout pas de CAPTCHA.
-- Il ne consulte pas les fichiers `robots.txt` des sites. Certaines adresses qu'il interroge y sont pourtant exclues. Par exemple, le `robots.txt` de HelloWork exclut des pages d'offres, celui de LinkedIn déclare interdit tout accès automatisé sans autorisation, et ceux de jobup.ch et jobs.ch excluent leur interface de programmation (`/api/`), que JobScout n'utilise pas.
+- Il ne consulte pas les fichiers `robots.txt` des sites. Certaines adresses qu'il interroge y sont pourtant exclues. Par exemple, le `robots.txt` de HelloWork exclut des pages d'offres, celui de LinkedIn déclare interdit tout accès automatisé sans autorisation, ceux de jobup.ch et jobs.ch excluent leur interface de programmation (`/api/`), que JobScout n'utilise pas, et celui de Job-Room demande de ne pas explorer les annonces (« Do not crawl Job Adverts »).
 
 ## 6. Les sources, une par une
 
 Pour chaque source, vous trouverez son réglage par défaut, ce que fait JobScout et ce que disent les conditions du site, lues le 5 octobre 2026 sauf mention contraire. Ce résumé peut être dépassé, car les sites modifient leurs conditions. Seul le texte publié par chaque site fait foi : lisez-le.
 
-En bref : les conditions de LinkedIn, Welcome to the Jungle, HelloWork, Talent.com, jobup.ch et jobs.ch interdisent expressément l'extraction automatisée. Celles de l'APEC interdisent l'exploitation de ses contenus sans son accord. Aucune interdiction expresse des robots n'a été relevée dans celles de France Travail, mais France Travail prévoit son API pour l'accès par programme.
+En bref : les conditions de LinkedIn, Welcome to the Jungle, HelloWork, Talent.com, jobup.ch et jobs.ch interdisent expressément l'extraction automatisée. Celles de l'APEC et de Job-Room soumettent la reproduction ou l'exploitation de leurs contenus à leur accord. Aucune interdiction expresse des robots n'a été relevée dans celles de France Travail, mais France Travail prévoit son API pour l'accès par programme.
 
 ### Welcome to the Jungle
 
@@ -154,7 +154,12 @@ En bref : les conditions de LinkedIn, Welcome to the Jungle, HelloWork, Talent.c
 - **Par défaut** : décochées, à activer vous-même. JobScout ne les interroge que si votre profil cible la Suisse ou ne cible aucun pays.
 - **Ce que fait JobScout** : il charge les pages de résultats en français, puis la page de chaque offre, en se présentant comme un navigateur Chrome. Les deux sites appartiennent au même groupe et partagent une partie de leurs offres : une offre déjà enregistrée depuis l'un n'est pas rechargée depuis l'autre.
 - **Conditions du site** : [conditions d'utilisation de JobCloud](https://www.jobup.ch/fr/conditions-utilisation/), lues le 7 octobre 2026 sur jobup.ch. Elles interdisent les crawlers, scrapers et outils d'extraction de données, ainsi que les scripts et bots qui accèdent aux services, sauf outils officiels de JobCloud.
-- **Job-Room (service public suisse de l'emploi)** : pas de source JobScout. Sa recherche d'offres exige une authentification, et son `robots.txt` demande de ne pas explorer les annonces.
+
+### Job-Room (service public suisse de l'emploi, SECO)
+
+- **Par défaut** : décochée, à activer vous-même. JobScout ne l'interroge que si votre profil cible la Suisse ou ne cible aucun pays.
+- **Ce que fait JobScout** : il interroge sans compte l'interface que le site utilise pour sa propre recherche publique (`www.job-room.ch/jobadservice/api/…`), en se présentant comme un navigateur Chrome : une recherche par secteur, puis le détail de chaque annonce. Les annonces que Job-Room reprend de jobup.ch ou jobs.ch, et déjà enregistrées depuis ces sources, sont écartées. Les coordonnées nominatives des recruteurs ne sont pas enregistrées.
+- **Conditions du site** : [informations juridiques de travail.swiss](https://www.arbeit.swiss/secoalv/fr/home/service/rechtliche-hinweise.html), lues le 7 octobre 2026. Elles réservent les droits sur les contenus, postes vacants compris, au SECO ou à leurs détenteurs, et soumettent leur reproduction à une autorisation écrite préalable. Aucune interdiction expresse des robots n'y a été relevée, mais le `robots.txt` de Job-Room demande de ne pas explorer les annonces. Le SECO réserve l'accès par programme à des partenaires (placeurs privés) liés par un accord.
 
 ### Civiweb (V.I.E, Business France)
 
@@ -164,10 +169,10 @@ En bref : les conditions de LinkedIn, Welcome to the Jungle, HelloWork, Talent.c
 
 ### Méthodes à connaître
 
-- **Navigateur imité.** Pour LinkedIn, HelloWork, Talent.com, jobup.ch, jobs.ch et les pages de France Travail, JobScout se présente comme un navigateur Chrome ordinaire. Il ne se signale pas comme un logiciel automatique.
+- **Navigateur imité.** Pour LinkedIn, HelloWork, Talent.com, jobup.ch, jobs.ch, Job-Room et les pages de France Travail, JobScout se présente comme un navigateur Chrome ordinaire. Il ne se signale pas comme un logiciel automatique.
 - **Welcome to the Jungle.** JobScout utilise la clé de recherche présente dans les pages du site. Welcome to the Jungle ne propose pas cette clé aux tiers comme une API. D'après les notes du code (`lib/scrapers/wttj.ts`), les pages d'offres du site imposent depuis l'été 2026 un contrôle anti-robot. La clé est écrite dans le code. Si Welcome to the Jungle la change ou la retire, la source cessera de fonctionner. N'en cherchez pas une autre : décochez la source.
 
-Ces sites peuvent considérer ces méthodes, en particulier l'usage de la clé de Welcome to the Jungle, comme contraires à leurs conditions ou comme le contournement d'une restriction, ce que la section 4 vous interdit. Welcome to the Jungle, HelloWork, Talent.com, jobup.ch, jobs.ch et LinkedIn sont décochées par défaut : si vous ne voulez pas prendre ce risque, laissez-les décochées et ne les choisissez pas dans « Scanner une source ». France Travail, seule source cochée par défaut, charge ses pages en se présentant comme Chrome, sauf si vous fournissez vos identifiants d'API : pour rester dans le cadre prévu par France Travail, utilisez l'API ou décochez la source.
+Ces sites peuvent considérer ces méthodes, en particulier l'usage de la clé de Welcome to the Jungle, comme contraires à leurs conditions ou comme le contournement d'une restriction, ce que la section 4 vous interdit. Welcome to the Jungle, HelloWork, Talent.com, jobup.ch, jobs.ch, Job-Room et LinkedIn sont décochées par défaut : si vous ne voulez pas prendre ce risque, laissez-les décochées et ne les choisissez pas dans « Scanner une source ». France Travail, seule source cochée par défaut, charge ses pages en se présentant comme Chrome, sauf si vous fournissez vos identifiants d'API : pour rester dans le cadre prévu par France Travail, utilisez l'API ou décochez la source.
 
 ## 7. Demande de retrait par un site
 

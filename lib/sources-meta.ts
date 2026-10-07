@@ -54,6 +54,13 @@ export const SOURCES_META: SourceMeta[] = [
   { id: "talent", label: "Talent.com", sublabel: "Francophonie · Canada · USA · à activer vous-même", scope: "world", optIn: true },
   { id: "jobup", label: "jobup.ch", sublabel: "Suisse romande · à activer vous-même", scope: "ch", optIn: true },
   { id: "jobsch", label: "jobs.ch", sublabel: "Toute la Suisse · à activer vous-même", scope: "ch", optIn: true },
+  {
+    id: "jobroom",
+    label: "Job-Room",
+    sublabel: "Service public suisse de l'emploi (SECO) · à activer vous-même",
+    scope: "ch",
+    optIn: true,
+  },
 ];
 
 export const SOURCE_IDS = SOURCES_META.map((s) => s.id);

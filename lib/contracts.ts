@@ -46,7 +46,12 @@ export function classifyContract(input: {
 
   // 2. Alternance / apprentissage (very specific keywords)
   //    Suisse alémanique : Lehrstelle. Pas « Lehre » seul : « abgeschlossene Lehre » est un prérequis.
-  if (/\b(alternance|alternant|apprentissage|apprenti|contrat\s+pro|professionnalisation|lehrstelle)\b/.test(haystack)) {
+  //    « capacité d'apprentissage » (qualité demandée) n'est pas un contrat d'apprentissage.
+  if (
+    /\b(alternance|alternant|(?<!(?:capacite|capacites|facilite|aptitude|aptitudes|courbe|soif|gout|sens)\s+d.)apprentissage|apprenti|contrat\s+pro|professionnalisation|lehrstelle)\b/.test(
+      haystack
+    )
+  ) {
     return "alternance";
   }
   // 3. Stage / internship
