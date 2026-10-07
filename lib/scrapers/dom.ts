@@ -69,6 +69,7 @@ export type JobPostingLd = {
   title: string | null;
   company: string | null;
   locality: string | null;
+  region: string | null;
   country: string | null;
   description_html: string | null;
   contract_type: string | null;
@@ -105,6 +106,7 @@ export function extractJobPostingLd(doc: Document): JobPostingLd | null {
         title: j.title ?? null,
         company: j.hiringOrganization?.name ?? null,
         locality: addr?.addressLocality ?? null,
+        region: typeof addr?.addressRegion === "string" ? addr.addressRegion : null,
         country: typeof rawCountry === "string" ? rawCountry : null,
         description_html: typeof j.description === "string" ? j.description : null,
         contract_type: Array.isArray(j.employmentType)

@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS offres (
   description_html TEXT NOT NULL,
   description_text TEXT NOT NULL,
   description_status TEXT NOT NULL DEFAULT 'ok',
+  canton TEXT,
   posted_at TEXT,
   scraped_at TEXT NOT NULL DEFAULT (datetime('now')),
   score INTEGER DEFAULT 0,
@@ -96,6 +97,29 @@ CREATE TABLE IF NOT EXISTS offres (
 CREATE INDEX IF NOT EXISTS idx_offres_score ON offres(score DESC);
 CREATE INDEX IF NOT EXISTS idx_offres_posted ON offres(posted_at DESC);
 CREATE INDEX IF NOT EXISTS idx_offres_country ON offres(country);
+
+-- Estimations de trajets explicitement demandées par l'utilisateur ; pas de coordonnées GPS du profil.
+CREATE TABLE IF NOT EXISTS commute_geocodes (
+  place_key TEXT PRIMARY KEY,
+  longitude REAL NOT NULL,
+  latitude REAL NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS commute_routes (
+  origin_key TEXT NOT NULL,
+  destination_key TEXT NOT NULL,
+  minutes REAL NOT NULL,
+  distance_km REAL NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (origin_key, destination_key)
+);
+CREATE TABLE IF NOT EXISTS commute_failures (
+  origin_key TEXT NOT NULL,
+  destination_key TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (origin_key, destination_key)
+);
 
 CREATE TABLE IF NOT EXISTS documents (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

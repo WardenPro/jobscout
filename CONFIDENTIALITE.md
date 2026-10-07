@@ -15,6 +15,7 @@ Elle décrit, au mieux de la connaissance de l'éditeur, le code de JobScout 3.4
 - **Des données sortent seulement quand vous agissez :**
   - à l'import d'un CV et à la génération de documents, elles vont au fournisseur d'IA que vous avez choisi : texte du CV, profil avec votre identité, offre visée. Avec un modèle local (Ollama, LM Studio) à son adresse par défaut, rien ne sort ;
   - pendant un scan, elles vont aux sites d'offres : vos secteurs, vos pays visés et votre adresse IP. Jamais votre nom ni votre CV ;
+  - si vous lancez un calcul de trajet après avoir coché l'accord : les communes vont à Photon, leurs coordonnées à OSRM, avec l'adresse IP de la connexion. Jamais votre CV ni votre identité ;
   - quelques téléchargements techniques, sans donnée personnelle : le moteur LinkedIn et les modèles de lecture d'image, si vous en avez besoin.
 - **Une exception, au démarrage en version source.** Avec `npm run dev` ou `Start-JobScout.ps1`, Next.js demande au registre npm, à chaque démarrage, s'il existe une version plus récente de lui-même. Le registre voit votre adresse IP, rien d'autre (section 4).
 - **Vous gardez la main.** Pour tout effacer sur votre ordinateur, supprimez votre dossier de données. Supprimez ensuite les quelques éléments rangés ailleurs : le fichier `.env`, le dossier `.next/`, le dossier de documents si vous l'avez placé ailleurs, vos exports Excel (section 9). Ce que vous avez déjà envoyé à un fournisseur d'IA ou à un site d'offres reste chez lui.
@@ -48,6 +49,7 @@ En version source, `npm run build` (nécessaire avant `npm run start`) recopie d
 - **Les documents générés :** CV et lettres en PDF et DOCX, messages en texte. Le nom des fichiers contient votre prénom et votre nom. Ils sont rangés dans le sous-dossier `documents`, ou dans le dossier que vous avez choisi. Ce dossier doit se trouver dans votre dossier personnel ou dans le dossier de données.
 - **Les réglages :** fournisseur d'IA, modèles, adresse du serveur pour un modèle local, dossier des documents. Et **vos clés API, en clair**, sans chiffrement.
 - **L'historique des scans :** date, statut et journal de chaque scan.
+- **Les trajets demandés :** noms des communes de départ et d'arrivée, coordonnées de leur centre, durées et distances routières, dates de calcul et motifs d'échec. Ces données restent dans la base locale. Les routes sont réutilisées 7 jours, les géocodages 30 jours et les échecs une heure ; elles ne sont pas supprimées automatiquement à l'expiration de ces durées.
 - **Le journal du serveur**, avec l'installeur Windows seulement : `logs\server.log`, réécrit à chaque démarrage. Il peut contenir des extraits de vos documents (corrections de la relecture), des noms d'entreprises et de compétences, la quantité de texte traitée par l'IA (en « jetons ») et les erreurs. En version source, ces messages s'affichent dans le terminal : JobScout ne les enregistre pas dans un fichier.
 - **Le moteur LinkedIn**, si vous l'installez : environ 100 Mo à télécharger, 265 Mo sur le disque. Le bouton « Installer le moteur LinkedIn » le range dans le sous-dossier `browsers`. `npm run playwright:install` le range dans le dossier commun de Playwright (`ms-playwright`). JobScout réutilise aussi ce dossier commun s'il y trouve déjà Chromium.
 - **Les modèles de lecture d'image (OCR)**, si vous importez un CV au format image : `fra.traineddata` et `eng.traineddata`, dans le dossier depuis lequel le serveur est lancé. C'est la racine du projet en version source, et le dossier du programme avec l'installeur Windows.
@@ -58,6 +60,8 @@ En version source, `npm run build` (nécessaire avant `npm run start`) recopie d
 JobScout ne crée ni compte ni cookie.
 
 ## 4. Ce qui sort de votre ordinateur, et vers qui
+
+**Calcul facultatif de trajets en voiture.** Il démarre uniquement avec le bouton de calcul après avoir coché l'accord dans la liste d'offres. Le serveur envoie la commune française saisie, son éventuel code postal et les villes suisses des offres à `photon.komoot.io` (Photon, géocodage). Il transmet ensuite les coordonnées des centres de ces communes à `router.project-osrm.org` (OSRM, itinéraire routier). Les services voient l'adresse IP de la connexion et les en-têtes techniques. Aucun nom, CV, e-mail, profil complet ou clé API n'est envoyé. Consulter ou filtrer les offres utilise uniquement le cache local et ne lance pas de requête externe de trajet. Ces services tiers peuvent conserver leurs journaux selon leurs propres règles ; aucune suppression chez eux n'est assurée par JobScout. L'éditeur de JobScout ne reçoit pas ces demandes.
 
 JobScout n'envoie rien de lui-même : chaque échange décrit ci-dessous suit une action de votre part. Il n'y a aucun scan automatique. Quand JobScout est fermé, il ne fait rien.
 

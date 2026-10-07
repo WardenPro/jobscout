@@ -4,6 +4,7 @@ import { htmlToText } from "./base";
 import { detectVie } from "@/lib/vie";
 import { nameToCode } from "@/lib/countries";
 import { getDb } from "@/lib/db";
+import { resolveSwissCanton } from "@/lib/swiss-geography";
 import {
   parseDocument,
   firstMatchHtml,
@@ -154,6 +155,7 @@ async function fetchDetail(site: Site, card: Card): Promise<ScrapedOffre> {
     company: card.company || ld?.company || "",
     country: "Suisse",
     location: card.place ?? ld?.locality ?? null,
+    canton: resolveSwissCanton(ld?.region, card.place ?? ld?.locality),
     contract_type: contract,
     salary: ld?.salary ?? null,
     description_html,
