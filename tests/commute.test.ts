@@ -3,6 +3,7 @@ import { cachedCommute, calculateCommutes, commuteCity } from "@/lib/commute";
 import { getDb } from "@/lib/db";
 import { searchOffres, upsertOffreFromSource } from "@/lib/db/offres";
 import { POST } from "@/app/api/offres/commute/route";
+import { GET } from "@/app/api/offres/search/route";
 import { NextRequest } from "next/server";
 
 function geo(name: string, countrycode: string, coordinates: number[]) {
@@ -108,6 +109,39 @@ describe("trajets en voiture volontaires", () => {
     expect(await response.json()).toEqual({ calculated: 0, remaining: 0, unknown: [] });
     expect(fetch).not.toHaveBeenCalled();
     expect(searchOffres({ country: "France" }).total).toBe(2);
+  });
+
+  it("le filtre frontalier conserve les offres françaises, même si les trajets inconnus sont exclus", async () => {
+    for (const [city, country] of [["Paris", "France"], ["Genève", "Suisse"], ["Lausanne", "Suisse"]]) upsertOffreFromSource("talent", {
+      source_id: city, url: "https://example.org/offre", title: city, company: "", country, location: city,
+      contract_type: "CDI", salary: null, description_text: "", description_html: "", description_status: "ok", posted_at: null, is_vie: false, raw_payload: {},
+    });
+    getDb().prepare("INSERT INTO commute_routes VALUES (?, ?, ?, ?, ?)").run("annemasse", "geneve", 20, 10, new Date().toISOString());
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    for (const includeUnknown of [false, true]) {
+      expect(searchOffres({ country: "France", commute: { origin: "Annemasse", maxMinutes: 30, includeUnknown } }).offers.map(o => o.title)).toEqual(["Paris"]);
+    }
+    expect(searchOffres({ commute: { origin: "Annemasse", maxMinutes: 30, includeUnknown: false } }).offers.map(o => o.title).sort()).toEqual(["Genève", "Paris"]);
+    const response = await GET(new NextRequest("http://localhost/api/offres/search?country=France&origin=Annemasse&maxMinutes=30&includeUnknown=0"));
+    expect((await response.json()).offers.map((o: { title: string }) => o.title)).toEqual(["Paris"]);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("le calcul demandé pour Bern n'envoie pas Berneck au service routier", async () => {
+    for (const city of ["Bern", "Berneck"]) upsertOffreFromSource("talent", {
+      source_id: city, url: "https://example.org/offre", title: city, company: "", country: "Suisse", location: city,
+      contract_type: "CDI", salary: null, description_text: "", description_html: "", description_status: "ok", posted_at: null, is_vie: false, raw_payload: {},
+    });
+    const fetch = mockServices();
+    fetch.mockImplementation(async (raw: URL) => new URL(raw).hostname === "photon.komoot.io"
+      ? Response.json({ features: [new URL(raw).searchParams.get("q")?.includes("Annemasse") ? geo("Annemasse", "FR", [6.2, 46]) : geo("Bern", "CH", [7.4, 46.9])] })
+      : Response.json({ code: "Ok", routes: [{ duration: 1200, distance: 9500 }] }));
+    const pending = POST(new NextRequest("http://localhost/api/offres/commute", { method: "POST", body: JSON.stringify({ origin: "Annemasse", city: "Bern", consent: true }) }));
+    await vi.runAllTimersAsync();
+    expect(await (await pending).json()).toEqual({ calculated: 1, remaining: 0, unknown: [] });
+    expect(fetch.mock.calls.every(([url]) => !url.toString().includes("Berneck"))).toBe(true);
+    expect(cachedCommute("Annemasse", "Berneck")).toBeNull();
   });
 
   it("refuse une destination homonyme située dans un autre pays", async () => {

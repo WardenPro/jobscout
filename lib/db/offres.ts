@@ -3,7 +3,7 @@ import { getDb, asJson, parseJson } from "./index";
 import type { ScrapedOffre } from "@/lib/scrapers/base";
 import type { ScoreResult } from "@/lib/ai/score-offre";
 import { classifyContract, CONTRACT_ORDER, type ContractCategory } from "@/lib/contracts";
-import { resolveSwissCanton, normalizeCity, type SwissCanton } from "@/lib/swiss-geography";
+import { resolveSwissCanton, matchesCity, type SwissCanton } from "@/lib/swiss-geography";
 import { isSwissOffer } from "@/lib/work-permit";
 import { assessLanguages, type LanguageAssessment } from "@/lib/language-requirements";
 import { getProfile } from "./queries";
@@ -252,16 +252,15 @@ export function searchOffres(opts: {
   const haystacks = query ? getHaystacks(cache) : null;
   const contracts = new Set(opts.contracts ?? []);
   const minScore = opts.minScore === true ? 60 : typeof opts.minScore === "number" ? opts.minScore : 0;
-  const city = normalizeCity(opts.city ?? "");
   const commutes = new Map<number, CommuteEstimate | null>();
   const filtered = cache.smart.filter((row) => {
     if (haystacks && !(haystacks.get(row.id) ?? "").includes(query)) return false;
     if (opts.source && row.source !== opts.source) return false;
     if (opts.country && row.country !== opts.country) return false;
     if (opts.canton && row.canton !== opts.canton) return false;
-    if (city && !normalizeCity(row.location ?? "").includes(city)) return false;
-    if (opts.commute) {
-      if (!isSwissOffer(row.country)) return false;
+    if (!matchesCity(row.location, opts.city ?? "")) return false;
+    // Le filtre frontalier ne change pas la visibilité des offres des autres pays.
+    if (opts.commute && isSwissOffer(row.country)) {
       const estimate = cachedCommute(opts.commute.origin, row.location);
       commutes.set(row.id, estimate);
       if (estimate ? estimate.minutes > opts.commute.maxMinutes : !opts.commute.includeUnknown) return false;

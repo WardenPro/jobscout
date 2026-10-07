@@ -2,6 +2,7 @@ import { offresCounts, parseMinScore, searchOffres } from "@/lib/db/offres";
 import { PageHeader } from "@/components/app/page-header";
 import { OffresList } from "./list";
 import { ScanButton } from "./scan-button";
+import { getProfile } from "@/lib/db/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ export default async function OffresPage({ searchParams }: { searchParams: Promi
         subtitle={subtitle}
         actions={<ScanButton />}
       />
-      <OffresList initialResult={initial} initialVieOnly={vieOnly} initialMinScore={minScore} />
+      <OffresList initialResult={initial} initialVieOnly={vieOnly} initialMinScore={minScore} targetCountries={getProfile()?.target_countries ?? []} />
     </>
   );
 }

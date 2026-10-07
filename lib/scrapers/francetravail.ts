@@ -248,7 +248,14 @@ export const francetravailScraper: Scraper = {
     for (const q of queries) {
       let start = 0;
       while (apiOffres.size < max && start < 150) {
-        const jobs = await fetchApi(q, start, 50);
+        let jobs: FtApiJob[];
+        try {
+          jobs = await fetchApi(q, start, 50);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          onEvent({ kind: "error", source: SOURCE, message: `France Travail : recherche API impossible pour « ${q} » : ${message}` });
+          break;
+        }
         if (!jobs.length) break;
         for (const j of jobs) {
           const o = apiJobToScraped(j);

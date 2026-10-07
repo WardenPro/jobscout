@@ -24,6 +24,12 @@ export function normalizeCity(text: string): string {
     .replace(/\bluzern\b/g, "lucerne");
 }
 
+/** Mots complets du lieu publié : Bern/Berne ne doit pas correspondre à Berneck. */
+export function matchesCity(location: string | null | undefined, query: string): boolean {
+  const city = normalizeCity(query);
+  return !city || ` ${normalizeCity(location ?? "")} `.includes(` ${city} `);
+}
+
 const CANTON_ALIASES: Record<string, SwissCanton> = {
   geneva: "GE", genf: "GE", neuenburg: "NE", bern: "BE", baselstadt: "BS", "basel stadt": "BS",
   baselland: "BL", "basel landschaft": "BL", aargau: "AG", freiburg: "FR", graubunden: "GR",

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { calculateCommutes } from "@/lib/commute";
 import { listOffres } from "@/lib/db/offres";
 import { isSwissOffer } from "@/lib/work-permit";
-import { CANTON_CODES, normalizeCity, resolveSwissCanton } from "@/lib/swiss-geography";
+import { CANTON_CODES, matchesCity, resolveSwissCanton } from "@/lib/swiss-geography";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     const { origin, canton, city } = parsed.data;
     const locations = listOffres().filter(o => isSwissOffer(o.country) &&
       (!canton || resolveSwissCanton(o.canton, o.location) === canton) &&
-      (!city || normalizeCity(o.location ?? "").includes(normalizeCity(city))))
+      matchesCity(o.location, city))
       .map(o => o.location).filter((place): place is string => !!place);
     const result = await calculateCommutes(origin, locations);
     return NextResponse.json(result);

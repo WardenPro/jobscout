@@ -12,6 +12,7 @@ import OffreDetailPage from "@/app/(app)/offres/[id]/page";
 import { saveProfile } from "@/lib/db/queries";
 import { ProfileFullSchema } from "@/lib/cv/types";
 import { profile } from "./fixtures";
+import OffresPage from "@/app/(app)/offres/page";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }), notFound: () => { throw new Error("not found"); } }));
 vi.mock("@/app/(app)/offres/[id]/actions", () => ({ ActionsPanel: () => null }));
@@ -44,6 +45,40 @@ describe("régressions des sources suisses", () => {
     const events: ProgressEvent[] = [];
     await expect(drain(scraper, events)).rejects.toThrow("HTTP 403");
     expect(events.some(e => e.kind === "done")).toBe(false);
+  });
+
+  it.each([jobupScraper, jobschScraper, jobroomScraper])("%s poursuit les secteurs après l'échec de la toute première recherche", async scraper => {
+    const events: ProgressEvent[] = [];
+    const room = scraper.name === "jobroom";
+    let searches = 0;
+    const id = `first-sector-${scraper.name}`;
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      const search = room ? init?.method === "POST" : !url.includes("/detail/");
+      if (!search) return room ? Response.json(ad(id)) : new Response(`<script type="application/ld+json">${JSON.stringify({ "@type": "JobPosting", description: DESCRIPTION })}</script>`);
+      searches++;
+      if (searches === 1) return new Response("unavailable", { status: 503 });
+      return room ? Response.json([{ jobAdvertisement: ad(id) }])
+        : new Response(`<script>__INIT__ = ${JSON.stringify({ vacancy: { results: { main: { results: [{ id, title: "Comptable" }], meta: { numPages: 1 } } } } })}</script>`);
+    }));
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    const pending = (async () => {
+      const offers: ScrapedOffre[] = [];
+      for await (const o of scraper.scrape({ countries: ["Suisse"], sectors: ["comptable", "finance"] }, e => events.push(e))) offers.push(o);
+      return offers;
+    })();
+    await vi.runAllTimersAsync();
+    expect((await pending).map(o => o.source_id)).toEqual([id]);
+    expect(searches).toBe(2);
+    expect(events).toContainEqual(expect.objectContaining({ kind: "error", message: expect.stringContaining("HTTP 503") }));
+    expect(events).toContainEqual({ kind: "done", source: scraper.name, seen: 1, ok: 1, failed: 0 });
+  });
+
+  it.each([jobupScraper, jobschScraper, jobroomScraper])("%s essaie tous les secteurs avant de déclarer une panne totale", async scraper => {
+    const fetch = vi.fn(async () => new Response("blocked", { status: 403 }));
+    vi.stubGlobal("fetch", fetch);
+    const run = async () => { for await (const _ of scraper.scrape({ countries: ["Suisse"], sectors: ["comptable", "finance"] }, () => {})) void _; };
+    await expect(run()).rejects.toThrow("HTTP 403");
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it.each([jobupScraper, jobschScraper, jobroomScraper])("%s conserve les offres après une erreur sur la deuxième page et poursuit les secteurs", async (scraper) => {
@@ -166,6 +201,23 @@ it("les filtres proposent tous les cantons et le calcul voiture exige l'accord d
   expect(checkboxes.map(input => input.checked)).toEqual([false, true]);
   expect(panel.querySelector("button")!.disabled).toBe(true);
   expect(panel.textContent).toContain("hors trafic");
+});
+
+it("la page masque les filtres suisses pour un profil France, même avec des offres suisses enregistrées", async () => {
+  saveProfile(ProfileFullSchema.parse({ ...profile, target_countries: ["France"] }));
+  upsertOffreFromSource("jobroom", { ...offer("france-profile", "ok"), location: "Genève" });
+  const html = renderToStaticMarkup(await OffresPage({ searchParams: Promise.resolve({}) }));
+  const doc = parseDocument(html);
+  expect(doc.querySelector('select[aria-label="Filtrer par canton suisse"]')).toBeNull();
+  expect(html).not.toContain("Trajet maximal en voiture");
+  expect(doc.querySelector('input[placeholder="Paris, Lyon, Bordeaux…"]')).not.toBeNull();
+});
+
+it("la page affiche les filtres suisses pour un profil France et Suisse", async () => {
+  saveProfile(ProfileFullSchema.parse({ ...profile, target_countries: ["France", "Suisse"] }));
+  const html = renderToStaticMarkup(await OffresPage({ searchParams: Promise.resolve({}) }));
+  expect(parseDocument(html).querySelector('select[aria-label="Filtrer par canton suisse"]')).not.toBeNull();
+  expect(html).toContain("Trajet maximal en voiture");
 });
 
 it("l'aperçu et la fiche distinguent une obligation non couverte d'un simple atout", async () => {

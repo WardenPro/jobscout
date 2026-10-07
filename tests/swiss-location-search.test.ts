@@ -31,6 +31,16 @@ describe("cantons et villes", () => {
     expect(searchOffres({ city: "geneve" }).offers.map(o => o.id)).toEqual([geneva]);
   });
 
+  it("Bern retrouve Berne sans inclure Berneck, et Paris ne retrouve pas Parisot", () => {
+    const bern = add("Bern, BE, Switzerland");
+    const berne = add("Berne");
+    add("Berneck (SG)");
+    expect(searchOffres({ city: "Bern" }).offers.map(o => o.id).sort()).toEqual([bern, berne].sort());
+    const paris = add("75008 Paris, France", { country: "France" });
+    add("Parisot, France", { country: "France" });
+    expect(searchOffres({ country: "France", city: "Paris" }).offers.map(o => o.id)).toEqual([paris]);
+  });
+
   it("combine canton et ville sans rechercher le lieu dans la description", () => {
     const hit = add("Nyon", { canton: "VD" });
     add("Lausanne", { description_text: "Déplacements à Nyon" });

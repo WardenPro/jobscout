@@ -156,21 +156,23 @@ export const wttjScraper: Scraper = {
 
     // 1. Collecte via l'index : une recherche par secteur cible, 2 pages max.
     const seen = new Map<string, Hit>();
-    let apiError: string | null = null;
-    for (const q of queries) {
+    let searchSucceeded = false;
+    for (const [queryIndex, q] of queries.entries()) {
       for (let page = 0; page < PAGES_PER_QUERY; page++) {
         try {
           const { hits, nbPages } = await searchPage(q, page);
+          searchSucceeded = true;
           for (const h of hits) if (h?.objectID && !seen.has(h.objectID)) seen.set(h.objectID, h);
           if (page + 1 >= nbPages) break;
         } catch (e) {
-          apiError = e instanceof Error ? e.message : String(e);
+          const message = e instanceof Error ? e.message : String(e);
+          const error = new Error(`WTTJ : recherche impossible (page ${page + 1}) : ${message}`, { cause: e });
+          if (!searchSucceeded && queryIndex === queries.length - 1) throw error;
+          onEvent({ kind: "error", source: SOURCE, message: error.message });
           break;
         }
       }
-      if (apiError) break;
     }
-    if (apiError && seen.size === 0) throw new Error(apiError);
 
     // 2. Filtre pays (si des pays cibles sont définis) + tri par date de publication.
     const filtered = Array.from(seen.values()).filter((h) => {

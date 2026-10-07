@@ -12,6 +12,7 @@ import { CONTRACT_LABELS, CONTRACT_ORDER, type ContractCategory } from "@/lib/co
 import { SOURCES_META } from "@/lib/sources-meta";
 import { CANTON_CODES, SWISS_CANTONS } from "@/lib/swiss-geography";
 import { LanguageRequirements } from "@/components/app/language-requirements";
+import { isSwissOffer } from "@/lib/work-permit";
 
 const sourceLabels = Object.fromEntries(SOURCES_META.map((source) => [source.id, source.label]));
 const numberFormat = new Intl.NumberFormat("fr-FR");
@@ -37,10 +38,12 @@ export function OffresList({
   initialResult,
   initialVieOnly = false,
   initialMinScore = 0,
+  targetCountries = [],
 }: {
   initialResult: OffersSearch;
   initialVieOnly?: boolean;
   initialMinScore?: number;
+  targetCountries?: string[];
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -73,12 +76,20 @@ export function OffresList({
   const initialVieRef = useRef(initialVieOnly);
   const contractKey = [...contracts].sort().join(",");
   const vieFilter = contracts.has("vie");
-  const hasFilters = !!query || !!source || !!country || !!canton || !!city || commuteActive || contracts.size > 0 || minScore;
-  const activeFilterCount = Number(!!source) + Number(!!country) + Number(!!canton) + Number(!!city) + Number(commuteActive) + contracts.size + Number(minScore);
+  const showSwissFilters = (!targetCountries.length || targetCountries.some(isSwissOffer)) && (!country || isSwissOffer(country));
+  const activeCanton = showSwissFilters ? canton : "";
+  const activeCommute = showSwissFilters && commuteActive;
+  const hasFilters = !!query || !!source || !!country || !!activeCanton || !!city || activeCommute || contracts.size > 0 || minScore;
+  const activeFilterCount = Number(!!source) + Number(!!country) + Number(!!activeCanton) + Number(!!city) + Number(activeCommute) + contracts.size + Number(minScore);
   const { countries, sources, contractCounts } = result.facets;
   const shown = result.offers;
   const remaining = Math.max(0, result.total - shown.length);
   const selected = shown.find((offer) => offer.id === selectedId) ?? shown[0] ?? null;
+
+  useEffect(() => {
+    if (showSwissFilters || (!canton && !commuteActive)) return;
+    setCanton(""); setCommuteActive(false); setCommuteMessage(null); setPage(1);
+  }, [showSwissFilters, canton, commuteActive]);
 
   // Navigation vers /offres?vie=1 sans quitter la page (lien de l'accueil) : on coche V.I.E.
   useEffect(() => {
@@ -124,9 +135,9 @@ export function OffresList({
     if (query) params.set("q", query);
     if (source) params.set("source", source);
     if (country) params.set("country", country);
-    if (canton) params.set("canton", canton);
+    if (activeCanton) params.set("canton", activeCanton);
     if (city) params.set("city", city);
-    if (commuteActive) {
+    if (activeCommute) {
       params.set("origin", origin);
       params.set("maxMinutes", String(maxMinutes));
       params.set("includeUnknown", includeUnknown ? "1" : "0");
@@ -153,7 +164,7 @@ export function OffresList({
       }
     }, page > 1 ? 0 : query || city ? 250 : 0);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [query, source, country, canton, city, origin, maxMinutes, includeUnknown, commuteActive, contractKey, minScore, scoreThreshold, sortBy, page, refreshKey]);
+  }, [query, source, country, activeCanton, city, origin, maxMinutes, includeUnknown, activeCommute, contractKey, minScore, scoreThreshold, sortBy, page, refreshKey]);
 
   function reset() {
     setQuery(""); setSource(""); setCountry(""); setContracts(new Set()); setMinScore(false); setSelectedId(null); setFiltersExpanded(false); setPage(1);
@@ -228,18 +239,18 @@ export function OffresList({
             <option value="">Toutes les sources</option>
             {sources.map((item) => <option key={item} value={item}>{sourceLabels[item] ?? item}</option>)}
           </select>
-          <select value={country} onChange={(event) => { setCountry(event.target.value); setPage(1); }} aria-label="Filtrer par pays" className="h-9 max-w-full rounded-md border border-border bg-bg px-3 text-small text-text focus:border-accent focus:outline-none">
+          <select value={country} disabled={calculating} onChange={(event) => { setCountry(event.target.value); setPage(1); }} aria-label="Filtrer par pays" className="h-9 max-w-full rounded-md border border-border bg-bg px-3 text-small text-text focus:border-accent focus:outline-none">
             <option value="">Tous les pays</option>
             {countries.map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
-          <select value={canton} disabled={calculating} onChange={(event) => { setCanton(event.target.value); setPage(1); }} aria-label="Filtrer par canton suisse" className="h-9 max-w-full rounded-md border border-border bg-bg px-3 text-small text-text focus:border-accent focus:outline-none">
+          {showSwissFilters && <select value={canton} disabled={calculating} onChange={(event) => { setCanton(event.target.value); setPage(1); }} aria-label="Filtrer par canton suisse" className="h-9 max-w-full rounded-md border border-border bg-bg px-3 text-small text-text focus:border-accent focus:outline-none">
             <option value="">Tous les cantons suisses</option>
             {CANTON_CODES.slice().sort((a, b) => SWISS_CANTONS[a].localeCompare(SWISS_CANTONS[b], "fr")).map(code => <option key={code} value={code}>{SWISS_CANTONS[code]} ({code})</option>)}
-          </select>
-          <label className="text-small text-textSecondary">Ville <input value={city} disabled={calculating} maxLength={100} onChange={(event) => { setCity(event.target.value); setPage(1); }} placeholder="Genève, Lausanne, Bâle…" className="h-9 max-w-full rounded-md border border-border bg-bg px-3 text-small text-text focus:border-accent focus:outline-none" /></label>
+          </select>}
+          <label className="text-small text-textSecondary">Ville <input value={city} disabled={calculating} maxLength={100} onChange={(event) => { setCity(event.target.value); setPage(1); }} placeholder={showSwissFilters ? "Genève, Lausanne, Bâle…" : "Paris, Lyon, Bordeaux…"} className="h-9 max-w-full rounded-md border border-border bg-bg px-3 text-small text-text focus:border-accent focus:outline-none" /></label>
           {hasFilters && <button type="button" disabled={calculating} onClick={reset} className="inline-flex h-9 items-center gap-1.5 px-2 text-small font-semibold text-accent hover:underline disabled:opacity-50"><RotateCcw className="h-3.5 w-3.5" /> Effacer les filtres</button>}
         </div>
-        <p className="mt-2 text-caption text-textSecondary">Un canton sélectionné limite la recherche aux offres suisses dont le canton est connu. La ville est recherchée dans le lieu publié.</p>
+        {showSwissFilters && <><p className="mt-2 text-caption text-textSecondary">Un canton sélectionné limite la recherche aux offres suisses dont le canton est connu. La ville est recherchée dans le lieu publié.</p>
         <details className="mt-4 border-t border-border pt-3">
           <summary className="cursor-pointer text-small font-semibold">Trajet maximal en voiture depuis la France</summary>
           <div className="mt-3 space-y-3 text-small">
@@ -247,7 +258,7 @@ export function OffresList({
               <label>Commune de départ <input value={origin} disabled={calculating} maxLength={100} onChange={(event) => { setOrigin(event.target.value); setCommuteActive(false); setPage(1); setCommuteMessage(null); }} placeholder="Annemasse ou 74100 Annemasse" className="h-9 rounded-md border border-border bg-bg px-3 text-text" /></label>
               <label>Durée maximale aller <input type="number" min={1} max={240} value={maxMinutes} onChange={(event) => { const value = Number(event.target.value); setMaxMinutes(Math.max(1, Math.min(240, value || 1))); setPage(1); }} className="h-9 w-20 rounded-md border border-border bg-bg px-2 text-text" /> min</label>
             </div>
-            <p className="text-textSecondary">Estimation de centre de commune à centre de ville, hors trafic, stationnement et attente à la frontière. Calcul par lots de 12 villes des offres suisses, restreintes au canton et à la ville sélectionnés.</p>
+            <p className="text-textSecondary">Estimation de centre de commune à centre de ville, hors trafic, stationnement et attente à la frontière. Calcul par lots de 12 villes des offres suisses, restreintes au canton et à la ville sélectionnés. Ce filtre s'applique uniquement aux offres suisses ; les offres des autres pays restent visibles.</p>
             <label className="flex items-start gap-2"><input type="checkbox" checked={commuteConsent} disabled={calculating} onChange={(event) => setCommuteConsent(event.target.checked)} className="mt-1" />J'accepte l'envoi des noms de communes à Photon et des coordonnées à OSRM pour ce calcul.</label>
             <div className="flex flex-wrap gap-3">
               <button type="button" disabled={calculating || !commuteConsent || origin.trim().length < 2} onClick={calculateCarCommutes} className="button-secondary rounded-md px-3 py-2 disabled:opacity-50">{calculating ? "Calcul des trajets…" : "Calculer ou compléter les trajets et filtrer"}</button>
@@ -257,7 +268,7 @@ export function OffresList({
             {commuteMessage && <p role="status" className="text-textSecondary">{commuteMessage}</p>}
             <p className="text-caption text-textSecondary">Services publics sans garantie de disponibilité. Données © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline">OpenStreetMap</a> · <a href="https://photon.komoot.io" target="_blank" rel="noopener noreferrer" className="underline">Photon</a> · <a href="https://project-osrm.org" target="_blank" rel="noopener noreferrer" className="underline">OSRM</a>. Estimations réutilisées 7 jours depuis le cache local. Les trajets en échec pourront être retentés après une heure.</p>
           </div>
-        </details>
+        </details></>}
         </div>
       </section>
 
@@ -292,7 +303,7 @@ export function OffresList({
               </div>
             )}
           </div>
-          {selected && <OfferPreview key={selected.id} offer={selected} commuteOrigin={commuteActive ? origin : null} />}
+          {selected && <OfferPreview key={selected.id} offer={selected} commuteOrigin={activeCommute ? origin : null} />}
         </div>
       )}
     </div>
@@ -373,7 +384,7 @@ function OfferPreview({ offer, commuteOrigin }: { offer: OffreSummary; commuteOr
         <p className="mt-1 line-clamp-3 text-small leading-relaxed text-textSecondary">{offer.score_reason || `Score ${score.label.toLowerCase()} pour votre profil.`}</p>
       </div>
       <div className="border-t border-border py-5">
-        {commuteOrigin && <p className="mb-3 text-small text-textSecondary">Voiture depuis {commuteOrigin} : {offer.commute ? `${offer.commute.minutes} min aller, hors trafic (${Math.round(offer.commute.distanceKm)} km).` : "trajet inconnu."}</p>}
+        {commuteOrigin && isSwissOffer(offer.country) && <p className="mb-3 text-small text-textSecondary">Voiture depuis {commuteOrigin} : {offer.commute ? `${offer.commute.minutes} min aller, hors trafic (${Math.round(offer.commute.distanceKm)} km).` : "trajet inconnu."}</p>}
         {offer.language_assessment && <div className="mb-4"><LanguageRequirements assessment={offer.language_assessment} /></div>}
         <p className="text-small font-semibold">En bref</p>
         {offer.description_status === "partial" && <p className="mt-2 text-small text-warning">Description incomplète : consultez l'annonce d'origine avant de préparer votre candidature.</p>}

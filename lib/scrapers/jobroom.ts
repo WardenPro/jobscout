@@ -228,18 +228,21 @@ export const jobroomScraper: Scraper = {
     const max = criteria.maxOffres ?? 80;
     const queries = criteria.sectors.length ? criteria.sectors : [""];
     const seen = new Map<string, JobAd>();
+    let searchSucceeded = false;
 
-    for (const q of queries) {
+    for (const [queryIndex, q] of queries.entries()) {
       for (let page = 0; page < 3 && seen.size < max; page++) {
         try {
           const ads = await search(q, page);
+          searchSucceeded = true;
           for (const a of ads) if (!seen.has(a.id)) seen.set(a.id, a);
           if (ads.length < PAGE_SIZE) break;
           await sleep(1200);
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
           const error = new Error(`Job-Room : recherche impossible (page ${page + 1}) : ${message}`, { cause: e });
-          if (!seen.size) throw error;
+          // Ne déclarer la source totalement indisponible qu'après avoir essayé tous les secteurs.
+          if (!searchSucceeded && queryIndex === queries.length - 1) throw error;
           // Conserver les offres déjà collectées et poursuivre les autres recherches.
           onEvent({ kind: "error", source: SOURCE, message: error.message });
           break;

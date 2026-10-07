@@ -195,11 +195,13 @@ function makeScraper(site: Site): Scraper {
       const max = criteria.maxOffres ?? 50;
       const queries = criteria.sectors.length ? criteria.sectors : [""];
       const seen = new Map<string, Card>();
+      let searchSucceeded = false;
 
-      for (const q of queries) {
+      for (const [queryIndex, q] of queries.entries()) {
         for (let page = 1; page <= 3 && seen.size < max; page++) {
           try {
             const { cards, numPages } = await fetchSearchPage(site, q, page);
+            searchSucceeded = true;
             if (!cards.length) break;
             for (const c of cards) if (!seen.has(c.id)) seen.set(c.id, c);
             if (page >= numPages) break;
@@ -207,7 +209,8 @@ function makeScraper(site: Site): Scraper {
           } catch (e) {
             const message = e instanceof Error ? e.message : String(e);
             const error = new Error(`${site.label} : recherche impossible (page ${page}) : ${message}`, { cause: e });
-            if (!seen.size) throw error;
+            // Ne déclarer la source totalement indisponible qu'après avoir essayé tous les secteurs.
+            if (!searchSucceeded && queryIndex === queries.length - 1) throw error;
             // Conserver les offres déjà collectées et poursuivre les autres recherches.
             onEvent({ kind: "error", source: site.id, message: error.message });
             break;
