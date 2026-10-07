@@ -1,11 +1,14 @@
 import "server-only";
 import { getDb, parseJson, asJson, transaction } from "./index";
 import type { ProfileFull, Profile, Experience, Education, Skill, Language } from "@/lib/cv/types";
+import { WORK_PERMITS, type WorkPermit } from "@/lib/work-permit";
 
 export function getProfile(): ProfileFull | null {
   const db = getDb();
   const profile = db.prepare("SELECT * FROM profile ORDER BY id ASC LIMIT 1").get() as
-    | (Omit<Profile, "sectors" | "target_countries" | "sources_enabled" | "preferred_contracts"> & {
+    | (Omit<Profile, "sectors" | "target_countries" | "sources_enabled" | "preferred_contracts" | "work_permit" | "workload_range"> & {
+        work_permit: string | null;
+        workload_range: string | null;
         sectors: string;
         target_countries: string;
         sources_enabled: string;
@@ -44,6 +47,8 @@ export function getProfile(): ProfileFull | null {
     target_countries: parseJson(profile.target_countries, []),
     sources_enabled: parseJson(profile.sources_enabled, []),
     preferred_contracts: parseJson(profile.preferred_contracts, ["cdi", "cdd"]),
+    work_permit: WORK_PERMITS.includes(profile.work_permit as WorkPermit) ? (profile.work_permit as WorkPermit) : null,
+    workload_range: parseWorkloadRange(profile.workload_range),
     experiences: experiences.map((e) => ({
       ...e,
       bullet_points: parseJson(e.bullet_points, []),
@@ -58,14 +63,21 @@ export function getProfile(): ProfileFull | null {
   };
 }
 
+function parseWorkloadRange(raw: string | null): [number, number] | null {
+  const v = parseJson<unknown>(raw, null);
+  return Array.isArray(v) && v.length === 2 && v.every((n) => typeof n === "number") && v[0] <= v[1]
+    ? [v[0], v[1]]
+    : null;
+}
+
 export function saveProfile(input: Omit<ProfileFull, "id" | "created_at" | "updated_at">): number {
   const db = getDb();
   return transaction(() => {
     db.prepare("DELETE FROM profile").run();
     const result = db
       .prepare(
-        `INSERT INTO profile (full_name, email, phone, location, linkedin_url, portfolio_url, summary, raw_cv_text, sectors, target_countries, sources_enabled, preferred_contracts, extraction_confidence)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO profile (full_name, email, phone, location, linkedin_url, portfolio_url, summary, raw_cv_text, sectors, target_countries, sources_enabled, preferred_contracts, work_permit, workload_range, extraction_confidence)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         input.full_name ?? null,
@@ -80,6 +92,8 @@ export function saveProfile(input: Omit<ProfileFull, "id" | "created_at" | "upda
         asJson(input.target_countries ?? []),
         asJson(input.sources_enabled ?? []),
         asJson(input.preferred_contracts ?? ["cdi", "cdd"]),
+        input.work_permit ?? null,
+        input.workload_range ? asJson(input.workload_range) : null,
         input.extraction_confidence ?? 0
       );
     const profileId = Number(result.lastInsertRowid);

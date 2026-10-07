@@ -155,7 +155,7 @@ async function fetchDetail(site: Site, card: Card): Promise<ScrapedOffre> {
     country: "Suisse",
     location: card.place ?? ld?.locality ?? null,
     contract_type: contract,
-    salary: ld?.salary ? formatChfSalary(ld.salary) : null,
+    salary: ld?.salary ?? null,
     description_html,
     description_text,
     description_status: ok ? "ok" : "failed",
@@ -166,10 +166,6 @@ async function fetchDetail(site: Site, card: Card): Promise<ScrapedOffre> {
   };
 }
 
-// extractJobPostingLd rend « 77672.22-117672.22 CHF » : arrondi à l'unité pour l'affichage.
-function formatChfSalary(s: string): string {
-  return s.replace(/\d+(?:\.\d+)?/g, (n) => Math.round(Number(n)).toLocaleString("fr-CH"));
-}
 
 function knownOnSibling(site: Site, ids: string[]): Set<string> {
   if (!ids.length) return new Set();

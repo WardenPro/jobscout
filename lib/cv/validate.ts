@@ -105,6 +105,8 @@ export function buildProfileFromExtraction(
     sources_enabled: [],
     // Même défaut que le schéma zod, la colonne SQL et l'écran de préférences.
     preferred_contracts: ["cdi", "cdd"],
+    work_permit: null,
+    workload_range: null,
     extraction_confidence: computeConfidence(ex),
     experiences: expCleaned,
     educations,

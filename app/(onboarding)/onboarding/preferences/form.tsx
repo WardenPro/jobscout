@@ -11,6 +11,7 @@ import type { ProfileFull } from "@/lib/cv/types";
 import { COUNTRY_GROUPS, FRANCOPHONIE } from "@/lib/countries";
 import { SOURCES_META, DEFAULT_SOURCE_IDS } from "@/lib/sources-meta";
 import { EngineNotice } from "@/components/app/engine-notice";
+import { SwissSettings } from "@/components/app/swiss-settings";
 const SOURCES = SOURCES_META;
 
 export function PreferencesForm() {
@@ -208,6 +209,16 @@ export function PreferencesForm() {
           ))}
         </div>
       </Card>
+
+      {profile.target_countries.includes("Suisse") && (
+        <Card>
+          <h2 className="text-h3 mb-1">Suisse</h2>
+          <p className="text-small text-textSecondary mb-4">
+            Facultatif : votre statut de travail et le taux d'activité que vous cherchez.
+          </p>
+          <SwissSettings workPermit={profile.work_permit} workloadRange={profile.workload_range} onChange={update} />
+        </Card>
+      )}
 
       <Card>
         <h2 className="text-h3 mb-1">Sources de scan</h2>

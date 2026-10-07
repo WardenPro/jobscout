@@ -10,6 +10,7 @@ import { cvLanguageInstruction } from "./lang-prompts";
 import { detectDocLanguage, sourceLanguageHint, type DocLang } from "@/lib/text/lang";
 import type { ProfileFull } from "@/lib/cv/types";
 import type { OffreFiltered } from "@/lib/db/offres";
+import { cvPermitMention, isSwissOffer } from "@/lib/work-permit";
 
 export type GeneratedCV = {
   identity: {
@@ -202,7 +203,22 @@ export async function generateCV(
     for (const w of report.warnings) console.log(`  • ${w}`);
   }
   // Relecture (orthographe, accords, typographie, faits non étayés) — jamais bloquante.
-  return proofreadCV(enforceAtsLimits(validated), profile, lang);
+  const proofread = await proofreadCV(enforceAtsLimits(validated), profile, lang);
+  return withWorkPermit(proofread, profile, offre, lang);
+}
+
+/**
+ * Offre en Suisse : le statut de travail (« Permis G (frontalier) ») suit la ville
+ * dans l'en-tête du CV — c'est la première chose que cherche un recruteur suisse.
+ * Ajout déterministe, hors IA : le fait vient du profil.
+ */
+export function withWorkPermit(cv: GeneratedCV, profile: ProfileFull, offre: { country: string | null }, lang: DocLang): GeneratedCV {
+  if (!isSwissOffer(offre.country)) return cv;
+  const mention = cvPermitMention(profile.work_permit, lang);
+  if (!mention) return cv;
+  const location = cv.identity.location?.trim();
+  if (location && location.toLowerCase().includes(mention.toLowerCase())) return cv;
+  return { ...cv, identity: { ...cv.identity, location: location ? `${location} · ${mention}` : mention } };
 }
 
 /**

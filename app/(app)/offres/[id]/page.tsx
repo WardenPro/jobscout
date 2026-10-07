@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowUpRight, AlertTriangle, CalendarDays, MapPin } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, AlertTriangle, Banknote, CalendarDays, MapPin } from "lucide-react";
 import { getOffre } from "@/lib/db/offres";
 import { listDocuments, offreFolderPath } from "@/lib/db/documents";
 import { getDb } from "@/lib/db";
@@ -10,6 +10,7 @@ import { ActionsPanel } from "./actions";
 import { formatRelativeDate, scoreColor } from "@/lib/utils";
 import { CONTRACT_LABELS } from "@/lib/contracts";
 import { SOURCES_META } from "@/lib/sources-meta";
+import { extractWorkload, formatWorkload, stripWorkload } from "@/lib/workload";
 
 export const dynamic = "force-dynamic";
 
@@ -28,8 +29,11 @@ export default async function OffreDetailPage({ params }: { params: Promise<{ id
   const score = scoreColor(offre.score ?? 0);
   const sourceLabel = SOURCES_META.find((source) => source.id === offre.source)?.label ?? offre.source;
   const contractLabel = offre.contract_category !== "autre" ? CONTRACT_LABELS[offre.contract_category] : null;
-  // Le libellé brut de la source n'est répété que s'il apporte une précision (« Temps plein »…).
-  const rawContract = offre.contract_type && offre.contract_type.trim().toLowerCase() !== contractLabel?.toLowerCase() ? offre.contract_type : null;
+  const workload = extractWorkload(offre);
+  // Le libellé brut de la source n'est répété que s'il apporte une précision (« Temps plein »…) ;
+  // le taux d'activité qu'il peut contenir a son propre badge.
+  const contractText = offre.contract_type ? stripWorkload(offre.contract_type) : "";
+  const rawContract = contractText && contractText.toLowerCase() !== contractLabel?.toLowerCase() ? contractText : null;
 
   return (
     <div>
@@ -51,12 +55,14 @@ export default async function OffreDetailPage({ params }: { params: Promise<{ id
         <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-small text-textSecondary">
           {(offre.location || offre.country) && <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" /> {offre.location ?? offre.country}{offre.location && offre.country && offre.location !== offre.country ? `, ${offre.country}` : ""}</span>}
           {offre.posted_at && <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-4 w-4" /> {formatRelativeDate(offre.posted_at)}</span>}
+          {offre.salary && <span className="inline-flex items-center gap-1.5"><Banknote className="h-4 w-4" /> {offre.salary}</span>}
           <span className="font-medium">Score {score.label.toLowerCase()}</span>
         </div>
         <div className="mt-5 flex flex-wrap items-center gap-2">
           <Badge>{sourceLabel}</Badge>
           {contractLabel && <Badge variant={offre.contract_category === "vie" ? "info" : "default"}>{contractLabel}</Badge>}
           {rawContract && <Badge>{rawContract}</Badge>}
+          {workload && <Badge>Taux d'activité {formatWorkload(workload)}</Badge>}
           <a href={offre.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-small font-semibold text-accent hover:underline sm:ml-auto">
             Voir l'annonce d'origine <ArrowUpRight className="h-4 w-4" />
           </a>
@@ -84,6 +90,7 @@ export default async function OffreDetailPage({ params }: { params: Promise<{ id
                 {offre.score_breakdown.language != null && <ScoreBar label="Langue" value={offre.score_breakdown.language} />}
                 {offre.score_breakdown.contract != null && <ScoreBar label="Contrat" value={offre.score_breakdown.contract} />}
                 {offre.score_breakdown.duration != null && offre.score_breakdown.duration > 0 && <ScoreBar label="Durée V.I.E" value={offre.score_breakdown.duration} />}
+                {offre.score_breakdown.workload != null && <ScoreBar label="Taux d'activité" value={offre.score_breakdown.workload} />}
               </div>
               {offre.score_breakdown.reason && <p className="mt-5 border-t border-border pt-4 text-small text-textSecondary">{offre.score_breakdown.reason}</p>}
             </section>
