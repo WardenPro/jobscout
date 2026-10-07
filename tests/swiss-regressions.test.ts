@@ -9,6 +9,9 @@ import type { ProgressEvent, Scraper, ScrapedOffre } from "@/lib/scrapers/base";
 import { parseDocument } from "@/lib/scrapers/dom";
 import { OffresList } from "@/app/(app)/offres/list";
 import OffreDetailPage from "@/app/(app)/offres/[id]/page";
+import { saveProfile } from "@/lib/db/queries";
+import { ProfileFullSchema } from "@/lib/cv/types";
+import { profile } from "./fixtures";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }), notFound: () => { throw new Error("not found"); } }));
 vi.mock("@/app/(app)/offres/[id]/actions", () => ({ ActionsPanel: () => null }));
@@ -150,4 +153,46 @@ it("un extrait Job-Room reste visible et signalé comme incomplet dans la liste 
   expect(detail).toContain("Description incomplète");
   expect(detail).toContain(DESCRIPTION);
   expect(detail).not.toContain("Description indisponible");
+});
+
+it("les filtres proposent tous les cantons et le calcul voiture exige l'accord de l'utilisateur", () => {
+  const html = renderToStaticMarkup(React.createElement(OffresList, { initialResult: searchOffres() }));
+  const doc = parseDocument(html);
+  const canton = doc.querySelector('select[aria-label="Filtrer par canton suisse"]') as HTMLSelectElement;
+  expect(canton.options).toHaveLength(27);
+  expect(Array.from(canton.options).map(option => option.textContent).join(" ")).toContain("Bâle-Campagne");
+  const panel = Array.from(doc.querySelectorAll("details")).find(node => node.textContent?.includes("Trajet maximal en voiture"))!;
+  const checkboxes = Array.from(panel.querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
+  expect(checkboxes.map(input => input.checked)).toEqual([false, true]);
+  expect(panel.querySelector("button")!.disabled).toBe(true);
+  expect(panel.textContent).toContain("hors trafic");
+});
+
+it("l'aperçu et la fiche distinguent une obligation non couverte d'un simple atout", async () => {
+  saveProfile(ProfileFullSchema.parse({ ...profile, languages: [{ name: "Allemand", level: "A2" }] }));
+  const description = "Allemand B2 obligatoire. Anglais un atout.";
+  const id = upsertOffreFromSource("jobroom", { ...offer("language-display", "ok"), location: "Genève", description_text: description, description_html: `<p>${description}</p>` });
+  const result = searchOffres({ query: "Allemand B2 obligatoire" });
+  for (const html of [renderToStaticMarkup(React.createElement(OffresList, { initialResult: result })),
+    renderToStaticMarkup(await OffreDetailPage({ params: Promise.resolve({ id: String(id) }) }))]) {
+    const section = parseDocument(html).querySelector('section[aria-label="Langues demandées"]')!;
+    expect(section.textContent).toContain("Langue du texte : indéterminée");
+    expect(section.textContent).toContain("Écart avec les langues déclarées");
+    expect(section.textContent).toContain("Allemand : A2");
+    expect(section.textContent).toContain("Souhaité / atout");
+    expect(section.textContent).toContain("Atout non couvert");
+  }
+});
+
+it.each(["France", "Suisse"])("%s : plus de cinq ans d'expérience ne masque pas le badge d'écart linguistique", country => {
+  saveProfile(ProfileFullSchema.parse({ ...profile, languages: [{ name: "Français", level: "C2" }] }));
+  upsertOffreFromSource(country === "France" ? "francetravail" : "jobroom", {
+    ...offer(`plus-badge-${country}`, "ok"), country, description_text: "Allemand courant obligatoire, plus de 5 ans d'expérience",
+  });
+  const list = renderToStaticMarkup(React.createElement(OffresList, { initialResult: searchOffres({ country }) }));
+  expect(list).toContain("Écart linguistique");
+  const section = parseDocument(list).querySelector('section[aria-label="Langues demandées"]')!;
+  expect(section.textContent).toContain("Exigé");
+  expect(section.textContent).toContain("Écart avec les langues déclarées");
+  expect(section.textContent).not.toContain("Souhaité / atout");
 });

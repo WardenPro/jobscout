@@ -11,6 +11,11 @@ import { formatRelativeDate, scoreColor } from "@/lib/utils";
 import { CONTRACT_LABELS } from "@/lib/contracts";
 import { SOURCES_META } from "@/lib/sources-meta";
 import { extractWorkload, formatWorkload, stripWorkload } from "@/lib/workload";
+import { getProfile } from "@/lib/db/queries";
+import { assessLanguages } from "@/lib/language-requirements";
+import { LanguageRequirements } from "@/components/app/language-requirements";
+import { resolveSwissCanton, SWISS_CANTONS } from "@/lib/swiss-geography";
+import { isSwissOffer } from "@/lib/work-permit";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +35,8 @@ export default async function OffreDetailPage({ params }: { params: Promise<{ id
   const sourceLabel = SOURCES_META.find((source) => source.id === offre.source)?.label ?? offre.source;
   const contractLabel = offre.contract_category !== "autre" ? CONTRACT_LABELS[offre.contract_category] : null;
   const workload = extractWorkload(offre);
+  const canton = isSwissOffer(offre.country) ? resolveSwissCanton(offre.canton, offre.location) : null;
+  const languageAssessment = assessLanguages(offre.description_text, getProfile()?.languages ?? null);
   // Le libellé brut de la source n'est répété que s'il apporte une précision (« Temps plein »…) ;
   // le taux d'activité qu'il peut contenir a son propre badge.
   const contractText = offre.contract_type ? stripWorkload(offre.contract_type) : "";
@@ -63,6 +70,7 @@ export default async function OffreDetailPage({ params }: { params: Promise<{ id
           {contractLabel && <Badge variant={offre.contract_category === "vie" ? "info" : "default"}>{contractLabel}</Badge>}
           {rawContract && <Badge>{rawContract}</Badge>}
           {workload && <Badge>Taux d'activité {formatWorkload(workload)}</Badge>}
+          {canton && <Badge>{SWISS_CANTONS[canton]} ({canton})</Badge>}
           <a href={offre.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-small font-semibold text-accent hover:underline sm:ml-auto">
             Voir l'annonce d'origine <ArrowUpRight className="h-4 w-4" />
           </a>
@@ -87,7 +95,7 @@ export default async function OffreDetailPage({ params }: { params: Promise<{ id
                 <ScoreBar label="Secteur" value={offre.score_breakdown.sector} />
                 <ScoreBar label="Compétences" value={offre.score_breakdown.skills} />
                 <ScoreBar label="Pays" value={offre.score_breakdown.country} />
-                {offre.score_breakdown.language != null && <ScoreBar label="Langue" value={offre.score_breakdown.language} />}
+                {offre.score_breakdown.language != null && <ScoreBar label="Langue du texte (bonus)" value={offre.score_breakdown.language} />}
                 {offre.score_breakdown.contract != null && <ScoreBar label="Contrat" value={offre.score_breakdown.contract} />}
                 {offre.score_breakdown.duration != null && offre.score_breakdown.duration > 0 && <ScoreBar label="Durée V.I.E" value={offre.score_breakdown.duration} />}
                 {offre.score_breakdown.workload != null && <ScoreBar label="Taux d'activité" value={offre.score_breakdown.workload} />}
@@ -98,6 +106,7 @@ export default async function OffreDetailPage({ params }: { params: Promise<{ id
         </aside>
 
         <article className="order-2 min-w-0 xl:order-1">
+          <div className="glass-panel mb-6 p-5"><LanguageRequirements assessment={languageAssessment} /></div>
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
               <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-textSecondary">L'annonce</p>

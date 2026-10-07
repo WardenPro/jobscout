@@ -3,6 +3,11 @@ import { getDb, asJson, parseJson } from "./index";
 import type { ScrapedOffre } from "@/lib/scrapers/base";
 import type { ScoreResult } from "@/lib/ai/score-offre";
 import { classifyContract, CONTRACT_ORDER, type ContractCategory } from "@/lib/contracts";
+import { resolveSwissCanton, normalizeCity, type SwissCanton } from "@/lib/swiss-geography";
+import { isSwissOffer } from "@/lib/work-permit";
+import { assessLanguages, type LanguageAssessment } from "@/lib/language-requirements";
+import { getProfile } from "./queries";
+import { cachedCommute, type CommuteEstimate } from "@/lib/commute";
 
 export type { ScrapedOffre };
 
@@ -15,6 +20,7 @@ export type OffreRow = {
   company: string;
   country: string | null;
   location: string | null;
+  canton: SwissCanton | null;
   contract_type: string | null;
   salary: string | null;
   description_html: string;
@@ -48,11 +54,13 @@ export type OffreFiltered = OffreRow & {
 export type OffreSummary = Pick<
   OffreFiltered,
   "id" | "source" | "url" | "title" | "company" | "country" | "location" |
-  "posted_at" | "score" | "is_vie" | "description_status" | "contract_category" |
+  "posted_at" | "score" | "is_vie" | "description_status" | "contract_category" | "canton" |
   "has_cv" | "has_lm"
 > & {
   description_text: string;
   score_reason: string | null;
+  language_assessment: LanguageAssessment;
+  commute: CommuteEstimate | null;
 };
 
 export type OffersSort = "smart" | "newest" | "oldest" | "score";
@@ -93,7 +101,7 @@ function normalizeSearch(value: string): string {
 // texte : ~250 ms par clic de filtre, ~600 ms par recherche. Les lignes prêtes à
 // filtrer restent en mémoire et sont reconstruites dès que la base change.
 
-type CachedOffre = Omit<OffreSummary, "description_text" | "score_reason"> & {
+type CachedOffre = Omit<OffreSummary, "description_text" | "score_reason" | "language_assessment" | "commute"> & {
   /** 1 000 premiers caractères : tout ce que l’aperçu affiche. */
   excerpt: string;
   /** JSON brut, lu seulement pour les offres de la page renvoyée. */
@@ -132,7 +140,7 @@ function dbFingerprint(): string {
 type CacheRow = Pick<
   OffreRow,
   "id" | "source" | "url" | "title" | "company" | "country" | "location" |
-  "contract_type" | "description_status" | "posted_at" | "score" | "is_vie"
+  "contract_type" | "description_status" | "posted_at" | "score" | "is_vie" | "canton"
 > & { head: string | null; excerpt: string | null; score_breakdown: string | null; has_cv: number; has_lm: number };
 
 function buildOffresCache(fingerprint: string): OffresCache {
@@ -141,7 +149,7 @@ function buildOffresCache(fingerprint: string): OffresCache {
   // les 4 623 offres de référence) et l’aperçu en affiche 1 000.
   const rows = getDb().prepare(`
     SELECT o.id, o.source, o.url, o.title, o.company, o.country, o.location,
-      o.contract_type, o.description_status, o.posted_at, o.score, o.score_breakdown, o.is_vie,
+      o.contract_type, o.canton, o.description_status, o.posted_at, o.score, o.score_breakdown, o.is_vie,
       substr(o.description_text, 1, 4000) AS head,
       substr(o.description_text, 1, 1000) AS excerpt,
       EXISTS(SELECT 1 FROM documents WHERE offre_id = o.id AND type = 'cv') AS has_cv,
@@ -162,6 +170,7 @@ function buildOffresCache(fingerprint: string): OffresCache {
     const offer: CachedOffre = {
       id: row.id, source: row.source, url: row.url, title: row.title,
       company: row.company, country: row.country, location: row.location,
+      canton: isSwissOffer(row.country) ? resolveSwissCanton(row.canton, row.location) : null,
       posted_at: row.posted_at, score: row.score, is_vie: row.is_vie,
       description_status: row.description_status, contract_category,
       has_cv: !!row.has_cv, has_lm: !!row.has_lm,
@@ -227,6 +236,9 @@ export function searchOffres(opts: {
   query?: string;
   source?: string;
   country?: string;
+  canton?: SwissCanton;
+  city?: string;
+  commute?: { origin: string; maxMinutes: number; includeUnknown: boolean };
   contracts?: ContractCategory[];
   /** Score minimal (true = 60, seuil de la puce « Score 60+ »). */
   minScore?: boolean | number;
@@ -240,10 +252,20 @@ export function searchOffres(opts: {
   const haystacks = query ? getHaystacks(cache) : null;
   const contracts = new Set(opts.contracts ?? []);
   const minScore = opts.minScore === true ? 60 : typeof opts.minScore === "number" ? opts.minScore : 0;
+  const city = normalizeCity(opts.city ?? "");
+  const commutes = new Map<number, CommuteEstimate | null>();
   const filtered = cache.smart.filter((row) => {
     if (haystacks && !(haystacks.get(row.id) ?? "").includes(query)) return false;
     if (opts.source && row.source !== opts.source) return false;
     if (opts.country && row.country !== opts.country) return false;
+    if (opts.canton && row.canton !== opts.canton) return false;
+    if (city && !normalizeCity(row.location ?? "").includes(city)) return false;
+    if (opts.commute) {
+      if (!isSwissOffer(row.country)) return false;
+      const estimate = cachedCommute(opts.commute.origin, row.location);
+      commutes.set(row.id, estimate);
+      if (estimate ? estimate.minutes > opts.commute.maxMinutes : !opts.commute.includeUnknown) return false;
+    }
     if (contracts.size && !contracts.has(row.contract_category)) return false;
     if (minScore > 0 && (row.score ?? 0) < minScore) return false;
     if (opts.vieOnly && row.contract_category !== "vie") return false;
@@ -262,10 +284,15 @@ export function searchOffres(opts: {
   }
   const page = Math.max(1, Math.min(10000, Math.trunc(opts.page ?? 1) || 1));
   const visible = filtered.slice((page - 1) * OFFER_PAGE_SIZE, page * OFFER_PAGE_SIZE);
+  const profileLanguages = getProfile()?.languages ?? null;
+  const fullDescription = getDb().prepare("SELECT description_text FROM offres WHERE id = ?");
   return {
     offers: visible.map((row) => ({
       id: row.id, source: row.source, url: row.url, title: row.title,
       company: row.company, country: row.country, location: row.location,
+      canton: row.canton,
+      language_assessment: assessLanguages((fullDescription.get(row.id) as { description_text: string }).description_text, profileLanguages),
+      commute: commutes.get(row.id) ?? null,
       posted_at: row.posted_at, score: row.score, is_vie: row.is_vie,
       description_status: row.description_status,
       description_text: row.excerpt,
@@ -308,9 +335,9 @@ export function fixMojibake(s: string | null): string | null {
 export function upsertOffreFromSource(source: string, o: ScrapedOffre): number {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO offres (source, source_id, url, title, company, country, location, contract_type, salary,
+    INSERT INTO offres (source, source_id, url, title, company, country, location, canton, contract_type, salary,
       description_html, description_text, description_status, posted_at, is_vie, raw_payload, scrape_errors)
-    VALUES (@source, @source_id, @url, @title, @company, @country, @location, @contract_type, @salary,
+    VALUES (@source, @source_id, @url, @title, @company, @country, @location, @canton, @contract_type, @salary,
       @description_html, @description_text, @description_status, @posted_at, @is_vie, @raw_payload, @scrape_errors)
     ON CONFLICT(source, source_id) DO UPDATE SET
       url = excluded.url,
@@ -318,6 +345,7 @@ export function upsertOffreFromSource(source: string, o: ScrapedOffre): number {
       company = excluded.company,
       country = excluded.country,
       location = excluded.location,
+      canton = excluded.canton,
       contract_type = excluded.contract_type,
       salary = excluded.salary,
       description_html = excluded.description_html,
@@ -337,6 +365,7 @@ export function upsertOffreFromSource(source: string, o: ScrapedOffre): number {
     company: fixMojibake(o.company) ?? o.company,
     country: fixMojibake(o.country),
     location: fixMojibake(o.location),
+    canton: isSwissOffer(o.country) ? resolveSwissCanton(o.canton, o.location) : null,
     contract_type: fixMojibake(o.contract_type),
     salary: fixMojibake(o.salary),
     description_html: fixMojibake(o.description_html) ?? o.description_html,

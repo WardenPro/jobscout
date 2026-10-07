@@ -30,6 +30,9 @@ export function getDb(): DatabaseSync {
       db.exec(`ALTER TABLE profile ADD COLUMN ${col}`);
     } catch {}
   }
+  try {
+    db.exec("ALTER TABLE offres ADD COLUMN canton TEXT");
+  } catch {}
 
   _db = db;
   return db;

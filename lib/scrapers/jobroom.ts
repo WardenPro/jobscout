@@ -6,6 +6,7 @@ import { nameToCode } from "@/lib/countries";
 import { getDb } from "@/lib/db";
 import { BROWSER_HEADERS, sleep } from "./dom";
 import { formatGrades } from "./jobcloud";
+import { normalizeCanton } from "@/lib/swiss-geography";
 
 const SOURCE = "jobroom";
 const BASE = "https://www.job-room.ch";
@@ -144,6 +145,7 @@ export function adToOffre(ad: JobAd): ScrapedOffre {
     company: ad.jobContent?.company?.name?.trim() ?? "",
     country: "Suisse",
     location: ad.jobContent?.location?.city?.trim() || null,
+    canton: normalizeCanton(ad.jobContent?.location?.cantonCode),
     contract_type: contractLabel(ad),
     salary: null,
     description_html,
