@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS profile (
   target_countries TEXT NOT NULL DEFAULT '[]',
   sources_enabled TEXT NOT NULL DEFAULT '[]',
   preferred_contracts TEXT NOT NULL DEFAULT '["cdi","cdd"]',
+  work_permit TEXT,
+  workload_range TEXT,
   extraction_confidence INTEGER DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))

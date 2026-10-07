@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { COUNTRY_GROUPS } from "@/lib/countries";
 import { SOURCES_META } from "@/lib/sources-meta";
 import { EngineNotice } from "@/components/app/engine-notice";
+import { SwissSettings } from "@/components/app/swiss-settings";
 import type { ProfileFull, Experience, Education, Skill, Language } from "@/lib/cv/types";
 
 const SOURCES = SOURCES_META;
@@ -388,6 +389,12 @@ function SearchCard({
           );
         })}
       </div>
+
+      {profile.target_countries.includes("Suisse") && (
+        <div className="mb-4 border-t border-border pt-4">
+          <SwissSettings workPermit={profile.work_permit} workloadRange={profile.workload_range} onChange={update} />
+        </div>
+      )}
 
       <p className="text-caption uppercase text-textSecondary mb-2">Sources</p>
       <div className="flex flex-wrap gap-1.5">

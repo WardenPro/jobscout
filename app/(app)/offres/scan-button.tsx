@@ -33,7 +33,7 @@ const TARGETS: {
     id: s.id,
     label: s.label,
     sublabel: s.sublabel,
-    icon: ICON_FOR[s.id] ?? (s.scope === "fr" ? MapPin : Briefcase),
+    icon: ICON_FOR[s.id] ?? (s.scope === "world" ? Briefcase : MapPin),
   })),
 ];
 

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getProfile } from "@/lib/db/queries";
-import { listOffres, setOffreScore } from "@/lib/db/offres";
-import { scoreOffreLocal } from "@/lib/scoring/local";
+import { rescoreAllOffres } from "@/lib/scoring/rescore";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -14,18 +13,5 @@ export async function POST() {
   if (!profile) {
     return NextResponse.json({ error: "Aucun profil actif" }, { status: 400 });
   }
-  const offres = listOffres();
-  let updated = 0;
-  for (const o of offres) {
-    const result = scoreOffreLocal(profile, {
-      title: o.title,
-      company: o.company,
-      country: o.country,
-      description_text: o.description_text,
-      contract_type: o.contract_type,
-    });
-    setOffreScore(o.id, result);
-    updated++;
-  }
-  return NextResponse.json({ ok: true, rescored: updated });
+  return NextResponse.json({ ok: true, rescored: rescoreAllOffres(profile) });
 }

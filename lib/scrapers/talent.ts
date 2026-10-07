@@ -131,6 +131,7 @@ async function enrich(card: Card): Promise<ScrapedOffre> {
   let descHtml: string | null = null;
   let ldCompany: string | null = null;
   let ldPosted: string | null = null;
+  let ldSalary: string | null = null;
   try {
     const res = await fetch(card.url, { headers: BROWSER_HEADERS });
     if (res.ok) {
@@ -140,6 +141,7 @@ async function enrich(card: Card): Promise<ScrapedOffre> {
         descHtml = ld.description_html;
         ldCompany = ld.company;
         ldPosted = ld.posted_at;
+        ldSalary = ld.salary;
       } else {
         descHtml = firstMatchHtml(doc, DETAIL_SELECTORS, 200) ?? largestTextBlockHtml(doc, 300);
       }
@@ -164,7 +166,8 @@ async function enrich(card: Card): Promise<ScrapedOffre> {
     country: card.country,
     location: card.city,
     contract_type: card.contract,
-    salary: null,
+    // JSON-LD : montant et devise de l'offre (CHF sur ch.talent.com, EUR en France…).
+    salary: ldSalary,
     description_html,
     description_text,
     description_status: okStatus ? "ok" : "failed",

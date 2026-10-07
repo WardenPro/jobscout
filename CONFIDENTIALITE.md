@@ -108,6 +108,9 @@ Les sources suspendues (APEC, Civiweb) ne sont jamais interrogées, même si ell
 | HelloWork | Si vous visez la France ou aucun pays précis : `www.hellowork.com` | non : à activer vous-même |
 | France Travail | Si vous visez la France ou aucun pays précis : `candidat.francetravail.fr`, ou l'API officielle si vous avez fourni des identifiants (voir 4.3) | oui |
 | Talent.com | Le site de chaque pays visé : `fr.talent.com`, `be.talent.com`, `ch.talent.com`, `lu.talent.com`, `ca.talent.com`, `www.talent.com` (États-Unis), `ma.talent.com`, `tn.talent.com` ou `sn.talent.com`. `fr.talent.com` si vous n'indiquez aucun pays. Aucun site Talent.com n'est contacté si aucun de vos pays n'est dans cette liste | non : à activer vous-même |
+| jobup.ch | Si vous visez la Suisse ou aucun pays précis : `www.jobup.ch` | non : à activer vous-même |
+| jobs.ch | Si vous visez la Suisse ou aucun pays précis : `www.jobs.ch` | non : à activer vous-même |
+| Job-Room | Si vous visez la Suisse ou aucun pays précis : `www.job-room.ch` | non : à activer vous-même |
 | LinkedIn | `www.linkedin.com`, pages publiques, sans compte | non : à cocher vous-même, puis le moteur doit être installé |
 | APEC | aucun : source suspendue depuis la 3.4.13, le site bloquant les requêtes automatiques | non : suspendue |
 | Civiweb (V.I.E) | aucun : source suspendue, Business France exigeant désormais une authentification | non : suspendue |
