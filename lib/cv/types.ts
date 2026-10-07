@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { WORK_PERMITS } from "@/lib/work-permit";
+import { WorkloadRangeSchema } from "@/lib/workload";
 
 export const ExperienceSchema = z.object({
   id: z.number().optional(),
@@ -60,11 +61,7 @@ export const ProfileSchema = z.object({
     .default(["cdi", "cdd"]),
   // Suisse : statut de travail (lettre, en-tête du CV) et taux d'activité souhaité ([min, max] en %).
   work_permit: z.enum(WORK_PERMITS).nullable().default(null),
-  workload_range: z
-    .tuple([z.number().int().min(10).max(100), z.number().int().min(10).max(100)])
-    .refine(([min, max]) => min <= max, "Taux d'activité : le minimum dépasse le maximum")
-    .nullable()
-    .default(null),
+  workload_range: WorkloadRangeSchema.nullable().default(null),
   extraction_confidence: z.number().min(0).max(100).default(0),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),

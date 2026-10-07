@@ -1,10 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { extractWorkload, formatWorkload, stripWorkload } from "@/lib/workload";
 import { scoreOffreLocal } from "@/lib/scoring/local";
 import { formatLdSalary } from "@/lib/scrapers/dom";
 import { getProfile, saveProfile } from "@/lib/db/queries";
 import { ProfileFullSchema } from "@/lib/cv/types";
 import { profile } from "./fixtures";
+import { getDb } from "@/lib/db";
+import { letterPermitInstruction } from "@/lib/work-permit";
 
 /**
  * Marché suisse hors sources : taux d'activité (extraction, score), salaire en CHF,
@@ -32,6 +34,10 @@ describe("taux d'activité — extraction", () => {
 
   it("« 100 % remote » dans un titre n'est pas un taux", () => {
     expect(w({ title: "Développeur 100% remote" })).toBeNull();
+    expect(w({ title: "Développeur remote 100%" })).toBeNull();
+    expect(w({ title: "Développeur 100% en télétravail" })).toBeNull();
+    expect(w({ title: "Remote 100%, Pensum 60%" })).toBe("60 %");
+    expect(w({ title: "Comptable 60–80% (100% remote)" })).toBe("60 – 80 %");
   });
 
   it("valeurs aberrantes ignorées", () => {
@@ -73,6 +79,15 @@ describe("taux d'activité — score", () => {
 });
 
 describe("salaire JSON-LD", () => {
+  it("format indépendant des données de locale du système", () => {
+    const locale = vi.spyOn(Number.prototype, "toLocaleString").mockReturnValue("77'672");
+    try {
+      expect(formatLdSalary({ currency: "CHF", value: { value: 77672.22, unitText: "YEAR" } })).toBe("77 672 CHF / an");
+      expect(locale).not.toHaveBeenCalled();
+    } finally {
+      locale.mockRestore();
+    }
+  });
   it("fourchette CHF annuelle arrondie, montant unique, absent", () => {
     const chf = formatLdSalary({ currency: "CHF", value: { minValue: 77672.22, maxValue: 117672.22, unitText: "YEAR" } });
     expect(chf?.replace(/\s/g, " ")).toBe("77 672 – 117 672 CHF / an");
@@ -83,6 +98,23 @@ describe("salaire JSON-LD", () => {
 });
 
 describe("profil — statut de travail et taux souhaité", () => {
+  it.each([[5, 100], [80, 101], [80.5, 100], [100, 60]])("même validation API et base pour %j", (...range) => {
+    expect(ProfileFullSchema.safeParse({ ...profile, workload_range: range }).success).toBe(false);
+    saveProfile(ProfileFullSchema.parse(profile));
+    getDb().prepare("UPDATE profile SET workload_range = ?").run(JSON.stringify(range));
+    expect(getProfile()!.workload_range).toBeNull();
+  });
+
+  it("préserve une fourchette importée qui n'est pas un multiple de dix", () => {
+    saveProfile(ProfileFullSchema.parse({ ...profile, workload_range: [75, 95] }));
+    expect(getProfile()!.workload_range).toEqual([75, 95]);
+  });
+
+  it.each(["g", "eu_g"] as const)("statut %s : ni résidence inventée ni fréquence de déplacement", (permit) => {
+    const instruction = letterPermitInstruction(permit)!;
+    expect(instruction).not.toMatch(/France|chaque jour|daily|simple contrat/);
+    expect(instruction).toContain("ville déclarée dans le profil");
+  });
   it("enregistrés puis relus", () => {
     const input = ProfileFullSchema.parse({ ...profile, work_permit: "g", workload_range: [80, 100] });
     saveProfile(input);

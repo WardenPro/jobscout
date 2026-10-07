@@ -151,7 +151,7 @@ export function adToOffre(ad: JobAd): ScrapedOffre {
     description_status: ok ? "ok" : "failed",
     posted_at: ad.publication?.startDate ? String(ad.publication.startDate).slice(0, 10) : null,
     is_vie: detectVie({ source: SOURCE, title, description: description_text, url }),
-    // Pas de contact nominatif (nom, téléphone, e-mail du recruteur) dans la base.
+    // Champs structurés de contact exclus ; la description peut contenir des coordonnées.
     raw_payload: {
       id: ad.id,
       stellennummerEgov: ad.stellennummerEgov ?? null,
@@ -195,7 +195,7 @@ async function fetchDetail(id: string): Promise<JobAd | null> {
 /** Annonces reprises de jobup.ch / jobs.ch et déjà enregistrées depuis ces sources. */
 function alreadyFromJobCloud(ads: JobAd[]): Set<string> {
   const db = getDb();
-  const stmt = db.prepare("SELECT 1 FROM offres WHERE source = ? AND source_id = ?");
+  const stmt = db.prepare("SELECT 1 FROM offres WHERE source = ? AND source_id = ? AND description_status = 'ok'");
   const known = new Set<string>();
   for (const ad of ads) {
     let host = "";
@@ -234,8 +234,9 @@ export const jobroomScraper: Scraper = {
           for (const a of ads) if (!seen.has(a.id)) seen.set(a.id, a);
           if (ads.length < PAGE_SIZE) break;
           await sleep(1200);
-        } catch {
-          break;
+        } catch (e) {
+          const message = e instanceof Error ? e.message : String(e);
+          throw new Error(`Job-Room : recherche impossible (page ${page + 1}) : ${message}`, { cause: e });
         }
       }
       if (seen.size >= max) break;
@@ -252,12 +253,19 @@ export const jobroomScraper: Scraper = {
     let consecutiveFails = 0;
     for (let i = 0; i < ads.length; i++) {
       let ad = ads[i];
+      let detailError: string | null = null;
       try {
-        ad = (await fetchDetail(ad.id)) ?? ad; // à défaut, description tronquée de la recherche
-      } catch {
-        // détail indisponible — on garde l'annonce de la recherche
+        const detail = await fetchDetail(ad.id);
+        if (detail) ad = detail;
+        else detailError = "fiche détaillée indisponible";
+      } catch (e) {
+        detailError = e instanceof Error ? e.message : String(e);
       }
       const offre = adToOffre(ad);
+      if (detailError) {
+        offre.description_status = offre.description_text ? "partial" : "failed";
+        offre.scrape_errors = `Description de recherche uniquement : ${detailError}`;
+      }
       yield offre;
       if (offre.description_status === "ok") {
         ok++;

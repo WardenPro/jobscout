@@ -1,9 +1,9 @@
 "use client";
-import { useId } from "react";
+import * as React from "react";
 import { Chip } from "@/components/ui/chip";
 import { WORK_PERMITS, WORK_PERMIT_LABELS, type WorkPermit } from "@/lib/work-permit";
 
-const STEPS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+const STEPS = Array.from({ length: 91 }, (_, i) => i + 10);
 const selectClass =
   "h-9 rounded-md border border-border bg-bg px-3 text-small text-text focus:border-accent focus:outline-none";
 
@@ -21,8 +21,8 @@ export function SwissSettings({
   workloadRange: [number, number] | null | undefined;
   onChange: (patch: { work_permit?: WorkPermit | null; workload_range?: [number, number] | null }) => void;
 }) {
-  const minId = useId();
-  const maxId = useId();
+  const minId = React.useId();
+  const maxId = React.useId();
   const [min, max] = workloadRange ?? [80, 100];
 
   return (
@@ -30,7 +30,7 @@ export function SwissSettings({
       <div>
         <p className="text-caption uppercase text-textSecondary mb-1">Statut de travail en Suisse</p>
         <p className="text-small text-textSecondary mb-2">
-          Repris dans la lettre et l'en-tête du CV des offres suisses. Un frontalier n'est jamais présenté comme prêt à déménager.
+          Repris dans la lettre et l'en-tête du CV des offres suisses. Pour un frontalier, la lettre privilégie la disponibilité pour un entretien sans proposer de déménagement.
         </p>
         <div className="flex flex-wrap gap-1.5">
           <Chip active={!workPermit} onClick={() => onChange({ work_permit: null })}>

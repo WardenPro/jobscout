@@ -1,10 +1,10 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { setSetting } from "@/lib/db";
 import { providerBaseUrlSetting, providerModelsSetting } from "@/lib/ai/client";
 import { generateCV } from "@/lib/ai/generate-cv";
-import { generateLM } from "@/lib/ai/generate-lm";
+import { generateLM, enforceCrossBorderMobility } from "@/lib/ai/generate-lm";
 import { offre, profile } from "./fixtures";
 
 /**
@@ -15,6 +15,9 @@ import { offre, profile } from "./fixtures";
 
 type Seen = { tool: string; body: Record<string, unknown>; auth: string | undefined };
 const seen: Seen[] = [];
+let availability: string | null = null;
+let repairedAvailability: string | null = null;
+afterEach(() => { availability = null; repairedAvailability = null; });
 
 /** Réponses scriptées par outil, comme le ferait un modèle. */
 function answer(tool: string, userText: string): unknown {
@@ -43,7 +46,7 @@ function answer(tool: string, userText: string): unknown {
         "Entreprise Exemple engage la refonte de ses sites et recherche un profil capable de coordonner des équipes techniques.",
         "Chez Studio Nova depuis 2021, j'ai piloté trois refontes de sites e-commerce et coordonné une équipe de cinq personnes.",
         "Votre besoin de pilotage rigoureux rejoint ma pratique de la gestion de projet et du suivi d'indicateurs.",
-        "Disponible pour un entretien à Lyon ou en visioconférence, je vous remercie de l'attention portée à ma candidature.",
+        availability ?? "Disponible pour un entretien à Lyon ou en visioconférence, je vous remercie de l'attention portée à ma candidature.",
       ],
     };
   }
@@ -54,7 +57,7 @@ function answer(tool: string, userText: string): unknown {
   }
   if (tool === "return_paragraph") {
     // Réparation « mobilité » : renvoie le §4 avec le lieu de l'offre.
-    return { paragraph: "Frontalier, je peux me rendre chaque jour à Genève et suis disponible pour un entretien sur place ou en visioconférence." };
+    return { paragraph: repairedAvailability ?? "Frontalier, je suis disponible pour un entretien à Genève ou en visioconférence." };
   }
   if (tool === "return_translations") {
     const parts = userText.split(/\n\[\d+\] /).slice(1);
@@ -156,5 +159,46 @@ describe("génération de bout en bout via un serveur compatible OpenAI", () => 
     expect(user).not.toContain("Statut de travail en Suisse (fait du profil)");
     const cv = await generateCV(frontalier, offre, "fr");
     expect(cv.identity.location).toBe("Lyon, France");
+  });
+
+  it.each(["Constance, Allemagne", "Côme, Italie"])("frontalier résidant à %s : le prompt garde la localisation déclarée", async (location) => {
+    const frontalier = { ...profile, location, work_permit: "g" } as typeof profile;
+    seen.length = 0;
+    await generateLM(frontalier, { ...offre, country: "Suisse", location: "Genève" }, "fr");
+    const call = seen.find(s => s.tool === "build_lm")!;
+    const messages = call.body.messages as Array<{ role: string; content: string }>;
+    expect(messages.find(m => m.role === "user")!.content).toContain(location);
+    const repair = seen.find(s => s.tool === "return_paragraph")!;
+    const repairMessages = repair.body.messages as Array<{ role: string; content: string }>;
+    expect(repairMessages.find(m => m.role === "system")!.content).not.toMatch(/réside en France|chaque jour/);
+  });
+
+  it("retire une proposition de déménagement même lorsque Genève est déjà nommé", async () => {
+    availability = "Je suis disponible pour un entretien à Genève. Je suis prêt à déménager en Suisse.";
+    const frontalier = { ...profile, work_permit: "g" } as typeof profile;
+    seen.length = 0;
+    const lm = await generateLM(frontalier, { ...offre, country: "Suisse", location: "Genève" }, "fr");
+    expect(lm.body_paragraphs[3]).toContain("entretien à Genève");
+    expect(lm.body_paragraphs.join(" ")).not.toMatch(/déménager/);
+    expect(seen.some(s => s.tool === "return_paragraph")).toBe(false);
+  });
+
+  it("rejette une réparation qui réintroduit un déménagement et conserve un paragraphe utilisable", async () => {
+    availability = "Je suis prêt à déménager en Suisse.";
+    repairedAvailability = "Je suis prêt à déménager à Genève pour rejoindre votre équipe.";
+    const frontalier = { ...profile, work_permit: "g" } as typeof profile;
+    const lm = await generateLM(frontalier, { ...offre, country: "Suisse", location: "Genève" }, "fr");
+    expect(lm.body_paragraphs).toHaveLength(4);
+    expect(lm.body_paragraphs[3]).toContain("entretien");
+    expect(lm.body_paragraphs.join(" ")).not.toMatch(/déménager/);
+  });
+
+  it("garde-fou anglais, sans modifier une candidature hors Suisse", () => {
+    const frontalier = { ...profile, work_permit: "eu_g" } as typeof profile;
+    const lm = { object: "Application", body_paragraphs: ["Company.", "Experience.", "Skills.", "I am ready to relocate to Geneva."] };
+    const safe = enforceCrossBorderMobility(lm, frontalier, { country: "Suisse" }, "en");
+    expect(safe.body_paragraphs[3]).toContain("interview");
+    expect(safe.body_paragraphs.join(" ")).not.toMatch(/relocate/);
+    expect(enforceCrossBorderMobility(lm, frontalier, { country: "France" }, "en")).toBe(lm);
   });
 });
