@@ -43,6 +43,38 @@ describe("régressions des sources suisses", () => {
     expect(events.some(e => e.kind === "done")).toBe(false);
   });
 
+  it.each([jobupScraper, jobschScraper, jobroomScraper])("%s conserve les offres après une erreur sur la deuxième page et poursuit les secteurs", async (scraper) => {
+    const events: ProgressEvent[] = [];
+    const room = scraper.name === "jobroom";
+    const ids = [`pagination-${scraper.name}-1`, `pagination-${scraper.name}-2`];
+    const searches: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      const search = room ? init?.method === "POST" : !url.includes("/detail/");
+      if (!search) {
+        if (room) return Response.json(ad(url.split("/").pop()!));
+        return new Response(`<script type="application/ld+json">${JSON.stringify({ "@type": "JobPosting", description: `<p>${DESCRIPTION}</p>` })}</script>`);
+      }
+      searches.push(url);
+      if (searches.length === 2) return new Response("unavailable", { status: 503 });
+      const id = ids[searches.length === 1 ? 0 : 1];
+      if (room) return Response.json(Array.from({ length: searches.length === 1 ? 50 : 1 }, () => ({ jobAdvertisement: ad(id) })));
+      const state = { vacancy: { results: { main: { results: [{ id, title: "Comptable" }], meta: { numPages: searches.length === 1 ? 3 : 1 } } } } };
+      return new Response(`<script>__INIT__ = ${JSON.stringify(state)}</script>`);
+    }));
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    const pending = (async () => {
+      const offers: ScrapedOffre[] = [];
+      for await (const o of scraper.scrape({ countries: ["Suisse"], sectors: ["comptable", "finance"] }, e => events.push(e))) offers.push(o);
+      return offers;
+    })();
+    await vi.runAllTimersAsync();
+    expect((await pending).map(o => o.source_id)).toEqual(ids);
+    expect(searches).toHaveLength(3);
+    expect(events).toContainEqual(expect.objectContaining({ kind: "error", source: scraper.name, message: expect.stringContaining("page 2") }));
+    expect(events).toContainEqual(expect.objectContaining({ kind: "error", message: expect.stringContaining("HTTP 503") }));
+    expect(events).toContainEqual({ kind: "done", source: scraper.name, seen: 2, ok: 2, failed: 0 });
+  });
+
   it.each(["failed", "partial"] as const)("JobCloud récupère un doublon %s depuis le site jumeau", async (status) => {
     const id = `retry-jobcloud-${status}`;
     upsertOffreFromSource("jobsch", offer(id, status));
