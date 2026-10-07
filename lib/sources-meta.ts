@@ -6,8 +6,8 @@ export type SourceMeta = {
   id: string;
   label: string;
   sublabel: string;
-  // Périmètre géographique : "world" = international, "fr" = France uniquement
-  scope: "world" | "fr";
+  // Périmètre géographique : "world" = international, "fr" = France uniquement, "ch" = Suisse uniquement
+  scope: "world" | "fr" | "ch";
   /**
    * La source a besoin du moteur de navigation Chromium (~100 Mo à télécharger,
    * ~265 Mo sur le disque), téléchargé
@@ -52,6 +52,8 @@ export const SOURCES_META: SourceMeta[] = [
   { id: "hellowork", label: "HelloWork", sublabel: "Ex-RegionsJob (France) · à activer vous-même", scope: "fr", optIn: true },
   { id: "francetravail", label: "France Travail", sublabel: "Ex-Pôle Emploi (France)", scope: "fr" },
   { id: "talent", label: "Talent.com", sublabel: "Francophonie · Canada · USA · à activer vous-même", scope: "world", optIn: true },
+  { id: "jobup", label: "jobup.ch", sublabel: "Suisse romande · à activer vous-même", scope: "ch", optIn: true },
+  { id: "jobsch", label: "jobs.ch", sublabel: "Toute la Suisse · à activer vous-même", scope: "ch", optIn: true },
 ];
 
 export const SOURCE_IDS = SOURCES_META.map((s) => s.id);

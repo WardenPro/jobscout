@@ -45,19 +45,22 @@ export function classifyContract(input: {
   const haystack = `${strip(input.contract_type)} ${strip(input.title)} ${strip(input.description_text).slice(0, 1500)}`;
 
   // 2. Alternance / apprentissage (very specific keywords)
-  if (/\b(alternance|alternant|apprentissage|apprenti|contrat\s+pro|professionnalisation)\b/.test(haystack)) {
+  //    Suisse alémanique : Lehrstelle. Pas « Lehre » seul : « abgeschlossene Lehre » est un prérequis.
+  if (/\b(alternance|alternant|apprentissage|apprenti|contrat\s+pro|professionnalisation|lehrstelle)\b/.test(haystack)) {
     return "alternance";
   }
   // 3. Stage / internship
-  if (/\b(stage|stagiaire|internship|intern)\b/.test(haystack)) {
+  if (/\b(stage|stagiaire|internship|intern|praktikum|praktikant(?:in)?)\b/.test(haystack)) {
     return "stage";
   }
   // 4. CDD
-  if (/\bcdd\b|\bfixed[\s-]term\b|\btemporary\b|\btemporaire\b|\bcontrat\s+a\s+duree\s+determinee\b/.test(haystack)) {
+  //    Suisse : « Durée déterminée » (jobup.ch, jobs.ch), befristet, temporär.
+  if (/\bcdd\b|\bfixed[\s-]term\b|\btemporary\b|\btemporaire\b|\b(?:contrat\s+a\s+)?duree\s+determinee\b|\bbefristet|\btemporar\b/.test(haystack)) {
     return "cdd";
   }
   // 5. CDI
-  if (/\bcdi\b|\bpermanent\b|\bcontrat\s+a\s+duree\s+indeterminee\b/.test(haystack)) {
+  //    Suisse : « Durée indéterminée », « engagement fixe », unbefristet, Festanstellung.
+  if (/\bcdi\b|\bpermanent\b|\b(?:contrat\s+a\s+)?duree\s+indeterminee\b|\bengagement\s+fixe\b|\bunbefristet|\bfestanstellung\b/.test(haystack)) {
     return "cdi";
   }
 
