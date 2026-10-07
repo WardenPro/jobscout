@@ -237,6 +237,7 @@ Le détail figure dans la politique de confidentialité, [CONFIDENTIALITE.md](CO
 - Vos données sont enregistrées sur votre ordinateur : profil, texte du CV, offres, candidatures, documents et clés d'API.
 - Certaines en sortent, quand vous agissez :
   - les recherches envoyées aux sites d'offres pendant un scan (secteurs, pays visé selon le site, adresse IP) ;
+  - les communes et leurs coordonnées envoyées à Photon et OSRM si vous acceptez et lancez le calcul facultatif de trajets en voiture. Les durées sont des estimations entre centres de communes, hors trafic, stationnement et attente à la frontière, sans garantie de disponibilité des services ;
   - les données envoyées au fournisseur d'IA choisi (section 9) ;
   - vos identifiants France Travail, si vous en fournissez, envoyés au serveur d'authentification de France Travail (`entreprise.francetravail.fr`) ;
   - des téléchargements techniques : le moteur Chromium pour LinkedIn, depuis les serveurs de Playwright ; les modèles de reconnaissance de texte, depuis `cdn.jsdelivr.net`, si vous importez un CV au format image ; en version source, les dépendances téléchargées à l'installation par `npm ci`.

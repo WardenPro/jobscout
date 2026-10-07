@@ -2,7 +2,7 @@
 
 Trouvez des offres d'emploi grâce à un scan multi-plateformes, triez-les avec un score calculé sur votre vrai profil, et générez pour chacune un CV et une lettre de motivation d'une page (compatibles ATS), sans jamais inventer une compétence que vous n'avez pas.
 
-Tout tourne sur votre machine : base SQLite locale, serveur limité à `127.0.0.1`, aucun compte à créer. Seuls sortent les recherches envoyées aux sites d'offres pendant un scan et, si vous utilisez une IA en ligne, les textes transmis au fournisseur que vous avez choisi, plus quelques requêtes techniques ([détail](CONFIDENTIALITE.md)).
+Tout tourne sur votre machine : base SQLite locale, serveur limité à `127.0.0.1`, aucun compte à créer. Seuls sortent les recherches envoyées aux sites d'offres pendant un scan, les lieux envoyés aux services de trajet si vous demandez ce calcul et, si vous utilisez une IA en ligne, les textes transmis au fournisseur que vous avez choisi, plus quelques requêtes techniques ([détail](CONFIDENTIALITE.md)).
 
 > Site et guide de démarrage : **https://latenightsbeats1208-pixel.github.io/jobscout/** · [Installation](INSTALL.md) · [Guide de l'IA](GUIDE-IA.md) · [Conditions d'utilisation](CGU.md) · [Confidentialité](CONFIDENTIALITE.md)
 >
@@ -106,6 +106,16 @@ Les contrats suisses et alémaniques (« durée indéterminée », Festanstellun
 Le contrat explicite de la source prime sur les prérequis de la description. Les pourcentages de télétravail sont exclus du taux d'activité. Le salaire utilise un séparateur de milliers stable, indépendant des locales du système. Les taux souhaités peuvent être choisis à l'unité et sont validés de la même façon à l'enregistrement et à la lecture.
 
 Une recherche en erreur est signalée dans le journal du scan. Une offre en échec ou partielle peut être récupérée depuis une autre source ; si la fiche détaillée Job-Room est indisponible, l'extrait de recherche est conservé avec un statut incomplet.
+
+### Langues, cantons et trajets pour les frontaliers
+
+- **Langues réellement demandées** : l'aperçu et la fiche séparent la langue de rédaction des demandes explicites en français, allemand, anglais et italien. Les obligations et les atouts sont distingués, avec l'extrait justificatif et les écarts par rapport aux langues de votre profil actuel. « Français ou allemand » est une alternative ; « français et allemand » demande les deux. La détection est indicative : absence de demande détectée ne signifie pas absence d'exigence. Les niveaux CECR sont comparés directement ; « professionnel » et « courant » sont rapprochés approximativement de B2 et C1. Un niveau manquant ou des niveaux différents dans une alternative restent à confirmer. Le bonus du score pour la langue du texte garde son fonctionnement.
+- **Canton et ville** : les filtres de la liste se combinent et portent sur le lieu de l'offre, indépendamment de la présence sur site. Les 26 cantons sont disponibles, dont Genève, Vaud, Neuchâtel, Jura, Bâle-Ville et Bâle-Campagne. Les régions structurées des sources sont prioritaires ; les anciennes offres utilisent les codes explicites et un catalogue de villes reconnues. Un canton inconnu n'est pas deviné et est exclu quand un canton est sélectionné. La ville accepte une recherche sans accents et des équivalents usuels comme Genf/Genève et Basel/Bâle.
+- **Trajet maximal en voiture** : ouvrez le panneau correspondant, saisissez une commune française (avec son code postal si nécessaire), une durée maximale aller de 1 à 240 minutes, acceptez l'envoi des lieux puis lancez le calcul. Photon géocode les communes et OSRM calcule un itinéraire routier réel. L'estimation va de centre de commune à centre de ville, sans trafic, stationnement ni attente à la frontière ; elle ne remplace pas un essai aux horaires de travail. Les transports publics ne sont pas inclus.
+
+Le calcul traite jusqu'à 12 villes suisses par demande, selon le canton et la ville sélectionnés ; relancez pour compléter les villes restantes. Les appels sont séquentiels et temporisés. Les recherches ordinaires lisent uniquement le cache local et ne contactent aucun service de carte. Les estimations sont réutilisées pendant 7 jours, les géocodages pendant 30 jours et les échecs pendant une heure pour permettre la poursuite des lots suivants. Ces durées sont des limites de réutilisation, pas une suppression automatique des données.
+
+Une commune ambiguë, un lieu multiple ou une panne reste un **trajet inconnu**, sans durée inventée. Ces offres restent visibles par défaut ; décochez « Conserver les offres dont le trajet est inconnu » pour n'afficher que celles dont la durée calculée respecte votre maximum. Les services publics [Photon](https://photon.komoot.io) et [OSRM](https://project-osrm.org) utilisent les données [OpenStreetMap](https://www.openstreetmap.org/copyright), sans garantie de disponibilité. Leur accès doit être autorisé par votre connexion réseau (`photon.komoot.io`, `router.project-osrm.org`). Voir les données transmises dans [CONFIDENTIALITE.md](CONFIDENTIALITE.md).
 
 ## Extraction du CV
 

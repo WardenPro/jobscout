@@ -13,6 +13,7 @@ export type ScrapedOffre = {
   company: string;
   country: string | null;
   location: string | null;
+  canton?: string | null;
   contract_type: string | null;
   salary: string | null;
   description_html: string;
