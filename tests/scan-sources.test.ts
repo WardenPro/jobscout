@@ -30,7 +30,7 @@ vi.mock("@/lib/scrapers/registry", () => {
     },
   });
   return {
-    VALID_SOURCES: ["wttj", "linkedin", "civiweb", "apec", "hellowork", "francetravail", "talent"],
+    VALID_SOURCES: ["wttj", "linkedin", "civiweb", "apec", "hellowork", "francetravail", "talent", "jobup", "jobsch"],
     getEnabledScrapers: (ids: string[]) => ids.map(fake),
   };
 });
@@ -88,7 +88,7 @@ describe("runScan — sources scannées", () => {
   it("les sources par défaut excluent LinkedIn (moteur), les suspendues et les sources opt-in", () => {
     // 3.4.13 : seules les sources dont les conditions n'interdisent pas l'extraction automatisée.
     expect(DEFAULT_SOURCE_IDS).toEqual(["francetravail"]);
-    for (const id of ["linkedin", "civiweb", "apec", "wttj", "hellowork", "talent"]) {
+    for (const id of ["linkedin", "civiweb", "apec", "wttj", "hellowork", "talent", "jobup", "jobsch"]) {
       expect(DEFAULT_SOURCE_IDS).not.toContain(id);
     }
   });
