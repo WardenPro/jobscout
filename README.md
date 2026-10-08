@@ -90,6 +90,8 @@ Dans **Profil › Paramètres et données › Proxy de recherche Bright Data**, 
 
 Les appels passent par l'[API REST officielle](https://docs.brightdata.com/products/web-unlocker/send-your-first-request), sans modifier les certificats TLS. Bright Data reçoit la clé, la zone et l'URL publique avec ses mots-clés ; le profil et le CV ne sont pas envoyés. Les appels peuvent être facturés selon votre contrat. Une erreur du relais ou le plafond atteint cesse les appels pour cette source pendant le scan. Un HTTP 407 avec `ip_forbidden` indique que l'IP de votre PC doit être autorisée dans le compte Bright Data. La clé se conserve dans la base locale, en clair comme les clés IA, ou dans `.env.local` via `BRIGHTDATA_API_KEY` ; `BRIGHTDATA_ZONE` préremplit la zone. Elle n'est jamais renvoyée par l'API des paramètres. Le relais ne garantit pas la disponibilité des sites et ne remplace pas leurs autorisations d'accès.
 
+Le délai du relais est de 180 secondes pour laisser revenir ses diagnostics de chargement. Une erreur Web Unlocker enveloppée dans un HTTP 200 reste une erreur : l'application explique les éléments attendus absents et les protections non résolues, puis cesse les appels suivants de cette source. Les messages distants ne sont pas recopiés dans les erreurs publiques.
+
 ## Scoring des offres (local, déterministe, gratuit)
 
 `lib/scoring/local.ts` — critères exposés dans le détail de chaque offre :
