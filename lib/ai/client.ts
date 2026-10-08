@@ -41,6 +41,7 @@ export const LLM_SETTING_KEYS = {
   /** Clé Anthropic (nom historique, conservé : les installations ≤ 3.4.10 continuent de fonctionner). */
   byokKey: "llm:byok_key",
   provider: "llm:provider",
+  openrouterProviders: "llm:openrouter_providers",
 } as const;
 
 /** Clé API d'un fournisseur (Anthropic garde son nom historique). */
@@ -103,6 +104,7 @@ export type LlmConfig = {
   apiKey: string | null;
   baseURL: string;
   models: { writer: string; reviewer: string };
+  openrouterProviders?: { writer: string; reviewer: string };
   /** "settings" = configuré par l'utilisateur ; "env" = rétro-compat dev. */
   source: "settings" | "env" | null;
 };
@@ -111,6 +113,16 @@ const clean = (v: string | null | undefined): string | null => {
   const t = (v ?? "").trim();
   return t.length > 0 ? t : null;
 };
+
+export function openrouterProviders(): { writer: string; reviewer: string } {
+  try {
+    const v = JSON.parse(getSetting(LLM_SETTING_KEYS.openrouterProviders) || "{}");
+    return {
+      writer: typeof v.writer === "string" ? v.writer.trim() : "",
+      reviewer: typeof v.reviewer === "string" ? v.reviewer.trim() : "",
+    };
+  } catch { return { writer: "", reviewer: "" }; }
+}
 
 /** Modèles enregistrés pour un fournisseur, sinon ses valeurs par défaut. */
 export function providerModels(p: ProviderId): { writer: string; reviewer: string } {
@@ -174,7 +186,7 @@ export function getLlmConfig(): LlmConfig {
     const baseURL = providerBaseUrl(provider);
     const models = providerModels(provider);
     const ready = (apiKey || !preset.keyRequired) && baseURL && models.writer && models.reviewer;
-    if (ready) return { mode: "byok", provider, kind: preset.kind, apiKey, baseURL, models, source: "settings" };
+    if (ready) return { mode: "byok", provider, kind: preset.kind, apiKey, baseURL, models, source: "settings", ...(provider === "openrouter" ? { openrouterProviders: openrouterProviders() } : {}) };
   }
 
   // Rétro-compat développement UNIQUEMENT : une ANTHROPIC_API_KEY d'environnement
@@ -209,6 +221,7 @@ export function getLlmConfig(): LlmConfig {
 
 /** Réglages d'un fournisseur montrés à l'UI : jamais de clé en clair. */
 export type ProviderState = {
+  openrouterProviders?: { writer: string; reviewer: string };
   keyHint: string | null;
   baseURL: string;
   models: { writer: string; reviewer: string };
@@ -239,6 +252,7 @@ export function getLlmState(): LlmState {
       keyHint: hint(clean(getSetting(providerKeySetting(id)))),
       baseURL: providerBaseUrl(id),
       models: providerModels(id),
+      ...(id === "openrouter" ? { openrouterProviders: openrouterProviders() } : {}),
     };
   }
   const provider = cfg.mode === "unset" ? currentProvider() : cfg.provider;

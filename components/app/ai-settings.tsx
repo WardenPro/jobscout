@@ -15,6 +15,7 @@ type Quota = {
 };
 
 type ProviderState = {
+  openrouterProviders?: { writer: string; reviewer: string };
   keyHint: string | null;
   baseURL: string;
   models: { writer: string; reviewer: string };
@@ -59,7 +60,9 @@ export function AiSettings({
   const [writer, setWriter] = useState("");
   const [reviewer, setReviewer] = useState("");
   const [models, setModels] = useState<string[]>([]);
-  const [loading, setLoading] = useState<null | "save" | "verify" | "models" | "reset">(null);
+  const [loading, setLoading] = useState<null | "save" | "verify" | "models" | "reset" | "endpoints">(null);
+  const [upstreams, setUpstreams] = useState({ writer: "", reviewer: "" });
+  const [endpoints, setEndpoints] = useState<Record<string, { id: string; name: string; input: number | null; output: number | null }[]>>({});
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
@@ -73,6 +76,8 @@ export function AiSettings({
     setReviewer(saved?.models.reviewer ?? PROVIDERS[p].models.reviewer);
     setApiKey("");
     setModels([]);
+    setUpstreams(saved?.openrouterProviders ?? { writer: "", reviewer: "" });
+    setEndpoints({});
   }, []);
 
   const refresh = useCallback(async () => {
@@ -97,7 +102,7 @@ export function AiSettings({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function call(action: "save" | "verify" | "models" | "reset") {
+  async function call(action: "save" | "verify" | "models" | "reset" | "endpoints") {
     setLoading(action);
     setError(null);
     setInfo(null);
@@ -114,11 +119,17 @@ export function AiSettings({
           base_url: preset.editableBaseURL ? baseURL.trim() || undefined : undefined,
           model_writer: writer.trim() || undefined,
           model_reviewer: reviewer.trim() || undefined,
+          ...(provider === "openrouter" ? { openrouter_provider_writer: upstreams.writer.trim(), openrouter_provider_reviewer: upstreams.reviewer.trim() } : {}),
         }),
       });
       const data = (await res.json().catch(() => null)) as Record<string, unknown> | null;
       if (!res.ok) {
         setError((data && typeof data.error === "string" && data.error) || `Erreur serveur (HTTP ${res.status}).`);
+        return;
+      }
+      if (action === "endpoints") {
+        setEndpoints(data?.endpoints as typeof endpoints ?? {});
+        setInfo("Fournisseurs chargés. Tarifs en dollars par million de jetons (entrée / sortie).");
         return;
       }
       if (action === "models") {
@@ -308,6 +319,26 @@ export function AiSettings({
               <option key={m} value={m} />
             ))}
           </datalist>
+          {provider === "openrouter" && (
+            <div className="space-y-3">
+              <Button variant="secondary" onClick={() => call("endpoints")} disabled={!!loading || !writer.trim()}>
+                {loading === "endpoints" ? <Spinner size={16} /> : <ListRestart className="h-4 w-4" />}
+                Charger les fournisseurs OpenRouter
+              </Button>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {(["writer", "reviewer"] as const).map((role) => (
+                  <label className="block" key={role}>
+                    <span className="text-caption text-textSecondary">Fournisseur OpenRouter — {role === "writer" ? "rédaction" : "relecture"}</span>
+                    <Input className="mt-1" list={`openrouter-${role}`} value={upstreams[role]} onChange={(e) => setUpstreams({ ...upstreams, [role]: e.target.value })} placeholder="Automatique si vide (ex. deepinfra)" spellCheck={false} />
+                    <datalist id={`openrouter-${role}`}>
+                      {(endpoints[role] ?? []).map((e) => <option key={e.id} value={e.id}>{e.name} — {e.input ?? "?"} $ / {e.output ?? "?"} $ par million</option>)}
+                    </datalist>
+                  </label>
+                ))}
+              </div>
+              <p className="text-caption text-textSecondary">Choisissez dans la liste ou saisissez un identifiant OpenRouter. Un fournisseur renseigné est imposé sans bascule automatique ; s'il ne propose pas le modèle ou est indisponible, un message d'erreur sera affiché. Laissez vide pour le routage automatique. Cliquez sur Enregistrer pour appliquer.</p>
+            </div>
+          )}
           {!preset.local && provider !== "anthropic" && (
             <p className="text-caption text-textSecondary">
               JobScout a été mis au point avec Claude. Avec un autre modèle, la qualité et le coût varient : relisez vos premiers documents.

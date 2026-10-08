@@ -322,6 +322,22 @@ describe("fournisseur compatible OpenAI", () => {
     const { fn, calls } = fakeFetch([{ body: toolAnswer({ title: "T", sections: {} }) }]);
     await callStructured(REQ, cfgFor("openrouter"), { fetch: fn });
     expect((calls[0].init.headers as Record<string, string>)["X-Title"]).toBe("JobScout");
+    expect(calls[0].body!.provider).toBeUndefined();
+  });
+
+  it("OpenRouter : impose le fournisseur de chaque rôle, y compris après un repli de format", async () => {
+    const cfg = { ...cfgFor("openrouter"), openrouterProviders: { writer: "deepinfra", reviewer: "novita/fp8" } };
+    for (const role of ["writer", "reviewer"] as const) {
+      const { fn, calls } = fakeFetch([
+        { status: 400, body: { error: "tools unsupported" } },
+        { body: toolAnswer({ title: "T", sections: {} }) },
+      ]);
+      await callStructured({ ...REQ, role }, cfg, { fetch: fn });
+      expect(calls).toHaveLength(2);
+      for (const call of calls) expect(call.body!.provider).toEqual({
+        only: [cfg.openrouterProviders[role]], order: [cfg.openrouterProviders[role]], allow_fallbacks: false,
+      });
+    }
   });
 });
 

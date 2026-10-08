@@ -331,6 +331,10 @@ async function callOpenAICompatible(
 
   function bodyFor(step: Step, extra: Record<string, unknown>): Record<string, unknown> {
     const body: Record<string, unknown> = { model, ...extra, [preset.tokenParam]: maxTokens, stream: false };
+    if (cfg.provider === "openrouter") {
+      const upstream = cfg.openrouterProviders?.[req.role];
+      if (upstream) body.provider = { only: [upstream], order: [upstream], allow_fallbacks: false };
+    }
     if (step === "tools") {
       body.messages = messages(false);
       body.tools = [

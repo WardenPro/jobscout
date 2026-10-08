@@ -13,6 +13,7 @@ import {
   providerModelsSetting,
   proxyBaseUrl,
   resetClaude,
+  openrouterProviders,
   type LlmConfig,
 } from "@/lib/ai/client";
 import { listModels } from "@/lib/ai/llm";
@@ -173,6 +174,16 @@ function byokDraft(body: Record<string, unknown>, requireWriter = true): ByokDra
   }
 
   const stored = providerModels(provider);
+  const routing = openrouterProviders();
+  for (const role of ["writer", "reviewer"] as const) {
+    const value = body[`openrouter_provider_${role}`];
+    if (provider === "openrouter" && value !== undefined) {
+      if (typeof value !== "string" || (value.trim() && !/^[a-z0-9][a-z0-9._/-]{0,127}$/i.test(value.trim()))) {
+        return { ok: false, error: "Identifiant de fournisseur OpenRouter invalide (exemple : deepinfra)." };
+      }
+      routing[role] = value.trim();
+    }
+  }
   const writer = clean(body.model_writer) ?? stored.writer;
   const reviewer = clean(body.model_reviewer) ?? (clean(body.model_writer) ? writer : stored.reviewer) ?? writer;
   // « Charger la liste » doit marcher avant tout choix de modèle (LM Studio : champs vides par défaut).
@@ -188,6 +199,7 @@ function byokDraft(body: Record<string, unknown>, requireWriter = true): ByokDra
       baseURL,
       models: { writer: writer ?? "", reviewer: reviewer || writer || "" },
       source: "settings",
+      ...(provider === "openrouter" ? { openrouterProviders: routing } : {}),
     },
   };
 }
@@ -211,6 +223,7 @@ export async function POST(req: NextRequest) {
   if (action === "reset") {
     setSetting(LLM_SETTING_KEYS.mode, "");
     setSetting(LLM_SETTING_KEYS.licenseKey, "");
+    setSetting(LLM_SETTING_KEYS.openrouterProviders, "");
     for (const id of PROVIDER_IDS) setSetting(providerKeySetting(id), "");
     resetClaude(); // best-effort — l'empreinte relue à chaque appel fait le vrai travail
     return NextResponse.json({ ok: true, ...getLlmState(), quota: null });
@@ -246,6 +259,25 @@ export async function POST(req: NextRequest) {
   const { cfg } = draft;
   const label = PROVIDERS[cfg.provider].label;
 
+  if (action === "endpoints" && cfg.provider === "openrouter") {
+    try {
+      const endpoints = await Promise.all((["writer", "reviewer"] as const).map(async (role) => {
+        const model = cfg.models[role].replace(/:(free|nitro|floor|online|extended|exacto)$/i, "");
+        const response = await fetch(`https://openrouter.ai/api/v1/models/${model.split("/").map(encodeURIComponent).join("/")}/endpoints`, { signal: AbortSignal.timeout(10000), cache: "no-store" });
+        if (!response.ok) throw new Error(`Liste indisponible (HTTP ${response.status})`);
+        const data = await response.json();
+        return [role, (data.data?.endpoints ?? []).map((e: { tag: string; provider_name: string; pricing?: { prompt?: string; completion?: string } }) => ({
+          id: e.tag, name: e.provider_name,
+          input: e.pricing?.prompt ? Number(e.pricing.prompt) * 1e6 : null,
+          output: e.pricing?.completion ? Number(e.pricing.completion) * 1e6 : null,
+        }))];
+      }));
+      return NextResponse.json({ ok: true, endpoints: Object.fromEntries(endpoints) });
+    } catch {
+      return NextResponse.json({ error: "Impossible de charger les fournisseurs de ces modèles OpenRouter. Vérifiez les noms des modèles ou saisissez l'identifiant du fournisseur." }, { status: 502 });
+    }
+  }
+
   if (action === "models" || action === "verify") {
     let models: string[];
     try {
@@ -270,6 +302,7 @@ export async function POST(req: NextRequest) {
     if (cfg.apiKey) setSetting(providerKeySetting(cfg.provider), cfg.apiKey);
     if (PROVIDERS[cfg.provider].editableBaseURL) setSetting(providerBaseUrlSetting(cfg.provider), cfg.baseURL);
     setSetting(providerModelsSetting(cfg.provider), JSON.stringify(cfg.models));
+    if (cfg.provider === "openrouter") setSetting(LLM_SETTING_KEYS.openrouterProviders, JSON.stringify(cfg.openrouterProviders));
     resetClaude(); // best-effort — l'empreinte relue à chaque appel fait le vrai travail
     return NextResponse.json({ ok: true, ...getLlmState(), quota: null });
   }
