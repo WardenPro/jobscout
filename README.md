@@ -4,7 +4,7 @@ Trouvez des offres d'emploi grâce à un scan multi-plateformes, triez-les avec 
 
 Tout tourne sur votre machine : base SQLite locale, serveur limité à `127.0.0.1`, aucun compte à créer. Seuls sortent les recherches envoyées aux sites d'offres pendant un scan et, si vous utilisez une IA en ligne, les textes transmis au fournisseur que vous avez choisi, plus quelques requêtes techniques ([détail](CONFIDENTIALITE.md)).
 
-> Site et guide de démarrage : **https://latenightsbeats1208-pixel.github.io/jobscout/** · [Installation](INSTALL.md) · [Guide de l'IA](GUIDE-IA.md) · [Conditions d'utilisation](CGU.md) · [Confidentialité](CONFIDENTIALITE.md)
+> Site et guide de démarrage : **https://latenightsbeats1208-pixel.github.io/jobscout/** · [Installation](INSTALL.md) · [Installation sur Mac](INSTALL-MAC.md) · [Guide de l'IA](GUIDE-IA.md) · [Conditions d'utilisation](CGU.md) · [Confidentialité](CONFIDENTIALITE.md)
 >
 > **En vidéo**, moins de 2 minutes chacune : [1. Installation](https://youtu.be/cIh4PSmPlKE) · [2. Mise en place](https://youtu.be/gOMQkcsD6LA) · [3. Utilisation](https://youtu.be/45uLxsWXXLQ)
 
@@ -12,7 +12,7 @@ Tout tourne sur votre machine : base SQLite locale, serveur limité à `127.0.0.
 
 - **Next.js 15** (App Router) + **React 19** + **TypeScript** + **Tailwind**
 - **IA au choix** — Anthropic Claude (référence : Opus 4.8 pour la rédaction, Sonnet 5 pour la relecture), OpenAI, Google Gemini, Mistral, DeepSeek, Groq, OpenRouter, Ollama et LM Studio en local, ou tout serveur compatible OpenAI. Deux modèles par fournisseur : un de **rédaction** (extraction du CV, CV, lettre, message V.I.E) et un de **relecture** (relecture, traduction anglaise, réparation ciblée de la lettre). Couche commune : `lib/ai/llm.ts` ; catalogue : `lib/ai/providers.ts`.
-- **Tests** : Vitest (`npm test`) et intégration continue GitHub Actions (types, tests, build sur Windows et Linux, Node 22 et 24)
+- **Tests** : Vitest (`npm test`) et intégration continue GitHub Actions (types, tests, build sur Windows, Linux et macOS à puce Apple avec Node 22, 24 et 26, et sur Mac Intel avec Node 24 ; sur les deux types de Mac, le parcours du [guide Mac](INSTALL-MAC.md) est rejoué : `npm ci`, démarrage, moteur LinkedIn installé puis lancé, lanceur)
 - **SQLite** intégré (`node:sqlite`, WAL) + fichiers locaux
 - **Scraping** : `fetch` + parsing DOM (`jsdom`) + JSON-LD `JobPosting` ; Playwright uniquement pour LinkedIn
 - **@react-pdf/renderer** + **docx** pour les documents générés ; **xlsx** pour l'import/export des candidatures
@@ -21,9 +21,11 @@ Tout tourne sur votre machine : base SQLite locale, serveur limité à `127.0.0.
 
 > **Première installation ? Suivez le [guide pas à pas](INSTALL.md)** : prérequis, durée de chaque étape (mesurée), messages normaux, ordinateur à laisser allumé ou non, problèmes fréquents.
 >
-> En vidéo : [installation](https://youtu.be/cIh4PSmPlKE) · [mise en place](https://youtu.be/gOMQkcsD6LA) · [utilisation](https://youtu.be/45uLxsWXXLQ).
+> **Sur Mac ? Suivez le [guide Mac](INSTALL-MAC.md)** : les mêmes étapes, avec les gestes du Mac (Terminal, installeur de Node.js, lanceur à double-cliquer).
 >
-> En résumé : **environ 10 à 20 minutes au total avec les réglages par défaut (jusqu'à 35 si vous activez d'autres sources), dont 10 à 15 devant l'écran**. `npm ci` prend environ 1 minute ; le premier scan dure 1 à 3 minutes avec France Travail seule, 10 à 20 minutes avec toutes les sources. Pendant ce temps, l'ordinateur doit rester allumé (hors veille), le terminal ouvert.
+> En vidéo : [installation](https://youtu.be/cIh4PSmPlKE) · [mise en place](https://youtu.be/gOMQkcsD6LA) · [utilisation](https://youtu.be/45uLxsWXXLQ). Elles ont été tournées sous Windows ; sur Mac, [le guide Mac dit ce qui s'y applique](INSTALL-MAC.md#les-tutoriels-vidéo-sur-mac).
+>
+> En résumé (repères établis sous Windows) : **environ 10 à 20 minutes au total avec les réglages par défaut (jusqu'à 35 si vous activez d'autres sources), dont 10 à 15 devant l'écran**. `npm ci` prend environ 1 minute ; le premier scan dure 1 à 3 minutes avec France Travail seule, 10 à 20 minutes avec toutes les sources. Pendant ce temps, l'ordinateur doit rester allumé (hors veille), le terminal ouvert.
 
 Requiert **Node ≥ 22.13** (module `node:sqlite` sans drapeau expérimental ; Node 24 convient). Au démarrage, Node affiche `ExperimentalWarning: SQLite is an experimental feature` : c'est normal et sans effet.
 
@@ -34,7 +36,7 @@ npm ci
 npm run dev
 ```
 
-L'app démarre sur http://127.0.0.1:3000 (écoute limitée à la machine locale, rien n'est exposé au réseau). Sous Windows, `scripts/Start-JobScout.ps1` lance le serveur de développement et ouvre le navigateur.
+L'app démarre sur http://127.0.0.1:3000 (écoute limitée à la machine locale, rien n'est exposé au réseau). Sous Windows, `scripts/Start-JobScout.ps1` lance le serveur de développement et ouvre le navigateur. Sur Mac, `npm run shortcut:mac` (après `npm ci`) crée un lanceur `JobScout.command` dans le dossier du projet, avec une copie sur le Bureau : un double-clic ouvre le Terminal, démarre JobScout avec `caffeinate -i` (pas de mise en veille automatique tant qu'il tourne) et ouvre http://127.0.0.1:3000 dès qu'il répond ([guide Mac](INSTALL-MAC.md)).
 
 **IA à configurer dès l'inscription** : l'onboarding lit votre CV avec un modèle d'IA pour créer le profil. Pas à pas, pour une clé payante ou une IA gratuite en local (Ollama, LM Studio) : [guide de l'IA](GUIDE-IA.md). Dans l'écran « Génération IA », choisissez votre fournisseur et collez votre clé :
 
@@ -51,7 +53,7 @@ L'app démarre sur http://127.0.0.1:3000 (écoute limitée à la machine locale,
 
 « Charger la liste » propose les modèles disponibles chez le fournisseur, « Vérifier » teste la connexion. Les clés restent dans la base locale, enregistrées en clair (non chiffrées) : protégez l'accès à votre ordinateur. Une adresse de serveur doit être en `https://`, sauf serveur sur la machine même (`http://127.0.0.1…`). Mode développement : une `ANTHROPIC_API_KEY` dans `.env` sert de repli si rien n'est configuré.
 
-**LinkedIn (optionnel)** : c'est la seule source qui a besoin d'un navigateur Chromium. Activez-la dans Profil › Recherche › Sources, puis cliquez « Installer le moteur LinkedIn » (~100 Mo à télécharger, ~265 Mo sur le disque). En ligne de commande : `npm run playwright:install`.
+**LinkedIn (optionnel)** : c'est la seule source qui a besoin d'un navigateur Chromium. Cochez-la dans Profil › Recherche › Sources : l'encadré « Moteur LinkedIn requis » apparaît, cliquez « Installer le moteur LinkedIn » (~100 Mo à télécharger, ~265 Mo sur le disque). En ligne de commande : `npm run playwright:install`.
 
 **Mises à jour** : arrêtez JobScout (`Ctrl + C`), puis `git pull` et `npm ci`.
 
@@ -60,6 +62,8 @@ L'app démarre sur http://127.0.0.1:3000 (écoute limitée à la machine locale,
 ## Paquet Windows
 
 `npm run package` produit `installer/output/JobScout_Setup_v<version>.exe` : un installeur autonome (Node 22 LTS embarqué, aucune dépendance sur la machine cible), avec launcher natif, données sous `%LOCALAPPDATA%\JobScout` et contrôle anti-fuite de données personnelles bloquant. Voir [`installer/README.md`](installer/README.md).
+
+**Windows uniquement** : la commande a besoin d'Inno Setup 6 (`ISCC.exe`) et embarque un Node pour Windows (`win-x64`). Sur Mac ou Linux, elle échoue après la compilation de Next.js. Sur Mac, JobScout se lance depuis les sources : voir le [guide Mac](INSTALL-MAC.md).
 
 ## Sources de scan
 

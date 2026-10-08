@@ -16,7 +16,7 @@ Elle décrit, au mieux de la connaissance de l'éditeur, le code de JobScout 3.4
   - à l'import d'un CV et à la génération de documents, elles vont au fournisseur d'IA que vous avez choisi : texte du CV, profil avec votre identité, offre visée. Avec un modèle local (Ollama, LM Studio) à son adresse par défaut, rien ne sort ;
   - pendant un scan, elles vont aux sites d'offres : vos secteurs, vos pays visés et votre adresse IP. Jamais votre nom ni votre CV ;
   - quelques téléchargements techniques, sans donnée personnelle : le moteur LinkedIn et les modèles de lecture d'image, si vous en avez besoin.
-- **Une exception, au démarrage en version source.** Avec `npm run dev` ou `Start-JobScout.ps1`, Next.js demande au registre npm, à chaque démarrage, s'il existe une version plus récente de lui-même. Le registre voit votre adresse IP, rien d'autre (section 4).
+- **Une exception, au démarrage en version source.** Avec `npm run dev`, `Start-JobScout.ps1` ou le lanceur Mac `JobScout.command`, Next.js demande au registre npm, à chaque démarrage, s'il existe une version plus récente de lui-même. Le registre voit votre adresse IP, rien d'autre (section 4).
 - **Vous gardez la main.** Pour tout effacer sur votre ordinateur, supprimez votre dossier de données. Supprimez ensuite les quelques éléments rangés ailleurs : le fichier `.env`, le dossier `.next/`, le dossier de documents si vous l'avez placé ailleurs, vos exports Excel (section 9). Ce que vous avez déjà envoyé à un fournisseur d'IA ou à un site d'offres reste chez lui.
 
 ## 2. Qui publie JobScout
@@ -31,7 +31,7 @@ Elle décrit, au mieux de la connaissance de l'éditeur, le code de JobScout 3.4
 
 | Vous utilisez | Dossier de données |
 |---|---|
-| Le code source (clone Git ou ZIP), lancé avec `npm run dev`, `npm run start` ou `scripts/Start-JobScout.ps1` | `data/` dans le dossier du projet, sauf si vous avez défini un autre emplacement (variables `JOBSCOUT_DATA_DIR`, `JOBSCOUT_DB_PATH` ou `JOBSCOUT_DOCS_PATH`, par exemple dans `.env`) |
+| Le code source (clone Git ou ZIP), lancé avec `npm run dev`, `npm run start`, `scripts/Start-JobScout.ps1` ou le lanceur Mac `JobScout.command` (`npm run shortcut:mac`) | `data/` dans le dossier du projet, sauf si vous avez défini un autre emplacement (variables `JOBSCOUT_DATA_DIR`, `JOBSCOUT_DB_PATH` ou `JOBSCOUT_DOCS_PATH`, par exemple dans `.env`) |
 | L'installeur Windows, si vous l'avez construit vous-même (`npm run package`) | `%LOCALAPPDATA%\JobScout`. Le menu « Dossier de données » de l'icône JobScout, près de l'horloge, l'ouvre directement |
 
 La base de données est le fichier `jobscout.db`, accompagné de `jobscout.db-wal` et `jobscout.db-shm`.
@@ -61,7 +61,7 @@ JobScout ne crée ni compte ni cookie.
 
 JobScout n'envoie rien de lui-même : chaque échange décrit ci-dessous suit une action de votre part. Il n'y a aucun scan automatique. Quand JobScout est fermé, il ne fait rien.
 
-Il y a une exception. Si vous lancez JobScout depuis le code source avec `npm run dev`, ou avec le raccourci `scripts/Start-JobScout.ps1` qui utilise cette commande (c'est la méthode du guide d'installation), Next.js vérifie à chaque démarrage s'il existe une version plus récente de lui-même. Pour cela, il interroge le registre npm (`registry.npmjs.org`). Cette requête ne contient aucune donnée de JobScout ni aucune donnée sur vous, mais le registre voit votre adresse IP. `npm run start` et l'installeur Windows ne font pas cette vérification.
+Il y a une exception. Si vous lancez JobScout depuis le code source avec `npm run dev`, ou avec le raccourci `scripts/Start-JobScout.ps1` ou le lanceur Mac `JobScout.command`, qui utilisent cette commande (c'est la méthode des guides d'installation), Next.js vérifie à chaque démarrage s'il existe une version plus récente de lui-même. Pour cela, il interroge le registre npm (`registry.npmjs.org`). Cette requête ne contient aucune donnée de JobScout ni aucune donnée sur vous, mais le registre voit votre adresse IP. `npm run start` et l'installeur Windows ne font pas cette vérification.
 
 ### 4.1 Le fournisseur d'IA que vous choisissez
 
@@ -142,7 +142,7 @@ Quand vous ouvrez une annonce ou cliquez sur « Postuler », c'est votre navigat
 
 - **Aucun serveur de l'éditeur.** Rien de ce que vous faites dans JobScout ne lui parvient.
 - **Aucun suivi.** Ni télémétrie, ni mesure d'audience, ni rapport de plantage, ni publicité. L'interface ne charge aucune ressource extérieure : même les polices de caractères sont incluses dans le logiciel.
-- **Télémétrie de Next.js désactivée.** Next.js envoie par défaut des statistiques d'usage anonymes à son éditeur, Vercel. Depuis la 3.4.13, `npm run dev` et `npm run build` lancent Next.js avec `NEXT_TELEMETRY_DISABLED=1`, et `scripts/Start-JobScout.ps1` passe par `npm run dev`. `npm run start` et l'installeur Windows n'ont pas besoin de ce réglage : Next.js n'envoie ces statistiques qu'en développement et à la compilation. Si vous lancez Next.js autrement, coupez-la vous-même : définissez la variable `NEXT_TELEMETRY_DISABLED=1`, ou lancez une fois `npx next telemetry disable`.
+- **Télémétrie de Next.js désactivée.** Next.js envoie par défaut des statistiques d'usage anonymes à son éditeur, Vercel. Depuis la 3.4.13, `npm run dev` et `npm run build` lancent Next.js avec `NEXT_TELEMETRY_DISABLED=1`, et `scripts/Start-JobScout.ps1` comme le lanceur Mac `JobScout.command` passent par `npm run dev`. `npm run start` et l'installeur Windows n'ont pas besoin de ce réglage : Next.js n'envoie ces statistiques qu'en développement et à la compilation. Si vous lancez Next.js autrement, coupez-la vous-même : définissez la variable `NEXT_TELEMETRY_DISABLED=1`, ou lancez une fois `npx next telemetry disable`.
 - **Aucun relais actif.** Le code contient deux fonctions réseau en sommeil : un relais d'IA et une vérification de mise à jour. Elles ne s'activent que si une adresse est fournie dans la variable `JOBSCOUT_PROXY_URL` ou `JOBSCOUT_UPDATE_URL`. La version publiée sur GitHub n'en fournit aucune : ces fonctions n'envoient donc rien. Si vous définissez ces variables vous-même, vos données partent vers l'adresse que vous avez choisie.
 - **Aucune mise à jour automatique.** Vous mettez JobScout à jour vous-même, avec `git pull` ou un nouveau téléchargement.
 - **Aucune vente ni aucun partage.** Par le logiciel, l'éditeur ne détient aucune donnée : il n'a rien à vendre ni à partager.
@@ -212,7 +212,7 @@ Une valeur effacée peut laisser une trace technique dans le fichier de la base 
 
 **Version source**
 
-1. Arrêtez JobScout : Ctrl+C dans la fenêtre du terminal où il tourne. Avec `Start-JobScout.ps1`, cette fenêtre est réduite dans la barre des tâches.
+1. Arrêtez JobScout : Ctrl+C dans la fenêtre du terminal où il tourne (sur Mac : touche control + C, pas ⌘). Avec `Start-JobScout.ps1`, cette fenêtre est réduite dans la barre des tâches. Sur Mac, supprimez aussi le lanceur `JobScout.command` du Bureau si vous l'avez créé.
 2. Supprimez le dossier `data/` du projet. Il contient la base, les documents et, si vous l'avez installé avec le bouton de JobScout, le moteur LinkedIn.
 3. Supprimez aussi, s'ils existent :
    - le dossier `.next/` du projet, si vous avez lancé `npm run build`. Il peut contenir une copie de votre base, de vos documents et de votre fichier `.env` ;
