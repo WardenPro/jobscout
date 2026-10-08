@@ -13,6 +13,7 @@ export const DEFAULT_SCRAPING_PROXY: ScrapingProxySettings = {
 
 /** Seulement les pages publiques HTTP : les API authentifiées et Chromium restent directs. */
 export const SCRAPING_PROXY_TARGETS: Record<string, { hosts: string[]; paths: RegExp }> = {
+  indeedch: { hosts: ["ch.indeed.com"], paths: /^\/(?:jobs|viewjob)(?:\/|$)/ },
   jobup: { hosts: ["www.jobup.ch"], paths: /^\/fr\/emplois(?:\/|$)/ },
   jobsch: { hosts: ["www.jobs.ch"], paths: /^\/fr\/(?:offres-emplois|stellenangebote)(?:\/|$)/ },
   hellowork: { hosts: ["www.hellowork.com"], paths: /^\/fr-fr\/(?:emploi|emplois)(?:\/|$)/ },

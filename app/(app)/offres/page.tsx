@@ -3,6 +3,8 @@ import { PageHeader } from "@/components/app/page-header";
 import { OffresList } from "./list";
 import { ScanButton } from "./scan-button";
 import { getProfile } from "@/lib/db/queries";
+import { IndeedSearch } from "@/components/app/indeed-search";
+import { countryMatcher } from "@/lib/countries";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +19,9 @@ export default async function OffresPage({ searchParams }: { searchParams: Promi
   const vieOnly = vie === "1";
   // ?score=70 (carte « Offres à 70 et plus » de l'accueil) active la puce de score à ce seuil.
   const minScore = parseMinScore(score);
+  const profile = getProfile();
+  const countries = profile?.target_countries ?? [];
+  const targetsSwitzerland = !countries.length || countries.some(countryMatcher(["Suisse"]));
   // Même requête que celle de la liste côté navigateur : ?vie=1 coche la puce contrat « V.I.E ».
   const initial = searchOffres({ contracts: vieOnly ? ["vie"] : [], minScore });
   // Total et V.I.E lus dans les facettes (sans le filtre de score, pour décrire la base) : mêmes chiffres que la liste et la puce « V.I.E ».
@@ -35,7 +40,8 @@ export default async function OffresPage({ searchParams }: { searchParams: Promi
         subtitle={subtitle}
         actions={<ScanButton />}
       />
-      <OffresList initialResult={initial} initialVieOnly={vieOnly} initialMinScore={minScore} targetCountries={getProfile()?.target_countries ?? []} />
+      {targetsSwitzerland && <IndeedSearch sectors={profile?.sectors ?? []} />}
+      <OffresList initialResult={initial} initialVieOnly={vieOnly} initialMinScore={minScore} targetCountries={countries} />
     </>
   );
 }

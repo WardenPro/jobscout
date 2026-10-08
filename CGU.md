@@ -11,7 +11,7 @@ Elles ne constituent pas un conseil juridique. L'éditeur ne peut pas vous dire 
 - JobScout est un logiciel libre et gratuit qui tourne sur votre ordinateur. Pas de compte, pas d'abonnement, pas de serveur de l'éditeur.
 - JobScout n'envoie aucune de vos données à l'éditeur. L'éditeur ne collecte, ne stocke et ne revend aucune offre.
 - C'est vous qui lancez les recherches, depuis votre ordinateur et votre connexion. Vous choisissez les sites interrogés et vous devez respecter leurs conditions.
-- Par défaut, seule France Travail est cochée. Sans identifiants d'API, elle charge les pages du site comme un navigateur (section 6). Les conditions de Welcome to the Jungle, HelloWork, Talent.com, jobup.ch, jobs.ch et LinkedIn interdisent l'extraction automatisée, et Job-Room demande de ne pas explorer ses annonces : ces sources restent décochées, et c'est à vous de décider de les activer. Lisez les sections 5 et 6 avant de le faire.
+- Par défaut, seule France Travail est cochée. Sans identifiants d'API, elle charge les pages du site comme un navigateur (section 6). Les conditions de Welcome to the Jungle, HelloWork, Talent.com, jobup.ch, jobs.ch, Indeed et LinkedIn interdisent l'extraction automatisée sans autorisation, et Job-Room demande de ne pas explorer ses annonces : ces sources restent décochées, et c'est à vous de décider de les activer. Lisez les sections 5 et 6 avant de le faire.
 - Les offres récupérées ne doivent servir qu'à votre propre recherche d'emploi, sans but commercial.
 - Les documents rédigés par l'IA peuvent contenir des erreurs. Relisez-les avant de les envoyer.
 - JobScout est fourni « en l'état », sans garantie.
@@ -81,11 +81,11 @@ Ces interdits portent sur l'usage des offres et des sites tiers. Ils ne retirent
 - Elles contiennent vos secteurs, utilisés comme mots-clés, et, selon le site, le pays visé. Elles ne contiennent ni votre nom, ni votre CV, ni les cookies de votre navigateur.
 - Vous choisissez les sources à l'étape Préférences de l'inscription, puis dans **Profil › Recherche › Sources**. Le bouton « Lancer un scan » interroge les sources cochées.
 - Sur la page Offres, la flèche à côté de « Lancer un scan » ouvre le menu « Scanner une source ». Ce menu permet d'interroger une seule source, **même si elle est décochée** (sauf les sources suspendues).
-- Vous devez respecter les conditions d'utilisation de chaque site que vous interrogez. Celles de Welcome to the Jungle, HelloWork, Talent.com, jobup.ch, jobs.ch et LinkedIn interdisent expressément l'extraction automatisée (section 6). Celles de Job-Room soumettent la reproduction des annonces à une autorisation écrite du SECO. Si vous activez l'une de ces sources, ou si vous la choisissez dans « Scanner une source », vous le faites en connaissance de cause et sous votre responsabilité.
+- Vous devez respecter les conditions d'utilisation de chaque site que vous interrogez. Celles de Welcome to the Jungle, HelloWork, Talent.com, jobup.ch, jobs.ch, Indeed et LinkedIn interdisent expressément l'extraction automatisée sans autorisation (section 6). Celles de Job-Room soumettent la reproduction des annonces à une autorisation écrite du SECO. Si vous activez l'une de ces sources, ou si vous la choisissez dans « Scanner une source », vous le faites en connaissance de cause et sous votre responsabilité.
 
 **Ce qui est coché par défaut**
 
-Depuis la 3.4.13, sur une installation neuve, seule France Travail est cochée. Welcome to the Jungle, HelloWork, Talent.com, jobup.ch, jobs.ch, Job-Room et LinkedIn sont décochées : à vous de les activer, après avoir lu leurs conditions. LinkedIn demande en plus l'installation d'un moteur de navigation. L'APEC et Civiweb sont suspendues : JobScout ne les interroge plus, même si elles sont restées cochées dans un ancien profil.
+Depuis la 3.4.13, sur une installation neuve, seule France Travail est cochée. Welcome to the Jungle, HelloWork, Talent.com, jobup.ch, jobs.ch, Indeed Suisse, Job-Room et LinkedIn sont décochées : à vous de les activer, après avoir lu leurs conditions. LinkedIn demande en plus l'installation d'un moteur de navigation. L'APEC et Civiweb sont suspendues : JobScout ne les interroge plus, même si elles sont restées cochées dans un ancien profil.
 
 Si votre profil ne contient aucune source (profil restauré, par exemple), « Lancer un scan » interroge France Travail seule.
 
@@ -111,7 +111,7 @@ Si votre profil ne contient aucune source (profil restauré, par exemple), « La
 
 Pour chaque source, vous trouverez son réglage par défaut, ce que fait JobScout et ce que disent les conditions du site, lues le 5 octobre 2026 sauf mention contraire. Ce résumé peut être dépassé, car les sites modifient leurs conditions. Seul le texte publié par chaque site fait foi : lisez-le.
 
-En bref : les conditions de LinkedIn, Welcome to the Jungle, HelloWork, Talent.com, jobup.ch et jobs.ch interdisent expressément l'extraction automatisée. Celles de l'APEC et de Job-Room soumettent la reproduction ou l'exploitation de leurs contenus à leur accord. Aucune interdiction expresse des robots n'a été relevée dans celles de France Travail, mais France Travail prévoit son API pour l'accès par programme.
+En bref : les conditions de LinkedIn, Welcome to the Jungle, HelloWork, Talent.com, jobup.ch, jobs.ch et Indeed interdisent expressément l'extraction automatisée sans autorisation. Celles de l'APEC et de Job-Room soumettent la reproduction ou l'exploitation de leurs contenus à leur accord. Aucune interdiction expresse des robots n'a été relevée dans celles de France Travail, mais France Travail prévoit son API pour l'accès par programme.
 
 ### Welcome to the Jungle
 
@@ -157,6 +157,12 @@ En bref : les conditions de LinkedIn, Welcome to the Jungle, HelloWork, Talent.c
 - **Ce que fait JobScout** : il charge les pages de résultats en français, puis la page de chaque offre, en se présentant comme un navigateur Chrome. Les deux sites appartiennent au même groupe et partagent une partie de leurs offres : une offre déjà enregistrée avec une description complète depuis l'un n'est pas rechargée depuis l'autre ; une offre incomplète peut être récupérée depuis le site jumeau.
 - **Conditions du site** : [conditions d'utilisation de JobCloud](https://www.jobup.ch/fr/conditions-utilisation/), lues le 7 octobre 2026 sur jobup.ch. Elles interdisent les crawlers, scrapers et outils d'extraction de données, ainsi que les scripts et bots qui accèdent aux services, sauf outils officiels de JobCloud.
 
+### Indeed Suisse (indeed.ch / ch.indeed.com)
+
+- **Statut** : scan suspendu, ignoré même s'il était coché dans un ancien profil.
+- **Ce que fait JobScout** : le lien dans **Offres › Rechercher sur Indeed Suisse** ouvre une recherche dans votre navigateur, sans importer les annonces. Le code du scraper est conservé pour les diagnostics explicitement lancés hors de l'application ; il limite les recherches à 3 pages par secteur et 50 offres et ne considère pas un extrait seul comme une description complète. Le scan de l'application ne l'exécute pas.
+- **Conditions du site** : [conditions d'utilisation d'Indeed](https://www.indeed.com/legal?hl=fr), section D.21, consultées le 8 octobre 2026. Elles interdisent l'accès par robot et l'extraction sans autorisation écrite expresse, ainsi que le contournement des contrôles d'accès. Cocher la source ne constitue pas une autorisation d'Indeed. Lors de la vérification réelle, l'accès direct a reçu un HTTP 403 « Security Check ». Le relais Bright Data a récupéré les résultats de recherche, mais a échoué sur une fiche avec un HTTP 502 pour un élément attendu absent ; le scan complet n'est pas encore validé.
+
 ### Job-Room (service public suisse de l'emploi, SECO)
 
 Job-Room est la recherche d'emploi du portail travail.swiss (arbeit.swiss) : y activer Job-Room couvre les offres de ce portail.
@@ -193,7 +199,7 @@ La mesure retenue s'applique aux versions publiées ensuite. Elle ne peut pas mo
 ## 8. Marques et absence d'affiliation
 
 - JobScout n'est affilié à aucun des sites ni à aucun des fournisseurs cités. Aucun d'eux ne l'approuve ni ne le soutient.
-- LinkedIn, Welcome to the Jungle, APEC, HelloWork, France Travail, Talent.com, jobup.ch, jobs.ch, JobCloud, Job-Room, Civiweb, Business France, Anthropic, Claude, OpenAI, Google, Gemini, Mistral, DeepSeek, Groq, OpenRouter, Ollama, LM Studio, Algolia, Chrome, Chromium, Playwright, Next.js, SQLite et GitHub, ainsi que les autres noms de produits et de services cités, sont des marques ou des noms de leurs titulaires respectifs.
+- LinkedIn, Welcome to the Jungle, APEC, HelloWork, France Travail, Talent.com, jobup.ch, jobs.ch, Indeed, JobCloud, Job-Room, Civiweb, Business France, Anthropic, Claude, OpenAI, Google, Gemini, Mistral, DeepSeek, Groq, OpenRouter, Ollama, LM Studio, Algolia, Chrome, Chromium, Playwright, Next.js, SQLite et GitHub, ainsi que les autres noms de produits et de services cités, sont des marques ou des noms de leurs titulaires respectifs.
 - Ces noms servent seulement à désigner les sites interrogés et les services compatibles.
 - JobScout n'utilise pas leurs logos.
 

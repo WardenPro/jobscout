@@ -8,7 +8,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { SOURCES_META } from "@/lib/sources-meta";
 import { DEFAULT_SCRAPING_PROXY, SCRAPING_PROXY_TARGETS, type PublicScrapingProxyConfig, type ScrapingProxyMode } from "@/lib/scraping-proxy";
 
-const sources = SOURCES_META.filter(s => Object.hasOwn(SCRAPING_PROXY_TARGETS, s.id));
+const sources = SOURCES_META.filter(s => !s.unavailable && Object.hasOwn(SCRAPING_PROXY_TARGETS, s.id));
 export function ScrapingProxySettings() {
   const [config, setConfig] = useState<PublicScrapingProxyConfig>({ ...DEFAULT_SCRAPING_PROXY, hasKey: false, keySource: null });
   const [saved, setSaved] = useState<PublicScrapingProxyConfig | null>(null);
