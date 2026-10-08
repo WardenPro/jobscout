@@ -1,6 +1,6 @@
 # Politique de confidentialité de JobScout
 
-**En vigueur le 5 octobre 2026** · JobScout 3.4.13
+**En vigueur le 8 octobre 2026** · JobScout 3.4.14
 
 Cette politique explique ce que JobScout enregistre sur votre ordinateur, ce qui en sort, vers qui, et comment tout effacer. Les règles d'usage du logiciel sont dans les [conditions d'utilisation](CGU.md).
 
@@ -125,7 +125,9 @@ Ces en-têtes ne contiennent aucune donnée sur vous. Leur portée au regard des
 
 **LinkedIn** est interrogé par un navigateur Chromium sans fenêtre, sans compte et sans profil enregistré. Les cookies que LinkedIn dépose pendant le scan restent en mémoire. Ils sont effacés à la fin du scan.
 
-Chaque site voit votre adresse IP et vos requêtes, et les traite selon sa propre politique. Il peut aussi limiter ou bloquer l'accès.
+En accès direct, chaque site voit votre adresse IP et vos requêtes, et les traite selon sa propre politique. Il peut aussi limiter ou bloquer l'accès.
+
+**Relais Bright Data, optionnel et désactivé par défaut** : les paramètres permettent de relayer les pages publiques de jobup.ch, jobs.ch, HelloWork, Talent.com et France Travail via `api.brightdata.com/request`. Bright Data reçoit votre clé d'API, le nom de la zone et l'URL publique, mots-clés de recherche compris. Il voit l'IP de votre PC ; le site cible voit celle du relais. Le profil, le CV, les cookies de votre navigateur et les clés des autres services ne sont pas transmis. La clé Bright Data est stockée en clair dans la base locale ou dans votre fichier d'environnement local ; l'API des paramètres renvoie seulement sa présence. La sélection des sources, le mode et le plafond d'appels sont aussi conservés dans la base. « Tester la connexion » envoie un appel explicite sur `geo.brdtest.com/welcome.txt` via Bright Data. Enregistrer les paramètres ne déclenche aucun appel. Bright Data traite ces informations selon sa [politique de confidentialité](https://brightdata.com/privacy-policy).
 
 ### 4.3 France Travail : vos identifiants d'API
 

@@ -1,6 +1,6 @@
 # Conditions générales d'utilisation de JobScout
 
-**Version du 5 octobre 2026 · JobScout 3.4.13**
+**Version du 8 octobre 2026 · JobScout 3.4.14**
 
 Ces conditions expliquent ce qu'est JobScout, ce que vous pouvez en faire et qui est responsable de quoi. Elles complètent la licence du code ([LICENSE](LICENSE)) et la politique de confidentialité ([CONFIDENTIALITE.md](CONFIDENTIALITE.md)).
 
@@ -64,7 +64,7 @@ Il est interdit :
 - de constituer un fichier de recruteurs, d'entreprises ou de contacts. Les noms et coordonnées présents dans une offre servent seulement à votre candidature à cette offre ;
 - de faire de la prospection commerciale ou du démarchage ;
 - de récupérer ou d'exploiter des offres pour le compte d'autres personnes, à titre professionnel (cabinet de recrutement, agence, accompagnement payant, service de veille, etc.). Dans ce cadre, le RGPD pourrait en outre s'appliquer à vous ;
-- de contourner une mesure technique de protection d'un site (CAPTCHA, blocage d'adresse IP, authentification, limite de requêtes), par exemple en modifiant JobScout ;
+- de contourner une mesure technique de protection d'un site (CAPTCHA, blocage d'adresse IP, authentification, limite de requêtes) sans autorisation de ce site, par exemple en modifiant JobScout ;
 - de lancer des scans trop fréquents ou trop volumineux, par exemple en les automatisant, en relevant les plafonds dans une version modifiée ou en faisant tourner plusieurs copies en même temps ;
 - de produire de faux diplômes, de fausses expériences ou de fausses références, ou de se servir de JobScout pour toute autre activité illégale.
 
@@ -77,7 +77,7 @@ Ces interdits portent sur l'usage des offres et des sites tiers. Ils ne retirent
 **Votre rôle**
 
 - Vous lancez chaque scan vous-même, depuis la page Offres. JobScout ne lance jamais de scan tout seul.
-- Les requêtes partent de votre ordinateur, avec votre adresse IP. Les sites voient cette adresse et peuvent la limiter ou la bloquer.
+- En accès direct, les requêtes partent de votre ordinateur, avec votre adresse IP. Les sites voient cette adresse et peuvent la limiter ou la bloquer. Si vous activez le relais Bright Data, Bright Data voit votre IP et le site cible voit celle du relais.
 - Elles contiennent vos secteurs, utilisés comme mots-clés, et, selon le site, le pays visé. Elles ne contiennent ni votre nom, ni votre CV, ni les cookies de votre navigateur.
 - Vous choisissez les sources à l'étape Préférences de l'inscription, puis dans **Profil › Recherche › Sources**. Le bouton « Lancer un scan » interroge les sources cochées.
 - Sur la page Offres, la flèche à côté de « Lancer un scan » ouvre le menu « Scanner une source ». Ce menu permet d'interroger une seule source, **même si elle est décochée** (sauf les sources suspendues).
@@ -99,10 +99,12 @@ Si votre profil ne contient aucune source (profil restauré, par exemple), « La
 - Plus vous ciblez de secteurs et de pays, plus il y a de requêtes.
 - JobScout ne limite pas le nombre de scans que vous lancez. C'est à vous de garder un rythme raisonnable.
 
+**Relais optionnel** : dans Profil › Paramètres, vous pouvez configurer Bright Data Web Unlocker API pour les pages publiques compatibles. Il reste désactivé par défaut, avec choix des sources et plafond d'appels par source et par scan. Les appels peuvent être facturés par Bright Data selon votre contrat. Le service peut gérer des contrôles anti-robot ; JobScout n'en garantit pas l'issue. Son activation ne constitue pas une autorisation des sites et ne vous dispense pas de leurs conditions. Les API authentifiées et le navigateur LinkedIn ne passent pas par ce relais. La clé et les URLs publiques sont transmises à Bright Data, sans profil ni CV (voir [Confidentialité](CONFIDENTIALITE.md)).
+
 **Ce que JobScout ne fait pas**
 
 - Il ne se connecte à aucun compte d'utilisateur sur ces sites. La seule exception est l'API France Travail, et seulement si vous fournissez vos propres identifiants.
-- Il n'utilise pas les cookies de votre navigateur et ne résout pas de CAPTCHA.
+- Il n'utilise pas les cookies de votre navigateur et ne résout pas lui-même de CAPTCHA. Le service Bright Data peut traiter des contrôles anti-robot si vous activez le relais.
 - Il ne consulte pas les fichiers `robots.txt` des sites. Certaines adresses qu'il interroge y sont pourtant exclues. Par exemple, le `robots.txt` de HelloWork exclut des pages d'offres, celui de LinkedIn déclare interdit tout accès automatisé sans autorisation, ceux de jobup.ch et jobs.ch excluent leur interface de programmation (`/api/`), que JobScout n'utilise pas, et celui de Job-Room demande de ne pas explorer les annonces (« Do not crawl Job Adverts »).
 
 ## 6. Les sources, une par une

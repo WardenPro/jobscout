@@ -2,6 +2,7 @@ import "server-only";
 import type { Scraper, ScrapedOffre, ScrapeCriteria, ProgressEvent } from "./base";
 import { htmlToText } from "./base";
 import { detectVie } from "@/lib/vie";
+import { sourceFetch } from "./source-fetch";
 import { nameToCode } from "@/lib/countries";
 import {
   parseDocument,
@@ -122,7 +123,7 @@ function parseSearchPage(html: string, domain: Domain): Card[] {
 async function fetchSearchPage(domain: Domain, keywords: string, page: number): Promise<Card[]> {
   const params = new URLSearchParams({ k: keywords, l: "" });
   if (page > 1) params.set("p", String(page));
-  const res = await fetch(`https://${domain.host}/jobs?${params}`, { headers: BROWSER_HEADERS });
+  const res = await sourceFetch(SOURCE, `https://${domain.host}/jobs?${params}`, { headers: BROWSER_HEADERS });
   if (!res.ok) throw new Error(`Talent.com ${domain.host} HTTP ${res.status}`);
   return parseSearchPage(await res.text(), domain);
 }
@@ -133,7 +134,7 @@ async function enrich(card: Card): Promise<ScrapedOffre> {
   let ldPosted: string | null = null;
   let ldSalary: string | null = null;
   try {
-    const res = await fetch(card.url, { headers: BROWSER_HEADERS });
+    const res = await sourceFetch(SOURCE, card.url, { headers: BROWSER_HEADERS });
     if (res.ok) {
       const doc = parseDocument(await res.text());
       const ld = extractJobPostingLd(doc);

@@ -80,6 +80,16 @@ L'app démarre sur http://127.0.0.1:3000 (écoute limitée à la machine locale,
 
 WTTJ est interrogée avec la clé de recherche (lecture seule) qu'utilise l'interface du site. Si elle cesse de fonctionner, décochez la source.
 
+### Relais Bright Data (optionnel)
+
+Dans **Profil › Paramètres et données › Proxy de recherche Bright Data**, renseignez une clé API et une zone **Web Unlocker API**, choisissez les sources à relayer et le plafond d'appels par source et par scan (20 par défaut, de 1 à 100). Le relais reste désactivé par défaut. L'enregistrement et la lecture des paramètres ne déclenchent aucun appel externe ; **Tester la connexion** en effectue un.
+
+- **Seulement en cas de blocage** : accès direct d'abord ; un HTTP 403/429 ou une page de vérification déclenche le relais. Les autres pages de cette source utilisent ensuite le relais pendant ce scan.
+- **Toujours** : toutes les pages publiques des sources choisies utilisent le relais.
+- Sources compatibles : jobup.ch, jobs.ch, HelloWork, Talent.com et les pages publiques de France Travail. Les API authentifiées, Job-Room et LinkedIn restent directs. Cocher une source ici ne l'active pas dans les scans : choisissez aussi vos sources de recherche dans le profil.
+
+Les appels passent par l'[API REST officielle](https://docs.brightdata.com/products/web-unlocker/send-your-first-request), sans modifier les certificats TLS. Bright Data reçoit la clé, la zone et l'URL publique avec ses mots-clés ; le profil et le CV ne sont pas envoyés. Les appels peuvent être facturés selon votre contrat. Une erreur du relais ou le plafond atteint cesse les appels pour cette source pendant le scan. Un HTTP 407 avec `ip_forbidden` indique que l'IP de votre PC doit être autorisée dans le compte Bright Data. La clé se conserve dans la base locale, en clair comme les clés IA, ou dans `.env.local` via `BRIGHTDATA_API_KEY` ; `BRIGHTDATA_ZONE` préremplit la zone. Elle n'est jamais renvoyée par l'API des paramètres. Le relais ne garantit pas la disponibilité des sites et ne remplace pas leurs autorisations d'accès.
+
 ## Scoring des offres (local, déterministe, gratuit)
 
 `lib/scoring/local.ts` — critères exposés dans le détail de chaque offre :

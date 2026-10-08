@@ -5,6 +5,7 @@ import { detectVie } from "@/lib/vie";
 import { nameToCode } from "@/lib/countries";
 import { getDb } from "@/lib/db";
 import { resolveSwissCanton } from "@/lib/swiss-geography";
+import { sourceFetch } from "./source-fetch";
 import {
   parseDocument,
   firstMatchHtml,
@@ -123,7 +124,7 @@ export function formatGrades(grades: number[]): string | null {
 async function fetchSearchPage(site: Site, keywords: string, page: number) {
   const params = new URLSearchParams({ term: keywords });
   if (page > 1) params.set("page", String(page));
-  const res = await fetch(`https://${site.host}${site.prefix}/?${params}`, { headers: BROWSER_HEADERS });
+  const res = await sourceFetch(site.id, `https://${site.host}${site.prefix}/?${params}`, { headers: BROWSER_HEADERS });
   if (!res.ok) throw new Error(`${site.label} HTTP ${res.status}`);
   return parseSearchPage(await res.text(), site);
 }
@@ -132,7 +133,7 @@ async function fetchDetail(site: Site, card: Card): Promise<ScrapedOffre> {
   let descHtml: string | null = null;
   let ld: ReturnType<typeof extractJobPostingLd> = null;
   try {
-    const res = await fetch(card.url, { headers: BROWSER_HEADERS });
+    const res = await sourceFetch(site.id, card.url, { headers: BROWSER_HEADERS });
     if (res.ok) {
       const doc = parseDocument(await res.text());
       ld = extractJobPostingLd(doc);

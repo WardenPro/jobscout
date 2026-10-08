@@ -2,6 +2,7 @@ import "server-only";
 import type { Scraper, ScrapedOffre, ScrapeCriteria, ProgressEvent } from "./base";
 import { htmlToText } from "./base";
 import { detectVie } from "@/lib/vie";
+import { sourceFetch } from "./source-fetch";
 import {
   parseDocument,
   firstMatchHtml,
@@ -182,7 +183,7 @@ async function fetchHtmlPage(keywords: string, page: number): Promise<HtmlCard[]
     offresPartenaires: "true",
     page: String(page),
   });
-  const res = await fetch(`${SEARCH_PAGE}?${params}`, { headers: BROWSER_HEADERS });
+  const res = await sourceFetch(SOURCE, `${SEARCH_PAGE}?${params}`, { headers: BROWSER_HEADERS });
   if (!res.ok) throw new Error(`France Travail HTTP ${res.status}`);
   return parseHtmlSearch(await res.text());
 }
@@ -191,7 +192,7 @@ async function enrichCard(card: HtmlCard): Promise<ScrapedOffre> {
   const url = `https://candidat.francetravail.fr/offres/recherche/detail/${card.id}`;
   let descHtml: string | null = null;
   try {
-    const res = await fetch(url, { headers: BROWSER_HEADERS });
+    const res = await sourceFetch(SOURCE, url, { headers: BROWSER_HEADERS });
     if (res.ok) {
       const doc = parseDocument(await res.text());
       const ld = extractJobPostingLd(doc);
