@@ -1,5 +1,7 @@
 # Installer JobScout, pas à pas
 
+> **Sur Mac ? Suivez le [guide Mac](INSTALL-MAC.md).** Les mêmes étapes, avec les gestes du Mac : Terminal, installeur de Node.js, lanceur à double-cliquer. Ce guide-ci montre les écrans de Windows. Les vidéos ont été tournées sous Windows : le guide Mac dit ce qui s'y applique.
+
 Ce guide s'adresse à tout le monde, y compris si vous n'avez jamais ouvert un terminal. Suivez les étapes dans l'ordre : chacune dit ce que vous allez voir et comment savoir que c'est réussi.
 
 ## En bref
@@ -34,7 +36,7 @@ Durées mesurées le 30/09/2026 sur un PC Windows 11 relié à la fibre. Avec un
 
 ## Ce qu'il vous faut
 
-- **Un ordinateur** Windows 10 ou 11, macOS ou Linux, avec 8 Go de mémoire de préférence (4 Go minimum) et **environ 1 Go d'espace disque libre** (plus 265 Mo si vous activez LinkedIn).
+- **Un ordinateur** Windows 10 ou 11, macOS ([guide Mac](INSTALL-MAC.md)) ou Linux, avec 8 Go de mémoire de préférence (4 Go minimum) et **environ 1 Go d'espace disque libre** (plus 265 Mo si vous activez LinkedIn).
 - **Node.js 22.13 ou plus récent** : l'étape 1 explique comment l'installer.
 - **Une IA, au choix** ([guide de l'IA, pas à pas](GUIDE-IA.md)) :
   - **une clé API** chez un fournisseur. Anthropic (Claude) est la référence de JobScout : compte sur [platform.claude.com](https://platform.claude.com), crédits (paiement à l'usage), puis une clé dans « API Keys » (`sk-ant-…`). Fonctionnent aussi : [OpenAI](https://platform.openai.com/api-keys), [Google Gemini](https://aistudio.google.com/apikey) (offre gratuite limitée), [Mistral](https://console.mistral.ai/api-keys), [DeepSeek](https://platform.deepseek.com/api_keys), [Groq](https://console.groq.com/keys), [OpenRouter](https://openrouter.ai/keys). Gardez la clé pour l'étape 5 ; ne la partagez avec personne ;
@@ -48,13 +50,15 @@ Durées mesurées le 30/09/2026 sur un PC Windows 11 relié à la fibre. Avec un
 
 Node.js est le moteur qui fait tourner JobScout.
 
-**Windows et macOS**
-1. Allez sur [nodejs.org](https://nodejs.org) et téléchargez la version **LTS** (22 ou 24).
+**Windows**
+1. Allez sur [nodejs.org](https://nodejs.org) et téléchargez la version **LTS** (22, 24 ou 26).
 2. Lancez l'installeur et acceptez les choix proposés (« Next » / « Suivant » jusqu'au bout). Inutile de cocher l'option d'outils supplémentaires.
+
+**macOS** : l'installeur n'est pas le même (fichier `.pkg`), et la version de Node.js dépend de votre version de macOS. Suivez l'étape 1 du [guide Mac](INSTALL-MAC.md#étape-1--installer-nodejs).
 
 **Linux** : installez Node 22 ou 24 avec le gestionnaire de votre distribution ou avec [nvm](https://github.com/nvm-sh/nvm).
 
-**Vérifier** : ouvrez un **nouveau** terminal (Windows : touche Windows, tapez `PowerShell`, Entrée ; macOS : application Terminal) et tapez :
+**Vérifier** : ouvrez un **nouveau** terminal (Windows : touche Windows, tapez `PowerShell`, Entrée ; macOS : `⌘ + Espace`, tapez `Terminal`, Entrée) et tapez :
 
 ```bash
 node --version
@@ -73,10 +77,10 @@ cd jobscout
 
 **Option B, sans Git**
 1. Sur la [page GitHub de JobScout](https://github.com/latenightsbeats1208-pixel/jobscout), cliquez sur le bouton vert **Code**, puis **Download ZIP**.
-2. Décompressez le fichier, par exemple dans `Documents`, et renommez le dossier `jobscout`.
-3. Ouvrez un terminal **dans ce dossier**. Windows : ouvrez le dossier dans l'Explorateur, cliquez dans la barre d'adresse, tapez `powershell` puis Entrée. macOS : clic droit sur le dossier › Services › Nouveau terminal au dossier.
+2. Décompressez le fichier, par exemple dans `Documents`, et renommez le dossier `jobscout`. Sur Mac, suivez plutôt l'étape 2 du [guide Mac](INSTALL-MAC.md#étape-2--récupérer-jobscout).
+3. Ouvrez un terminal **dans ce dossier**. Windows : ouvrez le dossier dans l'Explorateur, cliquez dans la barre d'adresse, tapez `powershell` puis Entrée. macOS : dans Terminal, tapez `cd` suivi d'une espace, faites glisser le dossier dans la fenêtre, puis appuyez sur Entrée.
 
-Pour vérifier que vous êtes au bon endroit, tapez `ls` (ou `dir`) : vous devez voir `package.json` et `README.md`.
+Pour vérifier que vous êtes au bon endroit, tapez `ls` (sous Windows, `dir` marche aussi) : vous devez voir `package.json` et `README.md`.
 
 ## Étape 3 — Installer les dépendances
 
@@ -115,6 +119,8 @@ Attendez la ligne `✓ Ready in …` (une vingtaine de secondes la première foi
 powershell -ExecutionPolicy Bypass -File scripts\Start-JobScout.ps1
 ```
 
+**Sur Mac** : `npm run shortcut:mac` crée un lanceur `JobScout.command`, avec une copie sur le Bureau, à ouvrir d'un double-clic. Voir [Le lanceur Mac](INSTALL-MAC.md#le-lanceur-mac).
+
 ## Étape 5 — Premier réglage (5 à 10 minutes)
 
 L'assistant s'ouvre tout seul, en trois étapes : **Importer**, **Vérifier**, **Préférences**.
@@ -128,7 +134,7 @@ L'assistant s'ouvre tout seul, en trois étapes : **Importer**, **Vérifier**, *
 3. **Vérifier** : relisez le profil extrait et corrigez ce qui doit l'être. JobScout ne rédigera jamais une compétence absente de ce profil : c'est le moment d'être complet.
 4. **Préférences** : pays visés, types de contrat, secteurs, et les sources à scanner.
 
-**LinkedIn (facultatif)** : c'est la seule source qui a besoin d'un petit navigateur intégré. Pour l'activer : **Profil › Recherche › Sources**, puis **Installer le moteur LinkedIn** (environ 100 Mo à télécharger, 265 Mo sur le disque, 1 à 2 minutes).
+**LinkedIn (facultatif)** : c'est la seule source qui a besoin d'un petit navigateur intégré. Pour l'activer : cochez **LinkedIn** dans **Profil › Recherche › Sources** : un encadré « Moteur LinkedIn requis » apparaît sous les sources, avec le bouton **Installer le moteur LinkedIn** (environ 100 Mo à télécharger, 265 Mo sur le disque, 1 à 2 minutes).
 
 ## Étape 6 — Premier scan
 
@@ -145,7 +151,7 @@ Ensuite, sur la fiche d'une offre, **Générer les documents** produit un CV et 
 ## Au quotidien
 
 - **Relancer JobScout** : ouvrez un terminal dans le dossier `jobscout`, tapez `npm run dev`, puis ouvrez http://127.0.0.1:3000.
-- **Arrêter JobScout** : dans le terminal, `Ctrl + C` (ou fermez la fenêtre).
+- **Arrêter JobScout** : dans le terminal, `Ctrl + C` (ou fermez la fenêtre). Sur Mac aussi, c'est la touche `control`, pas `⌘` : `⌘ + C` copie sans rien arrêter.
 - **Mettre à jour** : arrêtez JobScout (`Ctrl + C`), puis, dans le dossier `jobscout`, tapez `git pull` puis `npm ci`, et relancez `npm run dev`. Si vous avez installé par ZIP : téléchargez le nouveau ZIP, décompressez-le, puis **recopiez votre dossier `data`** de l'ancienne version dans la nouvelle avant de lancer `npm ci`.
 - **Sauvegarder vos données** : copiez le dossier `data` (base, documents générés).
 - **Désinstaller** : supprimez le dossier `jobscout`. Pensez à garder une copie de `data` si vous voulez conserver vos candidatures.
@@ -161,7 +167,7 @@ Ensuite, sur la fiche d'une offre, **Générer les documents** produit un CV et 
 | La clé API est refusée | Vérifiez que le bon fournisseur est choisi, que la clé est copiée en entier et qu'il reste des crédits sur votre compte chez ce fournisseur. |
 | « Modèle introuvable » | Cliquez sur **Charger la liste** dans Profil › Génération IA et choisissez un modèle proposé. |
 | « Rien ne répond à l'adresse http://127.0.0.1:… : Ollama (local) n'est pas lancé… » (ou LM Studio) | Lancez le logiciel (et, pour LM Studio, démarrez son serveur : onglet Developer › Start server), puis réessayez. JobScout et le logiciel d'IA doivent tourner sur le même ordinateur. Autres messages de l'IA locale : [guide de l'IA, section 6](GUIDE-IA.md#6-problèmes-fréquents). |
-| Documents incomplets ou réponse « inexploitable » avec un modèle local | Choisissez un modèle plus grand ; pour Ollama, augmentez le contexte (`OLLAMA_CONTEXT_LENGTH=16384`) avant de le lancer. |
+| Documents incomplets ou réponse « inexploitable » avec un modèle local | Choisissez un modèle plus grand ; pour Ollama, passez le contexte à 16k : **Settings › Context length** dans Ollama ([guide de l'IA, étape B6](GUIDE-IA.md#étape-b6--laisser-ollama-lire-un-cv-entier-16k)), ou la variable `OLLAMA_CONTEXT_LENGTH=16384` avant de le lancer (sur Mac, elle se règle autrement : [étape M6](GUIDE-IA.md#étape-m6--régler-le-contexte-à-16k-sur-mac)). |
 | LinkedIn ne renvoie rien | Installez le moteur LinkedIn (Profil › Recherche › Sources). Si LinkedIn bloque temporairement, relancez le scan plus tard : les autres sources ne sont pas concernées. |
 | `npm audit` signale des vulnérabilités | C'est attendu : elles concernent des outils de développement (Tailwind CSS), pas l'application (`npm audit --omit=dev` affiche 0). Ne lancez jamais `npm audit fix --force`. |
 

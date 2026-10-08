@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import { getSetting, setSetting } from "@/lib/db";
-import { documentsDir, writableRoots } from "@/lib/paths";
+import { documentsDir, resolveUserFolderInput, writableRoots } from "@/lib/paths";
 
 export const runtime = "nodejs";
 
@@ -46,7 +46,13 @@ export async function POST(req: NextRequest) {
   if (!rawFolder || typeof rawFolder !== "string") {
     return NextResponse.json({ error: "Chemin manquant" }, { status: 400 });
   }
-  const folder = path.resolve(rawFolder.trim());
+  const folder = resolveUserFolderInput(rawFolder);
+  if (!folder) {
+    return NextResponse.json(
+      { error: `Indiquez le chemin complet du dossier, par exemple ${defaultPath()}${process.platform === "win32" ? "" : " (« ~/Documents/JobScout » convient aussi)"}.` },
+      { status: 400 }
+    );
+  }
 
   if (!isAllowedPath(folder)) {
     return NextResponse.json(
