@@ -94,7 +94,7 @@ export function indeedCardToOffre(card: IndeedCard, html?: string, error?: strin
   const doc = html ? pageDocument(html) : null;
   const ld = doc ? extractJobPostingLd(doc) : null;
   if (ld?.country && !isSwissCountry(ld.country)) return null;
-  const description = ld?.description_html || (doc ? firstMatchHtml(doc, ["#jobDescriptionText", "[data-testid='jobDescriptionText']"], 100) : null);
+  const description = ld?.description_html || (doc ? firstMatchHtml(doc, ["#jobDescriptionText", "[data-testid='jobDescriptionText']", ".simple-job-description-html"], 100) : null);
   const description_html = description || card.snippet;
   const description_text = htmlToText(description_html);
   const location = ld?.locality || card.location;

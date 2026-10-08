@@ -40,4 +40,4 @@ it("Indeed : récupère une recherche et une fiche réelles via Bright Data", as
     fs.writeFileSync(path.join(os.tmpdir(), "jobscout-indeed-live-result.json"), JSON.stringify(offres.map(o => ({ url: o.url, status: o.description_status, error: o.scrape_errors, length: o.description_text.length }))));
     console.info(`[test réel Indeed] ${proxyCalls} appel(s) Bright Data ; ${offres.filter(o => o.description_status === "ok").length} offre complète.`);
   }
-}, 210_000);
+}, 390_000);

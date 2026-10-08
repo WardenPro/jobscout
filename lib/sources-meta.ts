@@ -54,7 +54,7 @@ export const SOURCES_META: SourceMeta[] = [
   { id: "talent", label: "Talent.com", sublabel: "Francophonie · Canada · USA · à activer vous-même", scope: "world", optIn: true },
   { id: "jobup", label: "jobup.ch", sublabel: "Suisse romande · à activer vous-même", scope: "ch", optIn: true },
   { id: "jobsch", label: "jobs.ch", sublabel: "Toute la Suisse · à activer vous-même", scope: "ch", optIn: true },
-  { id: "indeedch", label: "Indeed Suisse", sublabel: "indeed.ch · accès automatique parfois refusé · à activer vous-même", scope: "ch", optIn: true },
+  { id: "indeedch", label: "Indeed Suisse", sublabel: "Scan suspendu : récupération des fiches non fiable · recherche manuelle disponible", scope: "ch", optIn: true, unavailable: true },
   {
     id: "jobroom",
     label: "Job-Room (travail.swiss)",

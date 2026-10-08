@@ -159,9 +159,9 @@ En bref : les conditions de LinkedIn, Welcome to the Jungle, HelloWork, Talent.c
 
 ### Indeed Suisse (indeed.ch / ch.indeed.com)
 
-- **Par défaut** : décochée, à activer vous-même.
-- **Ce que fait JobScout** : il charge les pages publiques de recherche et les fiches, sans compte ni cookie enregistré, en se signalant comme JobScout en accès direct. Le relais Bright Data peut être configuré pour cette source (section 5). Il espace les appels et limite la recherche à 3 pages par secteur et 50 offres. Un refus restant après le relais, ou un refus en accès direct sans relais configuré, arrête les appels. Un extrait de recherche seul reste incomplet. Le lien dans **Offres › Rechercher sur Indeed Suisse** ouvre une recherche dans votre navigateur, sans importer les annonces.
-- **Conditions du site** : [conditions d'utilisation d'Indeed](https://www.indeed.com/legal?hl=fr), section D.21, consultées le 8 octobre 2026. Elles interdisent l'accès par robot et l'extraction sans autorisation écrite expresse, ainsi que le contournement des contrôles d'accès. Cocher la source ne constitue pas une autorisation d'Indeed. Lors de la vérification réelle, l'accès direct a reçu un HTTP 403 « Security Check ». Le relais Bright Data a récupéré les résultats de recherche, mais les fiches ont dépassé le délai de 90 secondes ; le scan complet n'est pas encore validé.
+- **Statut** : scan suspendu, ignoré même s'il était coché dans un ancien profil.
+- **Ce que fait JobScout** : le lien dans **Offres › Rechercher sur Indeed Suisse** ouvre une recherche dans votre navigateur, sans importer les annonces. Le code du scraper est conservé pour les diagnostics explicitement lancés hors de l'application ; il limite les recherches à 3 pages par secteur et 50 offres et ne considère pas un extrait seul comme une description complète. Le scan de l'application ne l'exécute pas.
+- **Conditions du site** : [conditions d'utilisation d'Indeed](https://www.indeed.com/legal?hl=fr), section D.21, consultées le 8 octobre 2026. Elles interdisent l'accès par robot et l'extraction sans autorisation écrite expresse, ainsi que le contournement des contrôles d'accès. Cocher la source ne constitue pas une autorisation d'Indeed. Lors de la vérification réelle, l'accès direct a reçu un HTTP 403 « Security Check ». Le relais Bright Data a récupéré les résultats de recherche, mais a échoué sur une fiche avec un HTTP 502 pour un élément attendu absent ; le scan complet n'est pas encore validé.
 
 ### Job-Room (service public suisse de l'emploi, SECO)
 

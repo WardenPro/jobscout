@@ -52,7 +52,7 @@ describe("Indeed Suisse — recherche et intégration", () => {
     expect(new URL(indeedSearchUrl("", "")).searchParams.get("l")).toBe("Suisse");
   });
   it("la source est opt-in, suisse, sans téléchargement, et le registre correspond aux métadonnées", () => {
-    expect(SOURCES_META.find(s => s.id === "indeedch")).toMatchObject({ scope: "ch", optIn: true });
+    expect(SOURCES_META.find(s => s.id === "indeedch")).toMatchObject({ scope: "ch", optIn: true, unavailable: true });
     expect(DEFAULT_SOURCE_IDS).not.toContain("indeedch");
     expect([...VALID_SOURCES].sort()).toEqual([...SOURCE_IDS].sort());
   });
@@ -92,6 +92,13 @@ describe("Indeed Suisse — recherche et intégration", () => {
     expect(indeedCardToOffre(card, `<div id="jobDescriptionText">${description}</div>`)?.description_status).toBe("ok");
     expect(indeedCardToOffre(card, undefined, "HTTP 403")).toMatchObject({ description_status: "partial", scrape_errors: "HTTP 403" });
     expect(indeedCardToOffre({ ...card, snippet: "" })?.description_status).toBe("failed");
+  });
+  it("lit le nouveau bloc Indeed sans jobDescriptionText et retire ses styles du texte", () => {
+    const html = `<h4 data-testid="vj-job-description-heading">Description du poste</h4><div class="react-native-html-content simple-job-description-html"><style>.simple-job-description-html { color: #595959 }</style>${description}</div>`;
+    const offre = indeedCardToOffre(card, html)!;
+    expect(offre.description_status).toBe("ok");
+    expect(offre.description_text).toContain("Windows et Linux");
+    expect(offre.description_text).not.toContain("#595959");
   });
   it.each([{ countries: ["France"] }, { countries: ["Belgique", "France"] }])("ne contacte jamais Indeed hors du périmètre suisse ($countries)", async ({ countries }) => {
     const fetch = vi.fn(); vi.stubGlobal("fetch", fetch);
