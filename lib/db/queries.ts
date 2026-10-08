@@ -75,8 +75,8 @@ export function saveProfile(input: Omit<ProfileFull, "id" | "created_at" | "upda
     db.prepare("DELETE FROM profile").run();
     const result = db
       .prepare(
-        `INSERT INTO profile (full_name, email, phone, location, linkedin_url, portfolio_url, summary, raw_cv_text, sectors, target_countries, sources_enabled, preferred_contracts, work_permit, workload_range, extraction_confidence)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO profile (full_name, email, phone, location, linkedin_url, portfolio_url, summary, raw_cv_text, sectors, target_countries, sources_enabled, preferred_contracts, work_permit, workload_range, extraction_confidence, photo)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         input.full_name ?? null,
@@ -93,7 +93,8 @@ export function saveProfile(input: Omit<ProfileFull, "id" | "created_at" | "upda
         asJson(input.preferred_contracts ?? ["cdi", "cdd"]),
         input.work_permit ?? null,
         input.workload_range ? asJson(input.workload_range) : null,
-        input.extraction_confidence ?? 0
+        input.extraction_confidence ?? 0,
+        input.photo ?? null
       );
     const profileId = Number(result.lastInsertRowid);
 

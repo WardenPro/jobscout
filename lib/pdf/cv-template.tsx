@@ -1,6 +1,6 @@
 import "server-only";
 import * as React from "react";
-import { Document, Page, Text, View, StyleSheet, Font } from "@react-pdf/renderer";
+import { Document, Page, Text, View, Image, StyleSheet, Font } from "@react-pdf/renderer";
 import type { GeneratedCV } from "@/lib/ai/generate-cv";
 import {
   typographyFor,
@@ -96,8 +96,13 @@ export function CVDocument({ cv, language = "fr" }: { cv: GeneratedCV; language?
   return (
     <Document>
       <Page size="A4" style={cvStyles.page}>
-        <Text style={cvStyles.name}>{cv.identity.full_name}</Text>
-        {contact.length > 0 && <Text style={cvStyles.contactLine}>{contact.join("  |  ")}</Text>}
+        <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: cv.photo ? 8 : 0 }} wrap={false}>
+          <View style={{ flex: 1, paddingRight: cv.photo ? 14 : 0 }}>
+            <Text style={cvStyles.name}>{cv.identity.full_name}</Text>
+            {contact.length > 0 && <Text style={cvStyles.contactLine}>{contact.join("  |  ")}</Text>}
+          </View>
+          {cv.photo && <Image src={cv.photo} style={{ width: 60, height: 75, objectFit: "cover" }} />}
+        </View>
 
         {cv.summary && (
           <>

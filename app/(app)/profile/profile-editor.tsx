@@ -27,6 +27,7 @@ import { SOURCES_META } from "@/lib/sources-meta";
 import { EngineNotice } from "@/components/app/engine-notice";
 import { SwissSettings } from "@/components/app/swiss-settings";
 import type { ProfileFull, Experience, Education, Skill, Language } from "@/lib/cv/types";
+import { ProfilePhoto } from "@/components/app/profile-photo";
 
 const SOURCES = SOURCES_META;
 const PROFILE_SECTIONS = [["#identite", "Identité"], ["#recherche", "Recherche"], ["#experiences", "Expériences"], ["#formations", "Formations"], ["#competences", "Compétences"], ["#langues", "Langues"], ["#parametres", "Paramètres"]] as const;
@@ -203,6 +204,7 @@ function IdentityCard({
   return (
     <Card id="identite" className="scroll-mt-28">
       <SectionHead icon={<User className="h-4 w-4" />} title="Identité" />
+      <ProfilePhoto photo={profile.photo} onChange={(photo) => update({ photo })} />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Nom complet">
           <Input

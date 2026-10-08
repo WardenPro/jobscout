@@ -1,5 +1,5 @@
 import "server-only";
-import { Document, Packer, Paragraph, TextRun, AlignmentType } from "docx";
+import { Document, Packer, Paragraph, TextRun, AlignmentType, ImageRun, HorizontalPositionRelativeFrom, VerticalPositionRelativeFrom, TextWrappingType, TextWrappingSide } from "docx";
 import type { GeneratedCV } from "@/lib/ai/generate-cv";
 import type { GeneratedLM } from "@/lib/ai/generate-lm";
 import {
@@ -66,7 +66,20 @@ export async function renderCVDocx(cv: GeneratedCV, language: DocLang = "fr"): P
 
   children.push(
     new Paragraph({
-      children: [new TextRun({ text: cv.identity.full_name, bold: true, size: SZ_NAME, characterSpacing: 30, font: FONT })],
+      children: [
+        ...(cv.photo ? [new ImageRun({
+          type: "jpg", data: Buffer.from(cv.photo.split(",")[1], "base64"),
+          transformation: { width: 80, height: 100 },
+          floating: {
+            horizontalPosition: { relative: HorizontalPositionRelativeFrom.MARGIN, align: "right" },
+            verticalPosition: { relative: VerticalPositionRelativeFrom.PARAGRAPH, offset: 0 },
+            wrap: { type: TextWrappingType.SQUARE, side: TextWrappingSide.LEFT },
+            margins: { left: 152400, bottom: 101600 },
+          },
+          altText: { title: "Photo de profil", description: "Portrait professionnel", name: "Photo" },
+        })] : []),
+        new TextRun({ text: cv.identity.full_name, bold: true, size: SZ_NAME, characterSpacing: 30, font: FONT }),
+      ],
       spacing: { after: 60 },
     })
   );

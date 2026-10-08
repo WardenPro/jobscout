@@ -46,6 +46,7 @@ export type Language = z.infer<typeof LanguageSchema>;
 export const ProfileSchema = z.object({
   id: z.number().optional(),
   full_name: z.string().nullable().optional(),
+  photo: z.string().max(500000).regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/).nullable().optional(),
   email: z.string().nullable().optional(),
   phone: z.string().nullable().optional(),
   location: z.string().nullable().optional(),

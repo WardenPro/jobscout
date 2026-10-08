@@ -4,6 +4,7 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS profile (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   full_name TEXT,
+  photo TEXT,
   email TEXT,
   phone TEXT,
   location TEXT,

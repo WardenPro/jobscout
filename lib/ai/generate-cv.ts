@@ -13,6 +13,8 @@ import type { OffreFiltered } from "@/lib/db/offres";
 import { cvPermitMention, isSwissOffer } from "@/lib/work-permit";
 
 export type GeneratedCV = {
+  /** Photo locale ajoutée après les appels IA, jamais incluse dans les prompts. */
+  photo?: string | null;
   identity: {
     full_name: string;
     email: string | null;
@@ -204,7 +206,7 @@ export async function generateCV(
   }
   // Relecture (orthographe, accords, typographie, faits non étayés) — jamais bloquante.
   const proofread = await proofreadCV(enforceAtsLimits(validated), profile, lang);
-  return withWorkPermit(proofread, profile, offre, lang);
+  return { ...withWorkPermit(proofread, profile, offre, lang), photo: profile.photo ?? null };
 }
 
 /**
