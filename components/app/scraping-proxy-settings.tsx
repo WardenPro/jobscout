@@ -48,18 +48,18 @@ export function ScrapingProxySettings() {
       <p className="mb-4 text-small text-textSecondary">Utilisez votre zone Web Unlocker API pour les pages publiques des sources choisies. Bright Data facture les appels selon votre contrat ; le plafond s'applique à chaque source et à chaque scan. Les limites habituelles du scan restent actives.</p>
       {!saved ? <Spinner /> : <>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="text-small" htmlFor="brightdata-mode">Utilisation
+          <div className="text-small"><label htmlFor="brightdata-mode">Utilisation</label>
             <select id="brightdata-mode" className="mt-1 w-full rounded-md border border-border bg-surface p-2" value={config.mode} disabled={busy} onChange={e => setConfig({ ...config, mode: e.target.value as ScrapingProxyMode })}>
               <option value="off">Désactivé</option><option value="fallback">Seulement en cas de blocage</option><option value="always">Toujours pour les sources choisies</option>
             </select>
-          </label>
+          </div>
           <label className="text-small" htmlFor="brightdata-zone">Zone Web Unlocker
             <Input id="brightdata-zone" className="mt-1" value={config.zone} disabled={busy} onChange={e => setConfig({ ...config, zone: e.target.value })} placeholder="Ex. jobup" spellCheck={false} />
           </label>
-          <label className="text-small" htmlFor="brightdata-key">Clé API Bright Data
-            <Input id="brightdata-key" className="mt-1" type="password" autoComplete="new-password" value={apiKey} disabled={busy} onChange={e => setApiKey(e.target.value)} placeholder={config.hasKey ? "Clé déjà configurée · laisser vide pour la conserver" : "Votre clé API"} />
-            <span className="mt-1 block text-caption text-textSecondary">{config.keySource === "env" ? "Clé chargée depuis le fichier d'environnement local." : "Clé conservée dans la base locale ; jamais renvoyée par l'API des paramètres."}</span>
-          </label>
+          <div className="text-small"><label htmlFor="brightdata-key">Clé API Bright Data</label>
+            <Input id="brightdata-key" aria-describedby="brightdata-key-help" className="mt-1" type="password" autoComplete="new-password" value={apiKey} disabled={busy} onChange={e => setApiKey(e.target.value)} placeholder={config.hasKey ? "Clé déjà configurée · laisser vide pour la conserver" : "Votre clé API"} />
+            <span id="brightdata-key-help" className="mt-1 block text-caption text-textSecondary">{config.keySource === "env" ? "Clé chargée depuis le fichier d'environnement local." : "Clé conservée dans la base locale ; jamais renvoyée par l'API des paramètres."}</span>
+          </div>
           <label className="text-small" htmlFor="brightdata-limit">Plafond d'appels par source et par scan
             <Input id="brightdata-limit" className="mt-1" type="number" min={1} max={100} value={config.maxRequests} disabled={busy} onChange={e => setConfig({ ...config, maxRequests: Number(e.target.value) })} />
           </label>
