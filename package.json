@@ -29,8 +29,8 @@
     "isomorphic-dompurify": "^2.16.0",
     "jsdom": "^28.1.0",
     "lucide-react": "^0.460.0",
-    "mammoth": "^1.8.0",
-    "next": "^15.1.0",
+    "mammoth": "^1.13.0",
+    "next": "^15.5.27",
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^4.7.76",
     "playwright": "^1.48.2",
@@ -55,6 +55,9 @@
     "vitest": "^5.0.3"
   },
   "overrides": {
+    "mammoth": {
+      "argparse": "2.0.1"
+    },
     "docx": {
       "nanoid": "^5.1.16"
     },

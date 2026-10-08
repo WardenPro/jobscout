@@ -24,6 +24,8 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
+      - name: Audit des dépendances de production
+        run: npm audit --omit=dev
       - name: Vérification des types
         run: npm run typecheck
       - name: Tests automatiques

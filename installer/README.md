@@ -227,9 +227,13 @@ Cette recette simule une installation vierge sur le poste Windows de validation
 avec données isolées et PATH minimal ; ce n'est pas un essai sur une autre
 machine ou dans une VM. Le paquet est non signé et n'est pas une release publiée.
 Les scans réels et appels payants IA/Bright Data n'ont pas été relancés.
-L'audit npm de production signale encore cinq entrées (Next.js, source-map-js,
-mammoth, argparse et sprintf-js) : la recette fonctionnelle ne vaut pas correction
-de ces alertes. Elles restent à traiter avant de revendiquer un audit sans alerte.
+L'audit npm initial signalait cinq entrées de production. Elles ont ensuite été
+éliminées par Next.js 15.5.27, source-map-js 1.2.2, Mammoth 1.13.0 et une surcharge
+limitée à Mammoth imposant argparse 2.0.1 : ce dernier n'utilise plus sprintf-js,
+pour lequel aucun correctif n'était publié. L'audit de production affiche désormais
+zéro vulnérabilité ; l'audit complet signale encore des dépendances de développement.
+La commande Mammoth et l'import d'un CV Word sont vérifiés pour préserver la
+compatibilité de cette surcharge. Rejouez l'audit avant de distribuer un paquet.
 
 ## Non embarqué, volontairement
 
