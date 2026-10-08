@@ -21,6 +21,8 @@ for (const k of [
   "JOBSCOUT_ANTHROPIC_BASE_URL",
   "JOBSCOUT_MODEL_OPUS",
   "JOBSCOUT_MODEL_SONNET",
+  "BRIGHTDATA_API_KEY",
+  "BRIGHTDATA_ZONE",
 ]) {
   delete process.env[k];
 }
