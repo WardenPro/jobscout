@@ -32,7 +32,7 @@ vi.mock("@/lib/scrapers/registry", () => {
     },
   });
   return {
-    VALID_SOURCES: ["wttj", "linkedin", "civiweb", "apec", "hellowork", "francetravail", "talent", "jobup", "jobsch", "jobroom"],
+    VALID_SOURCES: ["wttj", "linkedin", "civiweb", "apec", "hellowork", "francetravail", "talent", "jobup", "jobsch", "jobroom", "indeedch"],
     getEnabledScrapers: (ids: string[]) => ids.map(fake),
   };
 });
@@ -87,10 +87,21 @@ describe("runScan — sources scannées", () => {
     expect(await scannedSources({ onlySource: "talent" })).toEqual(["talent"]);
   });
 
+  it("Indeed Suisse est scanné quand il est coché dans le profil", async () => {
+    state.sourcesEnabled = ["indeedch", "jobup"];
+    expect(await scannedSources()).toEqual(["indeedch", "jobup"]);
+  });
+
+  it("Indeed Suisse peut être choisi seul sans modifier les sources du profil", async () => {
+    state.sourcesEnabled = ["francetravail"];
+    expect(await scannedSources({ onlySource: "indeedch" })).toEqual(["indeedch"]);
+    expect(state.sourcesEnabled).toEqual(["francetravail"]);
+  });
+
   it("les sources par défaut excluent LinkedIn (moteur), les suspendues et les sources opt-in", () => {
     // 3.4.13 : seules les sources dont les conditions n'interdisent pas l'extraction automatisée.
     expect(DEFAULT_SOURCE_IDS).toEqual(["francetravail"]);
-    for (const id of ["linkedin", "civiweb", "apec", "wttj", "hellowork", "talent", "jobup", "jobsch", "jobroom"]) {
+    for (const id of ["linkedin", "civiweb", "apec", "wttj", "hellowork", "talent", "jobup", "jobsch", "jobroom", "indeedch"]) {
       expect(DEFAULT_SOURCE_IDS).not.toContain(id);
     }
   });

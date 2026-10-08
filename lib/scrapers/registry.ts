@@ -10,6 +10,7 @@ import { talentScraper } from "./talent";
 import { jobupScraper, jobschScraper } from "./jobcloud";
 import { jobroomScraper } from "./jobroom";
 import { withProxyScope } from "./source-fetch";
+import { indeedScraper } from "./indeed";
 
 export const scrapers: Record<string, Scraper> = {
   wttj: wttjScraper,
@@ -22,6 +23,7 @@ export const scrapers: Record<string, Scraper> = {
   jobup: jobupScraper,
   jobsch: jobschScraper,
   jobroom: jobroomScraper,
+  indeedch: indeedScraper,
 };
 
 export const VALID_SOURCES = Object.keys(scrapers);
