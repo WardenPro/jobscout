@@ -39,7 +39,7 @@ try {
   fs.copyFileSync(local, desktop);
   fs.chmodSync(desktop, 0o755);
   console.log(`Copie sur le Bureau : ${desktop}`);
-  console.log("Double-cliquez sur « JobScout » sur le Bureau pour démarrer JobScout.");
+  console.log("Double-cliquez sur « JobScout.command » sur le Bureau (le Finder peut l'afficher « JobScout ») pour démarrer JobScout.");
 } catch {
   console.log("Le Bureau n'est pas accessible (macOS a peut-être demandé l'autorisation et elle a été refusée).");
   console.log("Faites glisser JobScout.command du dossier du projet vers le Bureau ou le Dock.");

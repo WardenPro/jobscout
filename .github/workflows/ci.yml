@@ -17,7 +17,8 @@ jobs:
       matrix:
         # macos-latest = Mac à puce Apple (arm64).
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node: ["22", "24"]
+        # 26 : future LTS (28/10/2026), proposée par le gros bouton de nodejs.org.
+        node: ["22", "24", "26"]
         include:
           # Mac Intel (x64).
           - os: macos-15-intel
@@ -56,13 +57,17 @@ jobs:
         with:
           node-version: "24"
       - name: Système
-        run: sw_vers; uname -m; node -v; npm -v
+        run: |
+          sw_vers; uname -m; node -v; npm -v
+          echo "::notice title=Système (${{ matrix.os }})::macOS $(sw_vers -productVersion), $(uname -m), Node $(node -v), npm $(npm -v)"
       - name: npm ci (durée mesurée)
         run: |
           start=$(date +%s)
           npm ci 2>&1 | tee npmci.log
           echo "Durée de npm ci : $(( $(date +%s) - start )) s"
-          grep -E "^added [0-9]+ packages" npmci.log
+          added=$(grep -E "^added [0-9]+ packages" npmci.log)
+          echo "$added"
+          echo "::notice title=npm ci (${{ matrix.os }})::$(( $(date +%s) - start )) s — $added"
       - name: npm run dev et pages principales
         run: |
           npm run dev > dev.log 2>&1 &
@@ -85,6 +90,7 @@ jobs:
           echo "$state"
           echo "$state" | grep -q '"installed":true' || { cat dev.log; exit 1; }
           echo "Durée de l'installation du moteur : $(( $(date +%s) - start )) s"
+          echo "::notice title=Moteur LinkedIn (${{ matrix.os }})::installé par le bouton en $(( $(date +%s) - start )) s ; $(du -sh data/browsers | cut -f1) sur le disque"
       - name: Moteur LinkedIn lancé (Chromium sans fenêtre)
         # Le bouton de l'application l'installe dans data/browsers (lib/scrapers/browser-engine.ts).
         run: |
