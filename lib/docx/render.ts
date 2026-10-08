@@ -13,20 +13,20 @@ import {
 } from "@/lib/text/typography";
 import { LABELS, letterDateLine, type DocLang } from "@/lib/text/lang";
 
-const FONT = "Calibri";
+const FONT = "Times New Roman";
 
 // Half-points: 18 = 9pt, 19 = 9.5pt, 20 = 10pt
-const SZ_BODY = 18;
-const SZ_NAME = 26;
-const SZ_SECTION = 20;
+const SZ_BODY = 21;
+const SZ_NAME = 40;
+const SZ_SECTION = 23;
 
 type Ty = (s: string | null | undefined) => string;
 
 function sectionTitle(label: string): Paragraph {
   return new Paragraph({
-    spacing: { before: 200, after: 80 },
+    spacing: { before: 200, after: 100 },
     children: [
-      new TextRun({ text: label.toUpperCase(), bold: true, size: SZ_SECTION, characterSpacing: 30, font: FONT }),
+      new TextRun({ text: label.toUpperCase(), bold: true, size: SZ_SECTION, font: FONT }),
     ],
   });
 }
@@ -49,8 +49,8 @@ function headerLine(title: string, dates: string, extra?: string | null): Paragr
   return new Paragraph({
     spacing: { before: 100, after: 30 },
     children: [
-      new TextRun({ text: title, bold: true, size: SZ_BODY + 1, font: FONT }),
-      new TextRun({ text: tail ? `  |  ${tail}` : "", italics: true, size: SZ_BODY, color: "3a3a3c", font: FONT }),
+      new TextRun({ text: title, bold: true, size: SZ_BODY, font: FONT }),
+      new TextRun({ text: tail.replace("  |  ", " · "), break: tail ? 1 : 0, size: 19, color: "555555", font: FONT }),
     ],
   });
 }
@@ -69,7 +69,7 @@ export async function renderCVDocx(cv: GeneratedCV, language: DocLang = "fr"): P
       children: [
         ...(cv.photo ? [new ImageRun({
           type: "jpg", data: Buffer.from(cv.photo.split(",")[1], "base64"),
-          transformation: { width: 80, height: 100 },
+          transformation: { width: 88, height: 110 },
           floating: {
             horizontalPosition: { relative: HorizontalPositionRelativeFrom.MARGIN, align: "right" },
             verticalPosition: { relative: VerticalPositionRelativeFrom.PARAGRAPH, offset: 0 },
@@ -78,24 +78,26 @@ export async function renderCVDocx(cv: GeneratedCV, language: DocLang = "fr"): P
           },
           altText: { title: "Photo de profil", description: "Portrait professionnel", name: "Photo" },
         })] : []),
-        new TextRun({ text: cv.identity.full_name, bold: true, size: SZ_NAME, characterSpacing: 30, font: FONT }),
+        new TextRun({ text: cv.identity.full_name.toUpperCase(), bold: true, size: SZ_NAME, font: FONT }),
       ],
       spacing: { after: 60 },
     })
   );
+  if (cv.headline) children.push(new Paragraph({
+    children: [new TextRun({ text: cv.headline, size: 24, font: FONT })], spacing: { after: 160 },
+  }));
 
   const contact = [
-    cv.identity.phone,
-    cv.identity.email,
+    [cv.identity.phone, cv.identity.email].filter(Boolean).join(" · "),
     cv.identity.location,
     displayUrl(cv.identity.linkedin_url),
     displayUrl(cv.identity.portfolio_url),
   ].filter(Boolean) as string[];
-  if (contact.length) {
+  for (const line of contact) {
     children.push(
       new Paragraph({
-        children: [new TextRun({ text: contact.join("  |  "), size: SZ_BODY, font: FONT })],
-        spacing: { after: 200 },
+        children: [new TextRun({ text: line, size: 19, color: "444444", font: FONT })],
+        spacing: { after: 40 },
       })
     );
   }
@@ -104,7 +106,7 @@ export async function renderCVDocx(cv: GeneratedCV, language: DocLang = "fr"): P
     children.push(sectionTitle(L.profile));
     children.push(
       new Paragraph({
-        alignment: AlignmentType.JUSTIFIED,
+        alignment: AlignmentType.LEFT,
         children: [new TextRun({ text: ty(cv.summary), size: SZ_BODY, font: FONT })],
         spacing: { after: 80 },
       })
@@ -144,12 +146,12 @@ export async function renderCVDocx(cv: GeneratedCV, language: DocLang = "fr"): P
         new Paragraph({
           spacing: { before: 80, after: 20 },
           children: [
-            new TextRun({ text: e.school, bold: true, size: SZ_BODY + 1, font: FONT }),
+            new TextRun({ text: e.school, bold: true, size: SZ_BODY, font: FONT }),
             new TextRun({
-              text: `  |  ${eduYearRange(e.start_date, e.end_date, language)}`,
-              italics: true,
-              size: SZ_BODY,
-              color: "3a3a3c",
+              text: eduYearRange(e.start_date, e.end_date, language),
+              break: 1,
+              size: 19,
+              color: "555555",
               font: FONT,
             }),
           ],
@@ -160,7 +162,7 @@ export async function renderCVDocx(cv: GeneratedCV, language: DocLang = "fr"): P
         children.push(
           new Paragraph({
             spacing: { after: 30 },
-            children: [new TextRun({ text: ty(degreeLine), italics: true, size: SZ_BODY, font: FONT })],
+            children: [new TextRun({ text: ty(degreeLine), size: SZ_BODY, color: "444444", font: FONT })],
           })
         );
       }
@@ -169,14 +171,14 @@ export async function renderCVDocx(cv: GeneratedCV, language: DocLang = "fr"): P
   }
 
   if (cv.sections.skills_flat?.length || cv.sections.languages.length) {
-    children.push(sectionTitle(L.skills));
+    if (cv.sections.skills_flat?.length) children.push(sectionTitle(language === "en" ? "Skills" : "Compétences"));
     if (cv.sections.skills_flat?.length) {
       children.push(
         new Paragraph({
           spacing: { after: 60 },
           children: [
             new TextRun({
-              text: cv.sections.skills_flat.map((s) => capitalizeFirst(s)).join(" | "),
+              text: cv.sections.skills_flat.map((s) => capitalizeFirst(s)).join(", "),
               size: SZ_BODY,
               font: FONT,
             }),
@@ -185,16 +187,16 @@ export async function renderCVDocx(cv: GeneratedCV, language: DocLang = "fr"): P
       );
     }
     if (cv.sections.languages.length) {
+      children.push(sectionTitle(L.languages));
       children.push(
         new Paragraph({
           children: [
             new TextRun({
               text: ty(
-                `${L.languages} : ${cv.sections.languages
+                `${cv.sections.languages
                   .map((l) => formatLanguage(l.name, l.level))
-                  .join(" | ")}`
+                  .join(" · ")}`
               ),
-              bold: true,
               size: SZ_BODY,
               font: FONT,
             }),
@@ -206,8 +208,8 @@ export async function renderCVDocx(cv: GeneratedCV, language: DocLang = "fr"): P
 
   return await Packer.toBuffer(
     new Document({
-      styles: { default: { document: { run: { font: FONT, size: SZ_BODY } } } },
-      sections: [{ properties: { page: { margin: { top: 567, right: 720, bottom: 567, left: 720 } } }, children }],
+      styles: { default: { document: { run: { font: FONT, size: SZ_BODY }, paragraph: { spacing: { line: 278 } } } } },
+      sections: [{ properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 680, right: 960, bottom: 680, left: 960 } } }, children }],
     })
   );
 }
@@ -233,7 +235,7 @@ export async function renderLMDocx(args: {
 
   const SZ = 21; // 10.5pt
   const body = (text: string, opts: { bold?: boolean } = {}) =>
-    new TextRun({ text, size: SZ, font: FONT, bold: opts.bold });
+    new TextRun({ text, size: SZ, font: "Calibri", bold: opts.bold });
 
   const children: Paragraph[] = [];
 
@@ -279,7 +281,7 @@ export async function renderLMDocx(args: {
 
   return await Packer.toBuffer(
     new Document({
-      styles: { default: { document: { run: { font: FONT, size: SZ } } } },
+      styles: { default: { document: { run: { font: "Calibri", size: SZ } } } },
       sections: [{ properties: { page: { margin: { top: 850, right: 950, bottom: 850, left: 950 } } }, children }],
     })
   );

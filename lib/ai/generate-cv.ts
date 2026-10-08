@@ -11,8 +11,10 @@ import { detectDocLanguage, sourceLanguageHint, type DocLang } from "@/lib/text/
 import type { ProfileFull } from "@/lib/cv/types";
 import type { OffreFiltered } from "@/lib/db/offres";
 import { cvPermitMention, isSwissOffer } from "@/lib/work-permit";
+import { cleanJobTitle } from "@/lib/text/typography";
 
 export type GeneratedCV = {
+  headline?: string;
   /** Photo locale ajoutée après les appels IA, jamais incluse dans les prompts. */
   photo?: string | null;
   identity: {
@@ -206,7 +208,7 @@ export async function generateCV(
   }
   // Relecture (orthographe, accords, typographie, faits non étayés) — jamais bloquante.
   const proofread = await proofreadCV(enforceAtsLimits(validated), profile, lang);
-  return { ...withWorkPermit(proofread, profile, offre, lang), photo: profile.photo ?? null };
+  return { ...withWorkPermit(proofread, profile, offre, lang), photo: profile.photo ?? null, headline: cleanJobTitle(offre.title) };
 }
 
 /**

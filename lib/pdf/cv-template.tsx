@@ -26,42 +26,43 @@ Font.registerHyphenationCallback((word) => [word]);
 
 const cvStyles = StyleSheet.create({
   page: {
-    paddingHorizontal: 42,
-    paddingVertical: 30,
-    fontFamily: "Helvetica",
-    fontSize: 9,
-    lineHeight: 1.22,
-    color: "#000000",
+    paddingHorizontal: 48,
+    paddingVertical: 34,
+    fontFamily: "Times-Roman",
+    fontSize: 10.5,
+    lineHeight: 1.16,
+    color: "#242424",
   },
   name: {
-    fontSize: 14,
-    fontFamily: "Helvetica-Bold",
-    letterSpacing: 1.2,
+    fontSize: 20,
+    fontFamily: "Times-Bold",
+    letterSpacing: 0.3,
     textTransform: "uppercase",
-    marginBottom: 2,
+    marginBottom: 7,
   },
-  contactLine: { fontSize: 9, color: "#202020", marginBottom: 8 },
+  headline: { fontSize: 12, marginBottom: 8 },
+  contactLine: { fontSize: 9.5, color: "#444444", marginBottom: 2 },
   sectionTitle: {
-    fontSize: 10,
-    fontFamily: "Helvetica-Bold",
+    fontSize: 11.5,
+    fontFamily: "Times-Bold",
     textTransform: "uppercase",
-    letterSpacing: 1,
-    marginTop: 6,
-    marginBottom: 3,
+    letterSpacing: 0.2,
+    marginTop: 10,
+    marginBottom: 5,
   },
-  summary: { fontSize: 9, marginBottom: 2, textAlign: "justify" },
-  expBlock: { marginTop: 3 },
-  expHeaderLine: { fontSize: 9.5, marginBottom: 1 },
-  expTitleBold: { fontFamily: "Helvetica-Bold" },
-  expDates: { fontStyle: "italic", color: "#3a3a3c" },
-  bullet: { flexDirection: "row", marginBottom: 0.5, paddingLeft: 6 },
-  bulletDot: { width: 7, fontSize: 9 },
-  bulletText: { flex: 1, fontSize: 9 },
-  eduBlock: { marginTop: 3 },
-  eduSchool: { fontSize: 9.5, marginBottom: 1 },
-  eduDegree: { fontSize: 9, fontStyle: "italic", color: "#202020", marginBottom: 1 },
-  skillsFlow: { fontSize: 9, marginTop: 2, marginBottom: 2 },
-  languagesLine: { fontSize: 9, fontFamily: "Helvetica-Bold" },
+  summary: { fontSize: 10.5, marginBottom: 2 },
+  expBlock: { marginTop: 5 },
+  expHeaderLine: { fontSize: 10.5, marginBottom: 2 },
+  expTitleBold: { fontFamily: "Times-Bold" },
+  expDates: { fontSize: 9.5, color: "#555555", marginBottom: 3 },
+  bullet: { flexDirection: "row", marginBottom: 1.5, paddingLeft: 1 },
+  bulletDot: { width: 10, fontSize: 10.5 },
+  bulletText: { flex: 1, fontSize: 10.5 },
+  eduBlock: { marginTop: 4 },
+  eduSchool: { fontSize: 10.5, marginBottom: 2 },
+  eduDegree: { fontSize: 10.5, color: "#444444", marginBottom: 2 },
+  skillsFlow: { fontSize: 10.5, marginBottom: 3 },
+  languagesLine: { fontSize: 10.5 },
 });
 
 type Ty = (s: string | null | undefined) => string;
@@ -85,8 +86,7 @@ export function CVDocument({ cv, language = "fr" }: { cv: GeneratedCV; language?
   const L = LABELS[language];
   const ty = typographyFor(language);
   const contact = [
-    cv.identity.phone,
-    cv.identity.email,
+    [cv.identity.phone, cv.identity.email].filter(Boolean).join("  ·  "),
     cv.identity.location,
     displayUrl(cv.identity.linkedin_url),
     displayUrl(cv.identity.portfolio_url),
@@ -96,12 +96,13 @@ export function CVDocument({ cv, language = "fr" }: { cv: GeneratedCV; language?
   return (
     <Document>
       <Page size="A4" style={cvStyles.page}>
-        <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: cv.photo ? 8 : 0 }} wrap={false}>
+        <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 5 }} wrap={false}>
           <View style={{ flex: 1, paddingRight: cv.photo ? 14 : 0 }}>
             <Text style={cvStyles.name}>{cv.identity.full_name}</Text>
-            {contact.length > 0 && <Text style={cvStyles.contactLine}>{contact.join("  |  ")}</Text>}
+            {cv.headline && <Text style={cvStyles.headline}>{cv.headline}</Text>}
+            {contact.map((line, i) => <Text key={i} style={cvStyles.contactLine}>{line}</Text>)}
           </View>
-          {cv.photo && <Image src={cv.photo} style={{ width: 60, height: 75, objectFit: "cover" }} />}
+          {cv.photo && <Image src={cv.photo} style={{ width: 66, height: 82.5, objectFit: "cover", borderRadius: 4 }} />}
         </View>
 
         {cv.summary && (
@@ -121,11 +122,8 @@ export function CVDocument({ cv, language = "fr" }: { cv: GeneratedCV; language?
                     {cleanJobTitle(e.title)}
                     {e.company ? ` — ${e.company}` : ""}
                   </Text>
-                  <Text style={cvStyles.expDates}>
-                    {`  |  ${expDateRange(e.start_date, e.end_date, language)}`}
-                    {e.location ? `  |  ${e.location}` : ""}
-                  </Text>
                 </Text>
+                <Text style={cvStyles.expDates}>{[expDateRange(e.start_date, e.end_date, language), e.location].filter(Boolean).join(" · ")}</Text>
                 <Bullets items={e.bullet_points ?? []} ty={ty} />
               </View>
             ))}
@@ -142,10 +140,8 @@ export function CVDocument({ cv, language = "fr" }: { cv: GeneratedCV; language?
                     {p.name}
                     {p.role ? ` — ${p.role}` : ""}
                   </Text>
-                  <Text style={cvStyles.expDates}>
-                    {`  |  ${expDateRange(p.start_date, p.end_date, language)}`}
-                  </Text>
                 </Text>
+                <Text style={cvStyles.expDates}>{expDateRange(p.start_date, p.end_date, language)}</Text>
                 <Bullets items={p.bullet_points ?? []} ty={ty} />
               </View>
             ))}
@@ -159,10 +155,8 @@ export function CVDocument({ cv, language = "fr" }: { cv: GeneratedCV; language?
               <View key={i} style={cvStyles.eduBlock} wrap={false}>
                 <Text style={cvStyles.eduSchool}>
                   <Text style={cvStyles.expTitleBold}>{e.school}</Text>
-                  <Text style={cvStyles.expDates}>
-                    {`  |  ${eduYearRange(e.start_date, e.end_date, language)}`}
-                  </Text>
                 </Text>
+                <Text style={cvStyles.expDates}>{eduYearRange(e.start_date, e.end_date, language)}</Text>
                 {(e.degree || e.field) && (
                   <Text style={cvStyles.eduDegree}>{ty([e.degree, e.field].filter(Boolean).join(" — "))}</Text>
                 )}
@@ -174,20 +168,23 @@ export function CVDocument({ cv, language = "fr" }: { cv: GeneratedCV; language?
 
         {(cv.sections.skills_flat?.length || cv.sections.languages.length) ? (
           <>
-            <Text style={cvStyles.sectionTitle}>{L.skills}</Text>
+            {cv.sections.skills_flat?.length > 0 && <Text style={cvStyles.sectionTitle}>{language === "en" ? "Skills" : "Compétences"}</Text>}
             {cv.sections.skills_flat?.length > 0 && (
               <Text style={cvStyles.skillsFlow}>
-                {cv.sections.skills_flat.map((s) => capitalizeFirst(s)).join(" | ")}
+                {cv.sections.skills_flat.map((s) => capitalizeFirst(s)).join(", ")}
               </Text>
             )}
             {cv.sections.languages.length > 0 && (
+              <>
+              <Text style={cvStyles.sectionTitle}>{L.languages}</Text>
               <Text style={cvStyles.languagesLine}>
                 {ty(
-                  `${L.languages} : ${cv.sections.languages
+                  `${cv.sections.languages
                     .map((l) => formatLanguage(l.name, l.level))
-                    .join(" | ")}`
+                    .join(" · ")}`
                 )}
               </Text>
+              </>
             )}
           </>
         ) : null}
