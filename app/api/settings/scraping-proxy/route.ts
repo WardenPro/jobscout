@@ -4,7 +4,7 @@ import { verifyBrightData } from "@/lib/scrapers/source-fetch";
 import { ZodError } from "zod";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 210;
 
 export async function GET() {
   return NextResponse.json(publicScrapingProxyConfig(), { headers: { "cache-control": "no-store" } });

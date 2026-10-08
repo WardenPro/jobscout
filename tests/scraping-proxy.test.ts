@@ -190,6 +190,48 @@ describe("transport des pages publiques", () => {
     });
     expect(fetch).toHaveBeenCalledTimes(1);
   });
+  it("un 502 enveloppé du service explique l'élément manquant et cesse les appels suivants", async () => {
+    saveScrapingProxySettings({ ...settings, mode: "always" }, KEY);
+    const fetch = vi.fn(async () => new Response(JSON.stringify({ status_code: 502, body: "", headers: {
+      "X-Brd-Error-Code": "expect_element", "X-Brd-Error": `waiting for selector \"${KEY}\" failed: timeout 60000ms exceeded`,
+    } })));
+    vi.stubGlobal("fetch", fetch);
+    await scope(async () => {
+      await expect(sourceFetch("jobup", URL)).rejects.toThrow(/HTTP 502.*élément attendu.*absent/);
+      await expect(sourceFetch("jobup", URL)).rejects.not.toThrow(KEY);
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it("un 502 du site sans erreur Bright Data permet de charger l'offre suivante", async () => {
+    saveScrapingProxySettings({ ...settings, mode: "always" }, KEY);
+    const fetch = vi.fn().mockResolvedValueOnce(unlocked(502, "Site momentanément indisponible")).mockResolvedValueOnce(unlocked());
+    vi.stubGlobal("fetch", fetch);
+    await scope(async () => {
+      expect((await sourceFetch("jobup", URL)).status).toBe(502);
+      expect((await sourceFetch("jobup", URL)).status).toBe(200);
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+  it.each(["reject_block", "resolve_failed_akamai_interstitial"])("explique la protection non résolue (%s) et cesse les appels", async code => {
+    saveScrapingProxySettings({ ...settings, mode: "always" }, KEY);
+    const fetch = vi.fn(async () => new Response(JSON.stringify({ status_code: 502, body: "", headers: { "x-brd-error-code": code } })));
+    vi.stubGlobal("fetch", fetch);
+    await scope(async () => {
+      await expect(sourceFetch("jobup", URL)).rejects.toThrow(/page de protection.*pas pu résoudre/);
+      await expect(sourceFetch("jobup", URL)).rejects.toThrow(/page de protection/);
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it("ne recopie pas une erreur distante inconnue et cesse les appels", async () => {
+    saveScrapingProxySettings({ ...settings, mode: "always" }, KEY);
+    const fetch = vi.fn(async () => new Response(JSON.stringify({ status_code: 503, body: KEY, headers: { "x-brd-error-code": KEY, "x-brd-error": KEY } })));
+    vi.stubGlobal("fetch", fetch);
+    await scope(async () => {
+      await expect(sourceFetch("jobup", URL)).rejects.toThrow(/HTTP 503/);
+      await expect(sourceFetch("jobup", URL)).rejects.not.toThrow(KEY);
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
   it("ne traite pas une page CAPTCHA du relais en HTTP 200 comme une annonce", async () => {
     saveScrapingProxySettings({ ...settings, mode: "always" }, KEY);
     const fetch = vi.fn(async () => unlocked(200, '<title>Just a moment...</title>')); vi.stubGlobal("fetch", fetch);

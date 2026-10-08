@@ -6,6 +6,9 @@ import type { Scraper } from "./base";
 
 const ENDPOINT = "https://api.brightdata.com/request";
 const MAX_BODY = 4_000_000;
+// Web Unlocker peut attendre ses sélecteurs jusqu'à 150 s : laisser revenir
+// son diagnostic plutôt que masquer l'échec par un abandon local à 90 s.
+const UNLOCK_TIMEOUT = 180_000;
 type Scope = { used: number; stopped?: string; proxyActive: boolean };
 // Next duplique les modules entre routes ; une portée par générateur évite de
 // partager un plafond entre deux scans, ou de le réinitialiser entre les pages.
@@ -27,23 +30,44 @@ function isChallenge(html: string): boolean {
     /id\s*=\s*["'](?:challenge-form|cf-challenge-running|captcha-form)["']/i.test(head);
 }
 
-async function unlock(url: string, config: ScrapingProxySettings & { apiKey: string }, signal?: AbortSignal | null): Promise<Response> {
+function relayErrorHint(getHeader: (name: string) => string | null): string | null {
+  const code = getHeader("x-brd-error-code") || getHeader("x-brd-err-code");
+  const reason = getHeader("x-brd-error") || getHeader("x-brd-err-msg");
+  if (!code && !reason) return null;
+  // Ne jamais recopier les messages distants : ils peuvent contenir une URL,
+  // une clé ou d'autres données. Seuls les diagnostics connus deviennent du texte.
+  if (code === "expect_element" || /waiting for selector.*failed.*timeout/i.test(reason ?? "")) {
+    return "La page a été chargée, mais l'élément attendu par Bright Data est absent. Contactez le support Bright Data pour cette URL.";
+  }
+  if (code === "feature_not_active") return "L'option Web Unlocker demandée n'est pas activée dans cette zone.";
+  if (code === "premium") return "Ce domaine nécessite une autorisation Premium dans la zone Bright Data.";
+  if (code === "no_peers") return "Aucun relais disponible pour la localisation demandée.";
+  if (code === "reject_block" || code?.startsWith("resolve_failed_")) return "Le site renvoie une page de protection que Bright Data n'a pas pu résoudre.";
+  if (code === "navigation_timeout" || code === "domcontentloaded_event_timeout") return "Bright Data n'a pas terminé le chargement de la page dans son délai.";
+  return "Bright Data n'a pas pu récupérer cette page. Vérifiez la zone ou contactez son support.";
+}
+
+async function unlock(url: string, config: ScrapingProxySettings & { apiKey: string }): Promise<Response> {
   if (!config.apiKey || !config.zone) throw new Error("Bright Data : clé API ou zone manquante dans Profil › Paramètres.");
+  const signal = AbortSignal.timeout(UNLOCK_TIMEOUT);
+  const connectionError = () => new Error(signal.aborted
+    ? "Bright Data : délai de 180 secondes dépassé. Aucun nouvel appel pour cette source pendant ce scan."
+    : "Bright Data : connexion impossible. Aucun nouvel appel pour cette source pendant ce scan.");
   let response: Response;
   try {
     response = await fetch(ENDPOINT, {
       method: "POST", headers: { authorization: `Bearer ${config.apiKey}`, "content-type": "application/json" },
       body: JSON.stringify({ zone: config.zone, url, format: "json" }),
-      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(90_000)]) : AbortSignal.timeout(90_000),
+      signal,
       cache: "no-store", redirect: "error",
     });
   } catch {
     // Ne jamais exposer une exception de transport pouvant contenir la clé.
-    throw new Error("Bright Data : connexion impossible ou délai dépassé. Aucun nouvel appel pour cette source pendant ce scan.");
+    throw connectionError();
   }
   if (response.status !== 200) {
     void response.body?.cancel();
-    const hint = response.status === 401 ? "Vérifiez la clé API." : response.status === 402 ? "Vérifiez le crédit du compte." : response.status === 403 ? "Vérifiez l'accès de la clé à cette zone." : "Vérifiez la zone et le compte.";
+    const hint = relayErrorHint(name => response.headers.get(name)) ?? (response.status === 401 ? "Vérifiez la clé API." : response.status === 402 ? "Vérifiez le crédit du compte." : response.status === 403 ? "Vérifiez l'accès de la clé à cette zone." : "Vérifiez la zone et le compte.");
     throw new Error(`Bright Data HTTP ${response.status}. ${hint} Aucun nouvel appel pour cette source pendant ce scan.`);
   }
   let data: { status_code?: unknown; status?: unknown; body?: unknown; headers?: Record<string, unknown> };
@@ -54,16 +78,24 @@ async function unlock(url: string, config: ScrapingProxySettings & { apiKey: str
     const status = data.status_code ?? data.status;
     if (!Number.isInteger(status) || Number(status) < 200 || Number(status) > 599 || typeof data.body !== "string") throw new Error();
   } catch {
+    if (signal.aborted) throw connectionError();
     throw new Error("Bright Data : réponse invalide ou trop volumineuse. Aucun nouvel appel pour cette source pendant ce scan.");
   }
   const status = Number(data.status_code ?? data.status);
+  const getHeader = (name: string): string | null => {
+    if (!data.headers || typeof data.headers !== "object" || Array.isArray(data.headers)) return null;
+    const value = Object.entries(data.headers).find(([key]) => key.toLowerCase() === name)?.[1];
+    return typeof value === "string" ? value : null;
+  };
   if (status === 407) {
-    const reason = data.headers?.["x-brd-error"];
+    const reason = getHeader("x-brd-error");
     const hint = typeof reason === "string" && reason.includes("ip_forbidden")
       ? "L'adresse IP de ce PC n'est pas autorisée dans la zone Bright Data. Autorisez-la dans votre compte puis relancez."
       : "Vérifiez les autorisations de la zone et du compte Bright Data.";
     throw new Error(`Bright Data HTTP 407. ${hint} Aucun nouvel appel pour cette source pendant ce scan.`);
   }
+  const hint = status >= 400 ? relayErrorHint(getHeader) : null;
+  if (hint) throw new Error(`Bright Data HTTP ${status}. ${hint} Aucun nouvel appel pour cette source pendant ce scan.`);
   return new Response([204, 205, 304].includes(status) ? null : data.body as string, {
     status, headers: { "content-type": "text/html; charset=utf-8" },
   });
