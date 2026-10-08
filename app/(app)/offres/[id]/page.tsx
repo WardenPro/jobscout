@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LocationLink } from "@/components/app/location-link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight, AlertTriangle, Banknote, CalendarDays, MapPin } from "lucide-react";
 import { getOffre } from "@/lib/db/offres";
@@ -60,7 +61,7 @@ export default async function OffreDetailPage({ params }: { params: Promise<{ id
           </div>
         </div>
         <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-small text-textSecondary">
-          {(offre.location || offre.country) && <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" /> {offre.location ?? offre.country}{offre.location && offre.country && offre.location !== offre.country ? `, ${offre.country}` : ""}</span>}
+          <LocationLink location={offre.location} country={offre.country} showCountry />
           {offre.posted_at && <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-4 w-4" /> {formatRelativeDate(offre.posted_at)}</span>}
           {offre.salary && <span className="inline-flex items-center gap-1.5"><Banknote className="h-4 w-4" /> {offre.salary}</span>}
           <span className="font-medium">Score {score.label.toLowerCase()}</span>

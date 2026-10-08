@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { Check, FileText, Mail, MessageSquare, Download, Sparkles, FolderOpen, ArrowUpRight, BookmarkPlus, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,8 @@ export function ActionsPanel({
 }) {
   const [docs, setDocs] = useState<DocsState>(initial);
   const [allLoading, setAllLoading] = useState(false);
+  const generationPending = useRef(false);
+  const [generationUnknown, setGenerationUnknown] = useState(false);
   const [msgLoading, setMsgLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [msgPreview, setMsgPreview] = useState<{ text: string; length: number } | null>(null);
@@ -82,6 +84,8 @@ export function ActionsPanel({
   const busy = applyLoading || trackLoading;
 
   async function generateAll() {
+    if (generationPending.current || generationUnknown) return;
+    generationPending.current = true;
     setAllLoading(true);
     setError(null);
     try {
@@ -109,7 +113,8 @@ export function ActionsPanel({
       }
       const data = await res.json().catch(() => null);
       if (!data?.cv || !data?.lm) {
-        setError("Réponse du serveur illisible — réessayez.");
+        setGenerationUnknown(true);
+        setError("Réponse du serveur illisible. Actualisez la page pour vérifier si les documents ont été enregistrés avant de relancer une génération facturée.");
         return;
       }
       setDocs((d) => ({
@@ -123,9 +128,11 @@ export function ActionsPanel({
         setFolder(data.folder);
         openFolder(data.folder);
       }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur réseau");
+    } catch {
+      setGenerationUnknown(true);
+      setError("Connexion au serveur local interrompue. Des appels IA peuvent déjà avoir été facturés. Attendez que le serveur soit disponible, puis actualisez la page pour vérifier les documents avant de relancer.");
     } finally {
+      generationPending.current = false;
       setAllLoading(false);
     }
   }
@@ -257,7 +264,7 @@ export function ActionsPanel({
         size="lg"
         variant={docsReady ? "secondary" : "primary"}
         className="w-full"
-        disabled={allLoading}
+        disabled={allLoading || generationUnknown}
       >
         {allLoading ? <Spinner size={16} className="text-current" /> : <Sparkles className="h-4 w-4" />}
         {allLoading

@@ -12,6 +12,7 @@ import { CONTRACT_LABELS, CONTRACT_ORDER, type ContractCategory } from "@/lib/co
 import { SOURCES_META } from "@/lib/sources-meta";
 import { CANTON_CODES, SWISS_CANTONS } from "@/lib/swiss-geography";
 import { LanguageRequirements } from "@/components/app/language-requirements";
+import { LocationLink } from "@/components/app/location-link";
 import { isSwissOffer } from "@/lib/work-permit";
 import { countryMatcher } from "@/lib/countries";
 
@@ -384,7 +385,7 @@ function OfferPreview({ offer, commuteOrigin }: { offer: OffreSummary; commuteOr
         </span>
       </div>
       <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 border-b border-border pb-5 text-small text-textSecondary">
-        {(offer.location || offer.country) && <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" /> {offer.location || offer.country}</span>}
+        <LocationLink location={offer.location} country={offer.country} />
         {offer.posted_at && <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-4 w-4" /> {formatRelativeDate(offer.posted_at)}</span>}
         {offer.contract_category !== "autre" && <span>{CONTRACT_LABELS[offer.contract_category]}</span>}
       </div>

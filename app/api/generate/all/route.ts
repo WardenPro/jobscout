@@ -13,17 +13,28 @@ import { countryNameEnglish } from "@/lib/countries";
 export const runtime = "nodejs";
 export const maxDuration = 180;
 
+// Partagé entre les bundles serveur : un second onglet ne doit pas doubler
+// les appels facturés d'une génération encore en cours.
+const generationState = globalThis as typeof globalThis & { __jobscoutGeneratingOffers?: Set<number> };
+const generatingOffers = generationState.__jobscoutGeneratingOffers ??= new Set<number>();
+
 /**
  * Generate CV + LM together in parallel.
  * Returns the document IDs for both PDF and DOCX of each.
  */
 export async function POST(req: NextRequest) {
+  let lockedOffer: number | null = null;
   try {
     const { offreId } = await req.json();
     const profile = getProfile();
     if (!profile) return NextResponse.json({ error: "Profil introuvable" }, { status: 400 });
     const offre = getOffre(Number(offreId));
     if (!offre) return NextResponse.json({ error: "Offre introuvable" }, { status: 404 });
+    if (generatingOffers.has(offre.id)) {
+      return NextResponse.json({ error: "Une génération est déjà en cours pour cette offre. Patientez puis actualisez la page pour retrouver les documents." }, { status: 409 });
+    }
+    generatingOffers.add(offre.id);
+    lockedOffer = offre.id;
 
     const identity = {
       full_name: profile.full_name ?? "",
@@ -130,5 +141,7 @@ export async function POST(req: NextRequest) {
       { error: genericFailure("generate/all", e) },
       { status: 500 }
     );
+  } finally {
+    if (lockedOffer !== null) generatingOffers.delete(lockedOffer);
   }
 }
