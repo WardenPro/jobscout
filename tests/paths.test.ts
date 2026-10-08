@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { envPath, homePath } from "@/lib/paths";
+import { envPath, homePath, resolveUserFolderInput } from "@/lib/paths";
 
 describe("chemins du poste (envPath, homePath)", () => {
   const saved = process.env.JOBSCOUT_TEST_PATH;
@@ -54,5 +54,22 @@ describe("aucun chemin du poste évaluable au build", () => {
       .map((f) => path.relative(root, f));
     expect(files.length).toBeGreaterThan(50);
     expect(offenders).toEqual([]);
+  });
+});
+
+describe("dossier saisi par l'utilisateur (3.4.15, macOS)", () => {
+  it("« ~ » désigne le dossier personnel", () => {
+    expect(resolveUserFolderInput("~/Documents/JobScout")).toBe(path.join(os.homedir(), "Documents", "JobScout"));
+    expect(resolveUserFolderInput("  ~  ")).toBe(path.join(os.homedir()));
+  });
+  it("un chemin complet est gardé, un chemin relatif ou vide est refusé", () => {
+    const full = path.join(os.homedir(), "JobScout docs");
+    expect(resolveUserFolderInput(full)).toBe(full);
+    expect(resolveUserFolderInput("Documents/JobScout")).toBeNull();
+    expect(resolveUserFolderInput("~nom/Documents")).toBeNull();
+    expect(resolveUserFolderInput("   ")).toBeNull();
+  });
+  it.skipIf(process.platform === "win32")("sur Mac et Linux, un chemin Windows « C:\… » est refusé (il était créé dans le projet)", () => {
+    expect(resolveUserFolderInput("C:\Users\marie\Documents\JobScout")).toBeNull();
   });
 });
