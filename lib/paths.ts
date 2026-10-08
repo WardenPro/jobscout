@@ -79,3 +79,17 @@ function opaque<T>(fn: () => T): T {
 export function homePath(...segments: string[]): string {
   return path.join(opaque(os.homedir), ...segments);
 }
+
+/**
+ * Chemin de dossier saisi par l'utilisateur → chemin absolu, ou null s'il n'est
+ * pas complet. « ~ » en tête désigne le dossier personnel (réflexe sous macOS et
+ * Linux). Avant la 3.4.15, un chemin relatif — « ~/Documents/JobScout », ou sur
+ * Mac un chemin Windows « C:\… » — était résolu DANS le dossier du projet, qui
+ * recevait alors un dossier nommé « ~ ».
+ */
+export function resolveUserFolderInput(raw: string): string | null {
+  const text = raw.trim();
+  if (!text) return null;
+  const expanded = /^~(?=[\\/]|$)/.test(text) ? path.join(homePath(), text.slice(1)) : text;
+  return path.isAbsolute(expanded) ? path.resolve(expanded) : null;
+}

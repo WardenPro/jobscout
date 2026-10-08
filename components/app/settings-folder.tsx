@@ -71,17 +71,23 @@ export function SettingsFolder() {
     });
   }
 
-  // Optional: use the File System Access API to nudge the user to a folder
-  // This only works on Chromium and only returns the folder name (not full path),
-  // so it's a hint, not a true picker. We display the chosen name to help the user
-  // verify they're typing the right path.
+  // API d'accès aux fichiers : seulement dans Chrome et Edge (absente de Safari et de
+  // Firefox), et elle ne donne que le NOM du dossier, jamais son chemin complet.
+  // Le bouton n'est donc affiché que si le navigateur la propose, à titre d'aide.
+  const [canPick, setCanPick] = useState(false);
+  useEffect(() => {
+    setCanPick(typeof window !== "undefined" && "showDirectoryPicker" in window);
+  }, []);
+
   async function tryDirectoryHint() {
     try {
       // @ts-expect-error - showDirectoryPicker is browser-only
       const handle = await window.showDirectoryPicker?.();
       if (handle?.name) {
         setInfo(
-          `Dossier sélectionné : "${handle.name}". Collez le chemin complet ci-dessus (ex. C:\\Users\\${handle.name}…)`
+          `Dossier sélectionné : « ${handle.name} ». Le navigateur ne donne pas son chemin complet : collez-le ci-dessus. ` +
+            `Sur Mac, dans le Finder, clic droit sur le dossier en maintenant la touche ⌥ (Option) › « Copier … en tant que nom de chemin ». ` +
+            `Sous Windows, Maj + clic droit sur le dossier › « Copier en tant que chemin d'accès ».`
         );
       }
     } catch {
@@ -107,7 +113,7 @@ export function SettingsFolder() {
       <Input
         value={folder}
         onChange={(e) => setFolder(e.target.value)}
-        placeholder="C:\Users\votre-nom\Documents\JobScout"
+        placeholder={defaultFolder || "Chemin complet du dossier"}
         spellCheck={false}
       />
       <p className="text-caption text-textSecondary mt-1.5">
@@ -126,9 +132,11 @@ export function SettingsFolder() {
         <Button variant="secondary" onClick={() => call("verify")} disabled={loading || !folder.trim()}>
           Vérifier
         </Button>
-        <Button variant="ghost" onClick={tryDirectoryHint} disabled={loading}>
-          <FolderOpen className="h-4 w-4" /> Parcourir…
-        </Button>
+        {canPick && (
+          <Button variant="ghost" onClick={tryDirectoryHint} disabled={loading}>
+            <FolderOpen className="h-4 w-4" /> Parcourir…
+          </Button>
+        )}
         <Button variant="ghost" onClick={openFolder} disabled={loading}>
           <FolderOpen className="h-4 w-4" /> Ouvrir le dossier
         </Button>
