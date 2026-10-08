@@ -7,16 +7,17 @@ import type { GeneratedCV } from "@/lib/ai/generate-cv";
 import type { GeneratedLM } from "@/lib/ai/generate-lm";
 import type { DocLang } from "@/lib/text/lang";
 
-// pdf-parse expose numpages — usage en .js pour éviter l'effet de bord d'import
+// Le moteur ancien de pdf-parse peut refuser des PDF valides (« bad XRef entry »).
+// Utiliser le lecteur moderne déjà embarqué pour l'import de CV : un échec de
+// lecture ne doit jamais être interprété comme une preuve que le CV tient sur une page.
 async function pdfPageCount(buf: Buffer): Promise<number> {
-  const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default as (
-    b: Buffer
-  ) => Promise<{ numpages: number }>;
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const task = getDocument({ data: new Uint8Array(buf), useSystemFonts: true, disableFontFace: true, isEvalSupported: false });
   try {
-    const r = await pdfParse(buf);
-    return r.numpages || 1;
-  } catch {
-    return 1;
+    const document = await task.promise;
+    return document.numPages;
+  } finally {
+    await task.destroy();
   }
 }
 

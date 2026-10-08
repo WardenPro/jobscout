@@ -25,10 +25,17 @@ it("conserve une page lisible avec photo, coordonnées longues et trois expérie
     },
   };
   const { pdf, cv: fitted } = await fitCVToOnePage(cv);
-  const parse = (await import("pdf-parse/lib/pdf-parse.js")).default;
-  const result = await parse(pdf);
-  expect(result.numpages).toBe(1);
-  expect(result.text).toContain(cv.headline);
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const task = getDocument({ data: new Uint8Array(pdf), useSystemFonts: true, disableFontFace: true, isEvalSupported: false });
+  try {
+    const document = await task.promise;
+    expect(document.numPages).toBe(1);
+    const content = await (await document.getPage(1)).getTextContent();
+    const text = content.items.map(item => "str" in item ? item.str : "").join(" ");
+    expect(text).toContain(cv.headline);
+  } finally {
+    await task.destroy();
+  }
   expect(fitted.sections.experiences).toHaveLength(3);
   const docx = await renderCVDocx(fitted);
   if (process.env.JOBSCOUT_LAYOUT_QA_DIR) {

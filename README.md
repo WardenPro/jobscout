@@ -55,7 +55,7 @@ L'app démarre sur http://127.0.0.1:3000 (écoute limitée à la machine locale,
 
 **Mises à jour** : arrêtez JobScout (`Ctrl + C`), puis `git pull` et `npm ci`.
 
-**Messages npm normaux** : `npm warn deprecated node-domexception`, « packages are looking for funding », et, avec npm récent, le script d'installation de `tesseract.js` ignoré (il n'affiche qu'un appel aux dons). `npm audit --omit=dev`, qui ne regarde que ce qui tourne réellement, doit afficher `found 0 vulnerabilities` (le PostCSS embarqué par Next.js est forcé en version corrigée via `overrides`). `npm audit` complet signale des failles dans des outils de développement (Tailwind CSS et ses dépendances), sans effet sur l'application. **Ne lancez jamais `npm audit fix --force`** : il installerait Tailwind CSS 4, incompatible.
+**Messages npm normaux** : `npm warn deprecated node-domexception`, « packages are looking for funding », et, avec npm récent, le script d'installation de `tesseract.js` ignoré (il n'affiche qu'un appel aux dons). Pour vérifier les alertes concernant les dépendances de production, utilisez `npm audit --omit=dev` ; `npm audit` inclut aussi les outils de développement. Le résultat dépend des avis de sécurité publiés et ne garantit pas zéro vulnérabilité. Lors de la recette du 8 octobre 2026, l'audit de production a signalé cinq entrées, liées à Next.js, source-map-js et à la chaîne mammoth/argparse/sprintf-js ; leur correction reste à traiter. **Ne lancez jamais `npm audit fix --force` sans examiner les changements** : les mises à niveau majeures ou les rétrogradations proposées peuvent casser l'application.
 
 ## Paquet Windows
 
