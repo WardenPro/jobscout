@@ -326,7 +326,8 @@ export async function run() {
         "base de données VIERGE",
         "~100 Mo à télécharger",
         "~265 Mo sur le disque",
-        "clé API Anthropic",
+        "Aucune clé d'IA embarquée",
+        "modèle local (Ollama, LM Studio)",
         "127.0.0.1",
         ".NET Framework 4",
         "Raccourcis : groupe « " + variant.appName + " » dans le menu Démarrer",
@@ -456,6 +457,15 @@ export async function run() {
       !/JSC-[A-Z0-9]{8,}|sk-ant-/.test(llm.text)
     );
 
+    const proxy = await get(base + "/api/settings/scraping-proxy");
+    let proxyJson = {};
+    try { proxyJson = JSON.parse(proxy.text); } catch {}
+    check(
+      "installation vierge : relais Bright Data désactivé et sans clé",
+      proxy.status === 200 && proxyJson.mode === "off" && proxyJson.hasKey === false,
+      `HTTP ${proxy.status} — mode=${proxyJson.mode} hasKey=${proxyJson.hasKey}`
+    );
+
     // ------------------------------------------ 5. API version et moteur
     const upd = await get(base + "/api/update");
     let updJson = {};
@@ -503,7 +513,9 @@ export async function run() {
       summary: "Profil éphémère créé par la recette d'installation.",
       raw_cv_text: "Responsable d'entrepôt — gestion des stocks, expéditions.",
       sectors: ["Logistique", "Supply chain"],
-      target_countries: ["France"],
+      target_countries: ["France", "Suisse"],
+      work_permit: "g",
+      workload_range: [81, 99],
       sources_enabled: ["apec", "hellowork"],
       preferred_contracts: ["cdi", "cdd"],
       extraction_confidence: 90,
@@ -555,6 +567,17 @@ export async function run() {
     check(
       "accents préservés (pas de mojibake)",
       reread.text.includes("Entrepôts de l'Étoile") && reread.text.includes("Île-de-France")
+    );
+    let savedProfile = {};
+    try { savedProfile = JSON.parse(reread.text).profile ?? {}; } catch {}
+    check(
+      "réglages suisses conservés : permis frontalier et taux à l'unité",
+      savedProfile.work_permit === "g" && JSON.stringify(savedProfile.workload_range) === "[81,99]"
+    );
+    const indeed = await get(base + "/api/scan/start?source=indeedch");
+    check(
+      "Indeed suspendu : le paquet refuse le scan avant toute requête externe",
+      indeed.text.includes("suspend")
     );
 
     for (const p of ["/dashboard", "/offres", "/candidatures", "/documents", "/profile"]) {

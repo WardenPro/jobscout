@@ -191,6 +191,46 @@ ne prouve rien : Inno compresse sa charge utile en LZMA.
 Les fichiers `unins000.*` sont exclus de la recette : Inno les écrit sur la
 machine cible et ils journalisent forcément les chemins du compte qui installe.
 
+## Recette de préparation de la contribution suisse — 8 octobre 2026
+
+La vérification a utilisé une copie Git vierge, sans `.env.local`, base locale,
+documents ni dépendances du dossier de développement. `npm ci` a installé les
+versions du lockfile ; les 339 tests et la vérification TypeScript ont réussi.
+
+La [CI de validation](https://github.com/WardenPro/jobscout/actions/runs/37783178439)
+a réussi sur Ubuntu et Windows avec Node 22 et 24 : installation, types,
+tests et build de production. Le workflow accepte aussi `workflow_dispatch`
+pour reproduire cette matrice avant de proposer une PR au dépôt d'origine.
+
+Le paquet `JobScout_Test_Setup_v3.4.14.exe` a été construit avec le runtime
+embarqué Node 22.23.2 (archive officielle vérifiée par SHA256) et Inno Setup
+6.7.3. La charge utile mesure environ 185 Mo et l'installeur environ 39 Mo.
+Le démarrage à blanc a chargé 38 routes sans erreur 5xx. La recette complète
+`node installer/test-install.mjs --variant test` a passé **67 contrôles sur 67** :
+
+- installation silencieuse, fichiers et tailles annoncées, absence de `.env`
+  et de navigateur Chromium embarqué ;
+- démarrage avec le Node embarqué et un PATH réduit aux composants Windows,
+  onboarding sur une base vide, IA non configurée et proxy désactivé sans clé ;
+- sauvegarde et relecture des accents, du permis G et d'un taux de 81–99 %,
+  refus du scan Indeed suspendu et chargement des pages principales ;
+- lancement natif, écoute sur `127.0.0.1`, journaux UTF-8 et arrêt du serveur ;
+- désinstallation du programme et conservation des données de recette.
+
+Les tests `tests/db-migrations.test.ts` vérifient séparément une installation
+neuve et la migration d'un schéma antérieur simulé. Profil, expériences,
+offres, documents et paramètres sont conservés ; les nouvelles colonnes,
+les valeurs par défaut, les clés étrangères et l'intégrité sont vérifiées,
+y compris après un second démarrage.
+
+Cette recette simule une installation vierge sur le poste Windows de validation
+avec données isolées et PATH minimal ; ce n'est pas un essai sur une autre
+machine ou dans une VM. Le paquet est non signé et n'est pas une release publiée.
+Les scans réels et appels payants IA/Bright Data n'ont pas été relancés.
+L'audit npm de production signale encore cinq entrées (Next.js, source-map-js,
+mammoth, argparse et sprintf-js) : la recette fonctionnelle ne vaut pas correction
+de ces alertes. Elles restent à traiter avant de revendiquer un audit sans alerte.
+
 ## Non embarqué, volontairement
 
 - **Chromium / Playwright (~100 Mo à télécharger, ~265 Mo sur le disque une
