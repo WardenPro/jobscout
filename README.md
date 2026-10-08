@@ -79,9 +79,7 @@ L'app démarre sur http://127.0.0.1:3000 (écoute limitée à la machine locale,
 
 **Avant d'activer une source, lisez les [conditions d'utilisation](CGU.md) (sections 5 et 6)** : les conditions de Welcome to the Jungle, HelloWork, Talent.com, jobup.ch, jobs.ch, Indeed et LinkedIn interdisent l'extraction automatisée sans autorisation ; Job-Room demande de ne pas explorer ses annonces. C'est pourquoi, depuis la 3.4.13, seule France Travail est cochée d'office. Chaque source s'active ou se désactive dans Profil › Recherche › Sources (ou à l'étape Préférences de l'onboarding). Une source suspendue n'est jamais interrogée, même si elle est restée cochée dans un ancien profil. Une source hors périmètre géographique (ex. HelloWork quand le profil ne cible pas la France, jobup.ch quand il ne cible pas la Suisse) est automatiquement sautée. La disponibilité des sources dépend des sites tiers (anti-bot, changements d'API) ; une source en échec est signalée dans le journal du scan.
 
-**Indeed Suisse** : le scan recherche vos secteurs en Suisse, au maximum 3 pages par secteur et 50 offres. Il lit les descriptions sur les fiches, y compris le nouveau bloc `.simple-job-description-html` ; un extrait de recherche seul reste incomplet. Si vous configurez le relais Bright Data pour Indeed Suisse, la recherche et les fiches utilisent ce transport dans les limites choisies. Sans relais, ou si le refus subsiste après celui-ci, un HTTP 401/403/429 ou une page de vérification arrête les requêtes. Lors du diagnostic du 8 octobre 2026, l'accès direct a reçu un HTTP 403 et Bright Data a récupéré les résultats de recherche. Sur une fiche accessible dans le navigateur, Bright Data a renvoyé HTTP 502 : il attendait `div#jobsearch-Main`, absent de cette fiche. La récupération complète d'une offre réelle via le relais reste à valider. Dans **Offres › Rechercher sur Indeed Suisse**, un lien ouvre la recherche par mots-clés et ville dans votre navigateur. Ce lien est disponible sans activer le scan et ne rapatrie pas les offres dans JobScout.
-
-Après activation de « Manual expect » dans la zone de test, les sélecteurs de description restent introuvables, y compris avec rendu JavaScript. Un test attendant seulement le corps de page a révélé un HTTP 502 `reject_block` (« captcha or protection page found »). Le relais ne parvient donc pas encore à débloquer cette fiche ; l'activation seule de l'option ne valide pas le scan complet. Le scan Indeed est suspendu : masqué du menu de scan et ignoré même dans un ancien profil. Le lien de recherche manuelle reste disponible. Le code du scraper et son test réel opt-in sont conservés pour les diagnostics futurs.
+**Indeed Suisse** : la récupération des fiches complètes reste bloquée, y compris lors des essais avec Bright Data. Le scan est donc suspendu et ignoré même dans un ancien profil. Dans **Offres › Rechercher sur Indeed Suisse**, un lien ouvre la recherche par mots-clés et ville dans votre navigateur ; il ne rapatrie pas les offres dans JobScout. Le scraper est conservé pour de futurs diagnostics, décrits dans [le guide des tests réels](tests/live/README.md).
 
 WTTJ est interrogée avec la clé de recherche (lecture seule) qu'utilise l'interface du site. Si elle cesse de fonctionner, décochez la source.
 
@@ -91,21 +89,11 @@ Dans **Profil › Paramètres et données › Proxy de recherche Bright Data**, 
 
 - **Seulement en cas de blocage** : accès direct d'abord ; un HTTP 403/429 ou une page de vérification déclenche le relais. Les autres pages de cette source utilisent ensuite le relais pendant ce scan.
 - **Toujours** : toutes les pages publiques des sources choisies utilisent le relais.
-- Sources compatibles : Indeed Suisse, jobup.ch, jobs.ch, HelloWork, Talent.com et les pages publiques de France Travail. Les API authentifiées, Job-Room et LinkedIn restent directs. Cocher une source ici ne l'active pas dans les scans : choisissez aussi vos sources de recherche dans le profil.
+- Sources configurables : jobup.ch, jobs.ch, HelloWork, Talent.com et les pages publiques de France Travail. Les API authentifiées, Job-Room et LinkedIn restent directs. Indeed Suisse est absent de ce réglage tant que son scan est suspendu. Cocher une source ici ne l'active pas dans les scans : choisissez aussi vos sources de recherche dans le profil.
 
 Les appels passent par l'[API REST officielle](https://docs.brightdata.com/products/web-unlocker/send-your-first-request), sans modifier les certificats TLS. Bright Data reçoit la clé, la zone et l'URL publique avec ses mots-clés ; le profil et le CV ne sont pas envoyés. Les appels peuvent être facturés selon votre contrat. Une erreur du relais ou le plafond atteint cesse les appels pour cette source pendant le scan. Un HTTP 407 avec `ip_forbidden` indique que l'IP de votre PC doit être autorisée dans le compte Bright Data. La clé se conserve dans la base locale, en clair comme les clés IA, ou dans `.env.local` via `BRIGHTDATA_API_KEY` ; `BRIGHTDATA_ZONE` préremplit la zone. Elle n'est jamais renvoyée par l'API des paramètres. Le relais ne garantit pas la disponibilité des sites et ne remplace pas leurs autorisations d'accès.
 
-Le délai du relais est de 180 secondes pour laisser revenir ses diagnostics de chargement. Une erreur Web Unlocker enveloppée dans un HTTP 200 reste une erreur : l'application explique les éléments attendus absents et les protections non résolues, puis cesse les appels suivants de cette source. Les messages distants ne sont pas recopiés dans les erreurs publiques.
-
-La [documentation Bright Data](https://docs.brightdata.com/products/web-unlocker/error-codes#expect_element) recommande de signaler les erreurs persistantes d'éléments attendus à son support. L'option externe « Manual expect » permet de définir un autre élément attendu, mais doit être activée dans la zone et inclut aussi les requêtes échouées dans la facturation ; JobScout ne l'active pas et n'envoie aucun sélecteur personnalisé.
-
-Un test réel ciblé d'Indeed est disponible avec `BRIGHTDATA_API_KEY` et `BRIGHTDATA_ZONE` dans `.env.local`. Il utilise une base temporaire, demande une seule offre et autorise au maximum deux appels Bright Data (recherche et fiche). Il vérifie qu'une description complète est récupérée ; il échoue si le site ou le relais reste indisponible. Sous PowerShell :
-
-```powershell
-$env:JOBSCOUT_LIVE = "1"
-npx vitest run tests/live/indeed-proxy.test.ts
-Remove-Item Env:JOBSCOUT_LIVE
-```
+En cas d'erreur du service, JobScout affiche une explication et cesse les appels suivants de cette source pendant le scan. Le relais peut prendre jusqu'à 180 secondes par requête. Les détails techniques et le test réel optionnel sont regroupés dans [le guide des tests réels](tests/live/README.md) ; ils ne sont pas nécessaires pour utiliser l'application.
 
 ## Scoring des offres (local, déterministe, gratuit)
 
