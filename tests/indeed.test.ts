@@ -7,11 +7,18 @@ import type { ProgressEvent, ScrapedOffre } from "@/lib/scrapers/base";
 import { SOURCE_IDS, DEFAULT_SOURCE_IDS, SOURCES_META } from "@/lib/sources-meta";
 import { VALID_SOURCES } from "@/lib/scrapers/registry";
 import { IndeedSearch } from "@/components/app/indeed-search";
+import { saveScrapingProxySettings, PROXY_SETTING_KEYS } from "@/lib/scrapers/proxy-config";
+import { withProxyScope } from "@/lib/scrapers/source-fetch";
+import { setSetting } from "@/lib/db";
 
 vi.mock("@/lib/scrapers/dom", async importOriginal => ({
   ...(await importOriginal<typeof import("@/lib/scrapers/dom")>()), sleep: async () => {},
 }));
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  setSetting(PROXY_SETTING_KEYS.config, "");
+  setSetting(PROXY_SETTING_KEYS.key, "");
+});
 
 const ID = "a123456789abcdef";
 const ID2 = "b123456789abcdef";
@@ -59,6 +66,11 @@ describe("Indeed Suisse — recherche et intégration", () => {
     const result = parseIndeedSearch(search([ID, ID], true));
     expect(result.cards).toEqual([card]);
     expect(result.hasNext).toBe(true);
+  });
+  it("ignore les cartes factices masquées et lit les titres h3 sans attribut title", () => {
+    const hidden = search([ID]).replace('class="job_seen_beacon"', 'class="job_seen_beacon" aria-hidden="true"');
+    const visible = search([ID2]).replaceAll("h2", "h3").replace('title="Ingénieur systèmes"', "");
+    expect(parseIndeedSearch(hidden + visible).cards.map(c => ({ id: c.id, title: c.title }))).toEqual([{ id: ID2, title: "Ingénieur systèmes" }]);
   });
   it("ignore les liens externes et les clés invalides", () => {
     const html = search().replace(`/rc/clk?jk=${ID}&utm_source=test`, "https://evil.example/viewjob?jk=" + ID);
@@ -178,5 +190,40 @@ describe("Indeed Suisse — recherche et intégration", () => {
     fetch.mockClear();
     expect((await drain()).offres).toHaveLength(2);
     expect(fetch).toHaveBeenCalledTimes(4); // deux pages identiques + deux détails
+  });
+});
+
+describe("Indeed Suisse avec Bright Data", () => {
+  async function proxied(maxOffres = 1, maxRequests = 2) {
+    saveScrapingProxySettings({ mode: "fallback", zone: "jobup", sources: ["indeedch"], maxRequests }, "fake-brightdata-key");
+    const offres: ScrapedOffre[] = [];
+    const events: ProgressEvent[] = [];
+    for await (const offre of withProxyScope(indeedScraper).scrape({ countries: ["Suisse"], sectors: ["informatique", "comptabilité"], maxOffres }, e => events.push(e))) offres.push(offre);
+    return { offres, events };
+  }
+  it("récupère recherche et fiche après le 403 direct, avec deux appels au relais", async () => {
+    const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url !== "https://api.brightdata.com/request") return response("refus", 403);
+      const request = JSON.parse(init!.body as string);
+      expect(request.zone).toBe("jobup");
+      return response(JSON.stringify({ status_code: 200, body: request.url.includes("viewjob") ? detail() : search() }));
+    });
+    vi.stubGlobal("fetch", fetch);
+    expect((await proxied()).offres[0]).toMatchObject({ source_id: ID, description_status: "ok", canton: "VD" });
+    expect(fetch.mock.calls.map(([url]) => url.includes("api.brightdata.com"))).toEqual([false, true, true]);
+  });
+  it("garde les extraits incomplets quand le plafond ne permet pas les fiches", async () => {
+    const fetch = vi.fn(async (url: string) => url.includes("api.brightdata.com") ? response(JSON.stringify({ status_code: 200, body: search([ID, ID2]) })) : response("refus", 403));
+    vi.stubGlobal("fetch", fetch);
+    const { offres, events } = await proxied(2, 1);
+    expect(offres.map(o => o.description_status)).toEqual(["partial", "partial"]);
+    expect(events.some(e => e.kind === "error" && e.message.includes("plafond de 1"))).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+  it("une erreur de clé du relais n'entraîne aucun autre appel réseau", async () => {
+    const fetch = vi.fn(async (url: string) => response("refus", url.includes("api.brightdata.com") ? 401 : 403));
+    vi.stubGlobal("fetch", fetch);
+    await expect(proxied()).rejects.toThrow(/Bright Data HTTP 401/);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });

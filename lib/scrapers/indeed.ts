@@ -6,6 +6,7 @@ import { countryMatcher } from "@/lib/countries";
 import { resolveSwissCanton } from "@/lib/swiss-geography";
 import { detectVie } from "@/lib/vie";
 import { indeedSearchUrl } from "@/lib/indeed";
+import { sourceFetch } from "./source-fetch";
 
 const SOURCE = "indeedch";
 const HOST = "https://ch.indeed.com";
@@ -49,13 +50,15 @@ export function parseIndeedSearch(html: string): { cards: IndeedCard[]; hasNext:
   const doc = pageDocument(html);
   const seen = new Set<string>();
   const cards: IndeedCard[] = [];
-  for (const anchor of Array.from(doc.querySelectorAll("a[data-jk], h2 a[href*='jk=']"))) {
+  for (const anchor of Array.from(doc.querySelectorAll("a[data-jk], h2 a[href*='jk='], h3 a[href*='jk=']"))) {
+    // Indeed inclut aussi une carte factice masquée dans le HTML de recherche.
+    if (anchor.closest("[aria-hidden='true'], [hidden], template")) continue;
     const id = jobKey(anchor);
     if (!id || seen.has(id)) continue;
     const card = anchor.closest(".job_seen_beacon, .cardOutline, .tapItem, [data-testid='slider_item']") ?? anchor.closest("li");
     if (!card) continue;
     const title = anchor.querySelector("span[title]")?.getAttribute("title")?.trim() ||
-      anchor.getAttribute("title")?.trim() || text(card.querySelector("h2"));
+      anchor.getAttribute("title")?.trim() || text(anchor) || text(card.querySelector("h2, h3"));
     if (!title) continue;
     seen.add(id);
     cards.push({
@@ -76,7 +79,7 @@ export function parseIndeedSearch(html: string): { cards: IndeedCard[]; hasNext:
 }
 
 async function fetchHtml(url: string): Promise<string> {
-  const response = await fetch(url, {
+  const response = await sourceFetch(SOURCE, url, {
     headers: { "user-agent": "JobScout/3.4 (+https://github.com/WardenPro/jobscout)", accept: "text/html", "accept-language": "fr-CH,fr;q=0.9" },
     signal: AbortSignal.timeout(15000), cache: "no-store", redirect: "error",
   });
