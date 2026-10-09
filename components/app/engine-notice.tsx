@@ -16,8 +16,8 @@ type EngineState = {
 };
 
 /**
- * Encart affiché quand LinkedIn est coché : LinkedIn est la seule source qui
- * exige un navigateur Chromium (~100 Mo à télécharger, ~265 Mo sur le disque).
+ * Encart affiché quand LinkedIn est coché : son moteur Chromium nécessite
+ * un téléchargement (~100 Mo, ~265 Mo sur le disque).
  * Il n'est pas fourni avec
  * l'application, il se télécharge ici, une seule fois, à la demande.
  */
@@ -88,9 +88,10 @@ export function EngineNotice({
             {state.diskSize ? `, ${state.diskSize} sur le disque` : ""})
           </p>
           <p className="text-textSecondary">
-            LinkedIn est la seule source qui a besoin d'un navigateur Chromium. Il
-            n'est pas fourni avec l'application : téléchargez-le une fois ici. Les six
-            autres sources fonctionnent sans.
+            LinkedIn utilise le moteur Chromium, à télécharger une fois ici.
+            Indeed Suisse utilise également un navigateur, mais nécessite Google
+            Chrome installé et une session graphique locale ; ce téléchargement
+            ne remplace pas Chrome pour Indeed.
           </p>
         </div>
       </div>

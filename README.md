@@ -75,7 +75,7 @@ L'app démarre sur http://127.0.0.1:3000 (écoute limitée à la machine locale,
 | Talent.com | HTML SSR multi-domaines + JSON-LD | France, Belgique, Suisse, Luxembourg, Canada, USA, Maroc, Tunisie, Sénégal | à activer vous-même |
 | jobup.ch | État JSON des pages de résultats + JSON-LD (groupe JobCloud) | Suisse (surtout romande) | à activer vous-même |
 | jobs.ch | Idem jobup.ch ; une offre déjà complète sur jobup.ch n'est pas reprise | Suisse | à activer vous-même |
-| Indeed Suisse (indeed.ch) | Scan suspendu ; lien de recherche manuelle dans Offres | Suisse | suspendue |
+| Indeed Suisse (indeed.ch) | Chrome installé, visible, sans proxy | Suisse | à activer soi-même |
 | Job-Room (SECO, travail.swiss / arbeit.swiss) | Interface JSON de la recherche publique du site ; annonces reprises de jobup.ch / jobs.ch déjà complètes écartées | Suisse | à activer vous-même |
 | LinkedIn | Playwright (pages publiques « guest ») | International (tous pays cibles) | à activer vous-même, moteur à installer |
 | APEC | — | France (cadres) | **suspendue** : le site bloque désormais les requêtes automatiques |
@@ -83,7 +83,7 @@ L'app démarre sur http://127.0.0.1:3000 (écoute limitée à la machine locale,
 
 **Avant d'activer une source, lisez les [conditions d'utilisation](CGU.md) (sections 5 et 6)** : les conditions de Welcome to the Jungle, HelloWork, Talent.com, jobup.ch, jobs.ch, Indeed et LinkedIn interdisent l'extraction automatisée sans autorisation ; Job-Room demande de ne pas explorer ses annonces. C'est pourquoi, depuis la 3.4.13, seule France Travail est cochée d'office. Chaque source s'active ou se désactive dans Profil › Recherche › Sources (ou à l'étape Préférences de l'onboarding). Une source suspendue n'est jamais interrogée, même si elle est restée cochée dans un ancien profil. Une source hors périmètre géographique (ex. HelloWork quand le profil ne cible pas la France, jobup.ch quand il ne cible pas la Suisse) est automatiquement sautée. La disponibilité des sources dépend des sites tiers (anti-bot, changements d'API) ; une source en échec est signalée dans le journal du scan.
 
-**Indeed Suisse** : la récupération des fiches complètes reste bloquée, y compris lors des essais avec Bright Data. Le scan est donc suspendu et ignoré même dans un ancien profil. Dans **Offres › Rechercher sur Indeed Suisse**, un lien ouvre la recherche par mots-clés et ville dans votre navigateur ; il ne rapatrie pas les offres dans JobScout. Le scraper est conservé pour de futurs diagnostics, décrits dans [le guide des tests réels](tests/live/README.md).
+**Indeed Suisse** : comme LinkedIn, la recherche nécessite un navigateur. Installez Google Chrome et lancez JobScout dans une session graphique locale : le scan ouvre une fenêtre Chrome temporaire, sans proxy ni profil personnel. La source est disponible sur activation explicite. Les fiches peuvent rester bloquées ; leurs descriptions sont alors signalées comme incomplètes et les appels aux fiches suivantes sont arrêtés. Dans **Offres › Rechercher sur Indeed Suisse**, un lien ouvre la recherche par mots-clés et ville dans votre navigateur ; il ne rapatrie pas les offres dans JobScout. Les diagnostics sont décrits dans [le guide des tests réels](tests/live/README.md).
 
 WTTJ est interrogée avec la clé de recherche (lecture seule) qu'utilise l'interface du site. Si elle cesse de fonctionner, décochez la source.
 
@@ -93,7 +93,7 @@ Dans **Profil › Paramètres et données › Proxy de recherche Bright Data**, 
 
 - **Seulement en cas de blocage** : accès direct d'abord ; un HTTP 403/429 ou une page de vérification déclenche le relais. Les autres pages de cette source utilisent ensuite le relais pendant ce scan.
 - **Toujours** : toutes les pages publiques des sources choisies utilisent le relais.
-- Sources configurables : jobup.ch, jobs.ch, HelloWork, Talent.com et les pages publiques de France Travail. Les API authentifiées, Job-Room et LinkedIn restent directs. Indeed Suisse est absent de ce réglage tant que son scan est suspendu. Cocher une source ici ne l'active pas dans les scans : choisissez aussi vos sources de recherche dans le profil.
+- Sources configurables : jobup.ch, jobs.ch, HelloWork, Talent.com et les pages publiques de France Travail. Les API authentifiées, Job-Room et LinkedIn restent directs. Indeed Suisse utilise Chrome sans proxy et reste absent de ce réglage. Cocher une source ici ne l'active pas dans les scans : choisissez aussi vos sources de recherche dans le profil.
 
 Les appels passent par l'[API REST officielle](https://docs.brightdata.com/products/web-unlocker/send-your-first-request), sans modifier les certificats TLS. Bright Data reçoit la clé, la zone et l'URL publique avec ses mots-clés ; le profil et le CV ne sont pas envoyés. Les appels peuvent être facturés selon votre contrat. Une erreur du relais ou le plafond atteint cesse les appels pour cette source pendant le scan. Un HTTP 407 avec `ip_forbidden` indique que l'IP de votre PC doit être autorisée dans le compte Bright Data. La clé se conserve dans la base locale, en clair comme les clés IA, ou dans `.env.local` via `BRIGHTDATA_API_KEY` ; `BRIGHTDATA_ZONE` préremplit la zone. Elle n'est jamais renvoyée par l'API des paramètres. Le relais ne garantit pas la disponibilité des sites et ne remplace pas leurs autorisations d'accès.
 

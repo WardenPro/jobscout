@@ -100,13 +100,70 @@ Les neuf fixtures et le test réel passent. Cette validation porte sur cette
 fiche et ce poste Windows ; elle ne valide pas la recherche Indeed, les autres
 fiches, les autres systèmes ou le mode headless. L'accès du site peut changer.
 
-Indeed reste suspendu dans l'application. Ce prototype est uniquement un outil
-de diagnostic : il ne modifie pas les paramètres, ne remplit pas la base des
-offres et n'active pas le moteur ou la source pendant un scan normal.
+Le diagnostic ne modifie pas les paramètres ni la base. La source est désormais
+disponible sur activation explicite : le scan utilise Chrome visible sans proxy,
+conserve les cartes en cas de refus des fiches et signale leurs descriptions
+incomplètes. Chrome installé et une session graphique locale sont requis.
+Le test du scan réel avec une limite d'une offre a conservé « IT Support » chez
+Cantor Fitzgerald, malgré le HTTP 401 de la fiche : description `failed`, erreur
+explicite, scan terminé. Cela valide la conservation des résultats de recherche,
+pas la récupération de la description. Pour le rejouer, utiliser
+`JOBSCOUT_INDEED_SCAN=1` avec `JOBSCOUT_LIVE=1` et lancer uniquement
+`tests/live/indeed-search.test.ts`.
+
+## Recherche Indeed sans proxy (9 octobre 2026)
+
+Le diagnostic `indeed-search.test.ts` compare deux transports sans appeler
+`sourceFetch` ni Bright Data. Il ne modifie pas les paramètres ou la base.
+Pour `informatique` / `Suisse`, les résultats mesurés sont :
+
+| Étape | Transport | Résultat |
+| --- | --- | --- |
+| Recherche | HTTP direct (`fetch`) | HTTP 403, « Security Check », aucune offre |
+| Recherche | Chrome visible, Playwright, contexte neuf | HTTP 200, 15 offres, pagination détectée |
+| Première fiche trouvée | Même contexte Chrome, nouvel onglet | HTTP 401, accès refusé |
+
+La recherche fonctionne donc sans proxy **dans Chrome**, mais pas avec le
+transport HTTP direct actuel. Le succès antérieur de la fiche isolée ne garantit
+pas le succès après une recherche. Aucun nouvel essai automatique n'est effectué
+après le refus. Ce résultat ne valide pas une chaîne complète de collecte.
+
+Pour rejouer uniquement la recherche Chrome suivie d'une fiche :
+
+```powershell
+$env:JOBSCOUT_LIVE = '1'
+$env:JOBSCOUT_INDEED_SEARCH_BROWSER = '1'
+try {
+  npx vitest run tests/live/indeed-search.test.ts
+} finally {
+  Remove-Item Env:JOBSCOUT_LIVE, Env:JOBSCOUT_INDEED_SEARCH_BROWSER
+}
+```
+
+Pour tester plutôt l'hypothèse HTTP direct puis fiche Chrome, remplacer
+`JOBSCOUT_INDEED_SEARCH_BROWSER` par `JOBSCOUT_INDEED_SEARCH`. Les rapports,
+le HTML et la capture sont enregistrés dans `test-results/indeed-search`, ignoré
+par Git. Ces tests exigent des offres puis une description exploitable : un
+blocage distant fait échouer le test, il n'est pas assimilé à un succès.
+
+### Architecture du scan disponible
+
+La recherche utilise Chrome sans proxy, avec un contexte temporaire par scan,
+pagination bornée et déduplication des identifiants. Les fiches sont ensuite
+traitées séquentiellement dans ce contexte. Dès un blocage, les cartes restantes
+sont conservées sans nouvel appel de fiche. Un HTTP 200 sans description ne
+suffit pas à déclarer une fiche complète. Le contexte et le navigateur sont
+fermés en fin de scan, y compris après une erreur ou une interruption.
+
+Le proxy de détail reste une possibilité d'architecture, pas une solution
+validée : les essais Bright Data précédents n'ont pas récupéré de fiche
+complète. La disponibilité de la recherche ne garantit donc pas celle des
+descriptions. Une architecture HTTP direct pour la recherche et Playwright
+uniquement pour les fiches ne fonctionne pas dans l'environnement testé.
 
 ## Indeed Suisse et Bright Data
 
-Le scan Indeed est suspendu dans l'application. Le test `indeed-proxy.test.ts` appelle directement le scraper pour vérifier une éventuelle reprise du service ; il ne réactive pas la source dans les paramètres.
+Le scan de l'application utilise Chrome sans proxy. Le test `indeed-proxy.test.ts` appelle uniquement l'ancien transport HTTP pour comparer Bright Data ; il ne change pas le transport du scan normal.
 
 Renseignez `BRIGHTDATA_API_KEY` et `BRIGHTDATA_ZONE` dans `.env.local`, fichier ignoré par Git. Utilisez une zone Web Unlocker API. Le test utilise une base temporaire, demande une seule offre et autorise au maximum deux appels Bright Data (recherche et fiche). Il exige une description complète : la réussite de la recherche seule ne valide pas la source.
 

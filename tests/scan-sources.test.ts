@@ -87,14 +87,14 @@ describe("runScan — sources scannées", () => {
     expect(await scannedSources({ onlySource: "talent" })).toEqual(["talent"]);
   });
 
-  it("Indeed Suisse suspendu reste ignoré même coché dans un ancien profil", async () => {
+  it("Indeed Suisse disponible est scanné si coché dans le profil", async () => {
     state.sourcesEnabled = ["indeedch", "jobup"];
-    expect(await scannedSources()).toEqual(["jobup"]);
+    expect(await scannedSources()).toEqual(["indeedch", "jobup"]);
   });
 
-  it("Indeed Suisse suspendu refuse aussi un scan demandé explicitement", async () => {
+  it("Indeed Suisse accepte un scan demandé explicitement", async () => {
     state.sourcesEnabled = ["francetravail"];
-    await expect(scannedSources({ onlySource: "indeedch" })).rejects.toThrow(/suspendue/);
+    expect(await scannedSources({ onlySource: "indeedch" })).toEqual(["indeedch"]);
     expect(state.sourcesEnabled).toEqual(["francetravail"]);
   });
 

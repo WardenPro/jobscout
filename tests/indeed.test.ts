@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
 import { indeedSearchUrl } from "@/lib/indeed";
-import { indeedScraper, parseIndeedSearch, indeedCardToOffre, type IndeedCard } from "@/lib/scrapers/indeed";
+import { indeedHttpScraper as indeedScraper, parseIndeedSearch, indeedCardToOffre, type IndeedCard } from "@/lib/scrapers/indeed";
 import type { ProgressEvent, ScrapedOffre } from "@/lib/scrapers/base";
 import { SOURCE_IDS, DEFAULT_SOURCE_IDS, SOURCES_META } from "@/lib/sources-meta";
 import { VALID_SOURCES } from "@/lib/scrapers/registry";
@@ -51,8 +51,9 @@ describe("Indeed Suisse — recherche et intégration", () => {
     expect(Object.fromEntries(url.searchParams)).toEqual({ q: "C++ & sécurité", l: "Genève", hl: "fr", start: "10" });
     expect(new URL(indeedSearchUrl("", "")).searchParams.get("l")).toBe("Suisse");
   });
-  it("la source est opt-in, suisse, sans téléchargement, et le registre correspond aux métadonnées", () => {
-    expect(SOURCES_META.find(s => s.id === "indeedch")).toMatchObject({ scope: "ch", optIn: true, unavailable: true });
+  it("la source est opt-in, suisse, disponible avec Chrome, et le registre correspond aux métadonnées", () => {
+    expect(SOURCES_META.find(s => s.id === "indeedch")).toMatchObject({ scope: "ch", optIn: true });
+    expect(SOURCES_META.find(s => s.id === "indeedch")?.unavailable).not.toBe(true);
     expect(DEFAULT_SOURCE_IDS).not.toContain("indeedch");
     expect([...VALID_SOURCES].sort()).toEqual([...SOURCE_IDS].sort());
   });

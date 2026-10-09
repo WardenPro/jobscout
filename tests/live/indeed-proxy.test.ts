@@ -1,6 +1,7 @@
 /** Test réel, explicitement opt-in : au maximum deux appels Bright Data. */
 import { afterEach, expect, it, vi } from "vitest";
-import { getEnabledScrapers } from "@/lib/scrapers/registry";
+import { indeedHttpScraper } from "@/lib/scrapers/indeed";
+import { withProxyScope } from "@/lib/scrapers/source-fetch";
 import { saveScrapingProxySettings } from "@/lib/scrapers/proxy-config";
 import type { ScrapedOffre } from "@/lib/scrapers/base";
 import fs from "node:fs";
@@ -29,7 +30,7 @@ it("Indeed : récupère une recherche et une fiche réelles via Bright Data", as
   });
   const offres: ScrapedOffre[] = [];
   try {
-    const scraper = getEnabledScrapers(["indeedch"])[0];
+    const scraper = withProxyScope(indeedHttpScraper);
     for await (const offre of scraper.scrape({ sectors: ["informatique"], countries: ["Suisse"], maxOffres: 1 }, () => {})) offres.push(offre);
     expect(proxyCalls).toBeGreaterThan(0);
     expect(proxyCalls).toBeLessThanOrEqual(2);

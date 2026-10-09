@@ -113,7 +113,7 @@ export function indeedCardToOffre(card: IndeedCard, html?: string, error?: strin
   };
 }
 
-export const indeedScraper: Scraper = {
+export function createIndeedScraper(readHtml: (url: string) => Promise<string>): Scraper { return {
   name: SOURCE,
   async *scrape(criteria, onEvent: (e: ProgressEvent) => void) {
     onEvent({ kind: "start", source: SOURCE });
@@ -132,7 +132,7 @@ export const indeedScraper: Scraper = {
     search: for (const query of queries) {
       for (let page = 0; page < 3 && found.size < max; page++) {
         try {
-          const { cards, hasNext } = parseIndeedSearch(await fetchHtml(indeedSearchUrl(query, "Suisse", page * 10)));
+          const { cards, hasNext } = parseIndeedSearch(await readHtml(indeedSearchUrl(query, "Suisse", page * 10)));
           succeeded = true;
           let added = 0;
           for (const card of cards) {
@@ -163,7 +163,7 @@ export const indeedScraper: Scraper = {
     for (const [index, card] of cards.entries()) {
       let offre: ScrapedOffre | null;
       try {
-        offre = blocked ? indeedCardToOffre(card, undefined, blocked) : indeedCardToOffre(card, await fetchHtml(card.url));
+        offre = blocked ? indeedCardToOffre(card, undefined, blocked) : indeedCardToOffre(card, await readHtml(card.url));
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         if (e instanceof IndeedAccessError) {
@@ -179,5 +179,44 @@ export const indeedScraper: Scraper = {
       if (!blocked && index < cards.length - 1) await sleep(900);
     }
     onEvent({ kind: "done", source: SOURCE, seen: cards.length, ok, failed });
+  },
+}; }
+
+/** Transport HTTP conservé uniquement pour les diagnostics comparatifs. */
+export const indeedHttpScraper = createIndeedScraper(fetchHtml);
+
+/** Un seul Chrome visible par scan, sans proxy ni profil personnel. */
+export const indeedScraper: Scraper = {
+  name: SOURCE,
+  async *scrape(criteria, onEvent) {
+    const { openIndeedDiagnosticBrowser, probeIndeedDetail } = await import("./indeed-browser");
+    let session: Awaited<ReturnType<typeof openIndeedDiagnosticBrowser>> | undefined;
+    let page: import("playwright").Page | undefined;
+    const details = new Map<string, ScrapedOffre>();
+    const scraper = createIndeedScraper(async url => {
+      if (!session) {
+        try { session = await openIndeedDiagnosticBrowser(); }
+        catch (error) { throw new IndeedAccessError(error instanceof Error ? error.message : "Impossible de lancer Chrome pour Indeed."); }
+      }
+      page ??= await session.context.newPage();
+      if (new URL(url).pathname === "/viewjob") {
+        const result = await probeIndeedDetail(page, url);
+        if (result.status === "blocked") throw new IndeedAccessError(`${result.message} (HTTP ${result.httpStatus ?? 200})`);
+        if (result.status !== "ok") throw new Error(result.message);
+        if (result.offer) details.set(result.offer.source_id, result.offer);
+      } else {
+        const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+        if ([401, 403, 429].includes(response?.status() ?? 0)) throw new IndeedAccessError(`${BLOCKED} (HTTP ${response!.status()})`);
+        if (!response?.ok()) throw new Error(`Indeed Suisse HTTP ${response?.status() ?? "indisponible"}`);
+        await page.waitForFunction(() => !!document.querySelector("a[data-jk], h2 a[href*='jk='], h3 a[href*='jk='], #no_results, [data-testid='no-results'], #challenge-form") || /security check|captcha|access denied/i.test(document.title) || /aucun(?:e)? (?:offre|résultat)|no jobs found|did not match any jobs|keine stellenangebote/i.test(document.body?.innerText ?? ""), undefined, { timeout: 15000 });
+      }
+      const html = await page.content();
+      if (html.length > 3_000_000) throw new Error("Indeed Suisse : page trop volumineuse.");
+      return html;
+    });
+    try { for await (const offer of scraper.scrape(criteria, onEvent)) yield details.get(offer.source_id) ?? offer; }
+    finally {
+      if (session) { try { await session.context.close(); } finally { await session.browser.close(); } }
+    }
   },
 };
