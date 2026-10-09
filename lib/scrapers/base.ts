@@ -1,5 +1,6 @@
 import "server-only";
 import type { Browser, BrowserContext } from "playwright";
+import type { SearchArea } from "@/lib/search-areas";
 import {
   applyBrowsersPath,
   isEngineInstalled,
@@ -29,6 +30,8 @@ export type ScrapeCriteria = {
   sectors: string[];
   countries: string[];
   maxOffres?: number;
+  search_areas?: SearchArea[];
+  include_unknown_locations?: boolean;
 };
 
 export type ProgressEvent =

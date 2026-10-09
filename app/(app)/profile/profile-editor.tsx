@@ -29,6 +29,7 @@ import { SwissSettings } from "@/components/app/swiss-settings";
 import type { ProfileFull, Experience, Education, Skill, Language } from "@/lib/cv/types";
 import { ProfilePhoto } from "@/components/app/profile-photo";
 import { JobSuggestions } from "@/components/app/job-suggestions";
+import { SearchAreas } from "@/components/app/search-areas";
 
 const SOURCES = SOURCES_META;
 const PROFILE_SECTIONS = [["#identite", "Identité"], ["#recherche", "Recherche"], ["#experiences", "Expériences"], ["#formations", "Formations"], ["#competences", "Compétences"], ["#langues", "Langues"], ["#parametres", "Paramètres"]] as const;
@@ -326,6 +327,7 @@ function SearchCard({
         </Button>
       </div>
 
+      <SearchAreas profile={profile} update={update} />
       <p className="text-caption uppercase text-textSecondary mb-2">
         Pays ({profile.target_countries.length})
       </p>

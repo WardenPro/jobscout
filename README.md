@@ -89,6 +89,18 @@ L'app démarre sur http://127.0.0.1:3000 (écoute limitée à la machine locale,
 
 WTTJ est interrogée avec la clé de recherche (lecture seule) qu'utilise l'interface du site. Si elle cesse de fonctionner, décochez la source.
 
+### Zones géographiques de recherche
+
+Dans **Profil › Recherche › Zones géographiques cibles** (également disponible pendant l'onboarding), choisissez des villes ou cantons suisses et des villes, départements ou régions françaises. Par exemple : Genève et Vaud pour la Suisse, Haute-Savoie et Ain pour la France. Les pays doivent aussi être cochés dans les pays cibles. Enregistrez le profil pour appliquer ces choix.
+
+Plusieurs zones d'un même pays sont combinées en union. Sans zone pour un pays, il reste entièrement couvert. Les zones limitent les nouvelles offres conservées lors des scans, la liste des offres existantes, ses facettes et les suggestions/compteurs de l'accueil. Les anciennes annonces ne sont pas supprimées : enlever les zones les rend à nouveau visibles. La page Offres rappelle les zones actives et permet de retourner au profil pour les modifier ; ses filtres ponctuels ville/canton restent utilisables.
+
+Indeed et LinkedIn reçoivent les lieux sélectionnés dans leurs recherches. France Travail recherche les départements choisis, en développant une région en ses départements ; ses codes départementaux sont conservés pour vérifier la région de l'offre. Une ville française saisie librement n'est pas convertie arbitrairement en code INSEE : pour France Travail, elle est filtrée sur le lieu publié après recherche. jobup.ch/jobs.ch filtrent leurs cartes avant les appels de détail ; les autres sources sont contrôlées avant l'enregistrement. Lorsque la source ne propose pas de recherche locale, ses limites de pagination peuvent réduire le nombre d'offres pertinentes trouvées.
+
+Les offres dont le lieu ne permet pas de vérifier la zone sont exclues par défaut ; **Conserver les offres dont le lieu ne permet pas de vérifier la zone** permet de les garder. Les régions françaises sont reconnues à partir d'un département/code postal disponible ou d'un nom de région explicite, sans déduire la localisation depuis la description du poste. Une ville seule ne suffit donc pas toujours à déterminer sa région. Les cibles ville utilisent des noms complets (sans sensibilité aux accents), sans rayon kilométrique. Le filtre frontalier de temps de trajet déjà présent dans Offres reste distinct.
+
+Les listes françaises embarquées viennent de l'[API Découpage administratif](https://geo.api.gouv.fr/decoupage-administratif), récupérées le 9 octobre 2026. Aucun appel de géocodage n'est nécessaire pour filtrer les résultats.
+
 ### Relais Bright Data (optionnel)
 
 Dans **Profil › Paramètres et données › Proxy de recherche Bright Data**, renseignez une clé API et une zone **Web Unlocker API**, choisissez les sources à relayer et le plafond d'appels par source et par scan (20 par défaut, de 1 à 100). Le relais reste désactivé par défaut. L'enregistrement et la lecture des paramètres ne déclenchent aucun appel externe ; **Tester la connexion** en effectue un.

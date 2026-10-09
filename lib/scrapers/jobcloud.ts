@@ -1,4 +1,5 @@
 import "server-only";
+import { matchesSearchAreas } from "@/lib/search-areas";
 import type { Scraper, ScrapedOffre, ScrapeCriteria, ProgressEvent } from "./base";
 import { htmlToText } from "./base";
 import { detectVie } from "@/lib/vie";
@@ -204,7 +205,7 @@ function makeScraper(site: Site): Scraper {
             const { cards, numPages } = await fetchSearchPage(site, q, page);
             searchSucceeded = true;
             if (!cards.length) break;
-            for (const c of cards) if (!seen.has(c.id)) seen.set(c.id, c);
+            for (const c of cards) if (matchesSearchAreas({ country: "Suisse", location: c.place }, criteria.search_areas, criteria.include_unknown_locations) && !seen.has(c.id)) seen.set(c.id, c);
             if (page >= numPages) break;
             await sleep(1200);
           } catch (e) {

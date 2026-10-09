@@ -9,6 +9,7 @@ import { assessLanguages, type LanguageAssessment } from "@/lib/language-require
 import { getProfile } from "./queries";
 import { cachedCommute, type CommuteEstimate } from "@/lib/commute";
 import { countryMatcher, normalizeCountryName } from "@/lib/countries";
+import { matchesSearchAreas } from "@/lib/search-areas";
 
 export type { ScrapedOffre };
 
@@ -103,6 +104,7 @@ function normalizeSearch(value: string): string {
 // filtrer restent en mémoire et sont reconstruites dès que la base change.
 
 type CachedOffre = Omit<OffreSummary, "description_text" | "score_reason" | "language_assessment" | "commute"> & {
+  department: string | null;
   /** 1 000 premiers caractères : tout ce que l’aperçu affiche. */
   excerpt: string;
   /** JSON brut, lu seulement pour les offres de la page renvoyée. */
@@ -155,7 +157,7 @@ type CacheRow = Pick<
   OffreRow,
   "id" | "source" | "url" | "title" | "company" | "country" | "location" |
   "contract_type" | "description_status" | "posted_at" | "score" | "is_vie" | "canton"
-> & { head: string | null; excerpt: string | null; score_breakdown: string | null; has_cv: number; has_lm: number };
+> & { department: string | null; head: string | null; excerpt: string | null; score_breakdown: string | null; has_cv: number; has_lm: number };
 
 function buildOffresCache(fingerprint: string): OffresCache {
   // La description entière ne remonte pas : 4 000 caractères suffisent à classer le
@@ -164,6 +166,7 @@ function buildOffresCache(fingerprint: string): OffresCache {
   const rows = getDb().prepare(`
     SELECT o.id, o.source, o.url, o.title, o.company, o.country, o.location,
       o.contract_type, o.canton, o.description_status, o.posted_at, o.score, o.score_breakdown, o.is_vie,
+      json_extract(CASE WHEN json_valid(o.raw_payload) THEN o.raw_payload ELSE '{}' END, '$.department') AS department,
       substr(o.description_text, 1, 4000) AS head,
       substr(o.description_text, 1, 1000) AS excerpt,
       EXISTS(SELECT 1 FROM documents WHERE offre_id = o.id AND type = 'cv') AS has_cv,
@@ -179,6 +182,7 @@ function buildOffresCache(fingerprint: string): OffresCache {
       id: row.id, source: row.source, url: row.url, title: row.title,
       company: row.company, country: row.country, location: row.location,
       canton: isSwissOffer(row.country) ? resolveSwissCanton(row.canton, row.location) : null,
+      department: row.department,
       posted_at: row.posted_at, score: row.score, is_vie: row.is_vie,
       description_status: row.description_status, contract_category,
       has_cv: !!row.has_cv, has_lm: !!row.has_lm,
@@ -254,7 +258,7 @@ export function searchOffres(opts: {
   const targetCountries = profile?.target_countries ?? [];
   const inProfile = countryMatcher(targetCountries);
   const inCountry = countryMatcher(opts.country ? [opts.country] : []);
-  const scoped = targetCountries.length ? cache.smart.filter(row => inProfile(row.country)) : cache.smart;
+  const scoped = cache.smart.filter(row => inProfile(row.country) && matchesSearchAreas(row, profile?.search_areas, profile?.include_unknown_locations));
   const query = normalizeSearch((opts.query ?? "").trim());
   const haystacks = query ? getHaystacks(cache) : null;
   const contracts = new Set(opts.contracts ?? []);
@@ -308,15 +312,16 @@ export function searchOffres(opts: {
     })),
     total: filtered.length,
     pageSize: OFFER_PAGE_SIZE,
-    facets: targetCountries.length ? searchFacets(scoped) : cache.facets,
+    facets: targetCountries.length || profile?.search_areas?.length ? searchFacets(scoped) : cache.facets,
   };
 }
 
 /** Les six premières suggestions suffisent au tableau de bord. */
 export function suggestedOffres(limit: number, untracked = false): Pick<OffreRow, "id" | "title" | "company" | "country" | "location" | "posted_at" | "score">[] {
-  const inProfile = countryMatcher(getProfile()?.target_countries ?? []);
+  const profile = getProfile();
+  const inProfile = countryMatcher(profile?.target_countries ?? []);
   const tracked = new Set(untracked ? (getDb().prepare("SELECT offre_id FROM candidatures WHERE offre_id IS NOT NULL").all() as { offre_id: number }[]).map(row => row.offre_id) : []);
-  return getOffresCache().smart.filter(row => inProfile(row.country) && !tracked.has(row.id))
+  return getOffresCache().smart.filter(row => inProfile(row.country) && matchesSearchAreas(row, profile?.search_areas, profile?.include_unknown_locations) && !tracked.has(row.id))
     .slice(0, Math.max(1, Math.min(20, Math.trunc(limit))))
     .map(({ id, title, company, country, location, posted_at, score }) => ({ id, title, company, country, location, posted_at, score }));
 }
@@ -475,9 +480,10 @@ export function getOffre(id: number): OffreFiltered | null {
 
 export function offresCounts() {
   const db = getDb();
-  const inProfile = countryMatcher(getProfile()?.target_countries ?? []);
-  const rows = (db.prepare("SELECT country, is_vie, date(posted_at) = date('now') AS today FROM offres").all() as { country: string | null; is_vie: number; today: number | null }[])
-    .filter(row => inProfile(row.country));
+  const profile = getProfile();
+  const inProfile = countryMatcher(profile?.target_countries ?? []);
+  const rows = (db.prepare("SELECT country, location, canton, json_extract(CASE WHEN json_valid(raw_payload) THEN raw_payload ELSE '{}' END, '$.department') AS department, is_vie, date(posted_at) = date('now') AS today FROM offres").all() as { country: string | null; location: string | null; canton: string | null; department: string | null; is_vie: number; today: number | null }[])
+    .filter(row => inProfile(row.country) && matchesSearchAreas(row, profile?.search_areas, profile?.include_unknown_locations));
   const total = rows.length;
   const today = rows.filter(row => row.today).length;
   // Colonne is_vie figée au scan : pour un chiffre qui corresponde à /offres?vie=1,

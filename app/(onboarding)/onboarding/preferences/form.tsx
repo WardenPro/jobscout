@@ -13,6 +13,7 @@ import { SOURCES_META, DEFAULT_SOURCE_IDS } from "@/lib/sources-meta";
 import { EngineNotice } from "@/components/app/engine-notice";
 import { SwissSettings } from "@/components/app/swiss-settings";
 import { JobSuggestions } from "@/components/app/job-suggestions";
+import { SearchAreas } from "@/components/app/search-areas";
 const SOURCES = SOURCES_META;
 
 export function PreferencesForm() {
@@ -106,6 +107,7 @@ export function PreferencesForm() {
           Métiers, intitulés de postes et secteurs qui vous intéressent.
         </p>
         <JobSuggestions profile={profile} update={update} />
+        <SearchAreas profile={profile} update={update} />
         <div className="flex flex-wrap gap-2 mb-3">
           {profile.sectors.map((s) => (
             <Chip

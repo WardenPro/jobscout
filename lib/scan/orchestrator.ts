@@ -6,6 +6,7 @@ import { scoreOffresLocal } from "@/lib/scoring/local";
 import { getProfile } from "@/lib/db/queries";
 import { getDb } from "@/lib/db";
 import type { ProgressEvent } from "@/lib/scrapers/base";
+import { matchesSearchAreas } from "@/lib/search-areas";
 
 export type OrchestratorEvent =
   | ProgressEvent
@@ -61,11 +62,12 @@ export async function* runScan(
     let seen = 0;
     let okCount = 0;
     let failCount = 0;
+    let excludedCount = 0;
     const buffer: { id: number; offre: any }[] = [];
     const pendingScoring: OrchestratorEvent[] = [];
 
     try {
-      const criteria = { sectors: profile.sectors, countries: profile.target_countries };
+      const criteria = { sectors: profile.sectors, countries: profile.target_countries, search_areas: profile.search_areas, include_unknown_locations: profile.include_unknown_locations };
       const progressQueue: ProgressEvent[] = [];
       const onEvent = (e: ProgressEvent) => {
         if (e.kind === "error") {
@@ -85,6 +87,7 @@ export async function* runScan(
           yield ev;
         }
 
+        if (!matchesSearchAreas(offre, profile.search_areas, profile.include_unknown_locations)) { excludedCount++; continue; }
         const id = upsertOffreFromSource(scraper.name, offre);
         if (offre.description_status === "ok") {
           totalInserted++;
@@ -116,7 +119,7 @@ export async function* runScan(
       log.push(`[${scraper.name}] erreur fatale: ${msg}`);
       yield { kind: "error", source: scraper.name, message: msg };
     }
-    const summary = `[${scraper.name}] ${seen || okCount + failCount} vues, ${okCount} insérées, ${failCount} échecs`;
+    const summary = `[${scraper.name}] ${seen || okCount + failCount} vues, ${okCount} insérées, ${failCount} échecs${excludedCount ? `, ${excludedCount} écartées par les zones géographiques` : ""}`;
     log.push(summary);
     onLog(summary);
     flush();

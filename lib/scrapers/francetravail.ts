@@ -3,6 +3,7 @@ import type { Scraper, ScrapedOffre, ScrapeCriteria, ProgressEvent } from "./bas
 import { htmlToText } from "./base";
 import { detectVie } from "@/lib/vie";
 import { sourceFetch } from "./source-fetch";
+import { FRENCH_DEPARTMENTS, frenchDepartment, matchesSearchAreas } from "@/lib/search-areas";
 import {
   parseDocument,
   firstMatchHtml,
@@ -65,7 +66,7 @@ type FtApiJob = {
   intitule?: string;
   description?: string;
   entreprise?: { nom?: string };
-  lieuTravail?: { libelle?: string };
+  lieuTravail?: { libelle?: string; commune?: string; codePostal?: string };
   typeContratLibelle?: string;
   typeContrat?: string;
   salaire?: { libelle?: string };
@@ -111,17 +112,18 @@ function apiJobToScraped(job: FtApiJob): ScrapedOffre | null {
     description_status: "ok",
     posted_at: (job.dateCreation ?? job.dateActualisation ?? "").slice(0, 10) || null,
     is_vie: detectVie({ source: SOURCE, title, description: fullText, url }),
-    raw_payload: { id, typeContrat: job.typeContrat },
+    raw_payload: { id, typeContrat: job.typeContrat, department: frenchDepartment(job.lieuTravail?.libelle, job.lieuTravail?.commune?.slice(0, job.lieuTravail.commune.startsWith("97") ? 3 : 2)) ?? frenchDepartment(job.lieuTravail?.codePostal) },
   };
 }
 
-async function fetchApi(keywords: string, start: number, size: number): Promise<FtApiJob[]> {
+async function fetchApi(keywords: string, start: number, size: number, department?: string): Promise<FtApiJob[]> {
   const token = await getToken();
   if (!token) return [];
   const params = new URLSearchParams({
     motsCles: keywords,
     range: `${start}-${start + size - 1}`,
   });
+  if (department) params.set("departement", department);
   const res = await fetch(`${API_BASE}/offres/search?${params}`, {
     headers: { accept: "application/json", authorization: `Bearer ${token}` },
   });
@@ -135,6 +137,7 @@ type HtmlCard = {
   title: string;
   company: string;
   city: string | null;
+  department: string | null;
   contract: string | null;
   snippet: string;
 };
@@ -172,17 +175,18 @@ function parseHtmlSearch(html: string): HtmlCard[] {
       .filter((t) => t.length > 20)
       .join(" ");
 
-    out.push({ id, title, company, city, contract, snippet });
+    out.push({ id, title, company, city, department: frenchDepartment(sub.split(/\s+-\s+/).slice(1).join(" - ")), contract, snippet });
   }
   return out;
 }
 
-async function fetchHtmlPage(keywords: string, page: number): Promise<HtmlCard[]> {
+async function fetchHtmlPage(keywords: string, page: number, department?: string): Promise<HtmlCard[]> {
   const params = new URLSearchParams({
     motsCles: keywords,
     offresPartenaires: "true",
     page: String(page),
   });
+  if (department) params.set("lieux", `${department}D`);
   const res = await sourceFetch(SOURCE, `${SEARCH_PAGE}?${params}`, { headers: BROWSER_HEADERS });
   if (!res.ok) throw new Error(`France Travail HTTP ${res.status}`);
   return parseHtmlSearch(await res.text());
@@ -222,7 +226,7 @@ async function enrichCard(card: HtmlCard): Promise<ScrapedOffre> {
     description_status: okStatus ? "ok" : "failed",
     posted_at: null,
     is_vie: detectVie({ source: SOURCE, title: card.title, description: description_text, url }),
-    raw_payload: { id: card.id },
+    raw_payload: { id: card.id, department: card.department },
     scrape_errors: okStatus ? undefined : "description introuvable",
   };
 }
@@ -243,15 +247,21 @@ export const francetravailScraper: Scraper = {
 
     const max = criteria.maxOffres ?? 50;
     const queries = criteria.sectors.length ? criteria.sectors : [""];
+    const areas = (criteria.search_areas ?? []).filter(area => area.country === "FR");
+    const departments = [...new Set(areas.flatMap(area => area.kind === "department" ? [area.value] : area.kind === "region" ? FRENCH_DEPARTMENTS.filter(department => department.codeRegion === area.value).map(department => department.code) : []))];
+    // Une cible ville sans code INSEE n'est pas envoyée comme un faux code commune.
+    // Elle reste couverte par la recherche nationale puis le filtre sur le lieu publié.
+    const targets: (string | undefined)[] = !departments.length || areas.some(area => area.kind === "city") ? [undefined] : departments;
+    const searches = queries.flatMap(query => targets.map(department => ({ query, department })));
 
     // Stratégie 1 : API officielle (descriptions complètes, aucun fetch détail nécessaire)
     const apiOffres = new Map<string, ScrapedOffre>();
-    for (const q of queries) {
+    for (const { query: q, department } of searches) {
       let start = 0;
       while (apiOffres.size < max && start < 150) {
         let jobs: FtApiJob[];
         try {
-          jobs = await fetchApi(q, start, 50);
+          jobs = await fetchApi(q, start, 50, department);
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           onEvent({ kind: "error", source: SOURCE, message: `France Travail : recherche API impossible pour « ${q} » : ${message}` });
@@ -260,7 +270,7 @@ export const francetravailScraper: Scraper = {
         if (!jobs.length) break;
         for (const j of jobs) {
           const o = apiJobToScraped(j);
-          if (o && !apiOffres.has(o.source_id)) apiOffres.set(o.source_id, o);
+          if (o && matchesSearchAreas(o, criteria.search_areas, criteria.include_unknown_locations) && !apiOffres.has(o.source_id)) apiOffres.set(o.source_id, o);
         }
         if (jobs.length < 50) break;
         start += 50;
@@ -284,12 +294,12 @@ export const francetravailScraper: Scraper = {
 
     // Stratégie 2 : HTML fallback
     const seen = new Map<string, HtmlCard>();
-    for (const q of queries) {
+    for (const { query: q, department } of searches) {
       for (let page = 1; page <= 3 && seen.size < max; page++) {
         try {
-          const cards = await fetchHtmlPage(q, page);
+          const cards = await fetchHtmlPage(q, page, department);
           if (!cards.length) break;
-          for (const c of cards) if (!seen.has(c.id)) seen.set(c.id, c);
+          for (const c of cards) if (matchesSearchAreas({ country: "France", location: c.city, department: c.department }, criteria.search_areas, criteria.include_unknown_locations) && !seen.has(c.id)) seen.set(c.id, c);
           if (cards.length < 10) break;
           await sleep(1200);
         } catch {

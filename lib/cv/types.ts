@@ -2,6 +2,7 @@ import { z } from "zod";
 import { WORK_PERMITS } from "@/lib/work-permit";
 import { WorkloadRangeSchema } from "@/lib/workload";
 import { JobSuggestionsSchema } from "./job-suggestions";
+import { SearchAreasSchema } from "@/lib/search-areas";
 
 export const ExperienceSchema = z.object({
   id: z.number().optional(),
@@ -58,6 +59,8 @@ export const ProfileSchema = z.object({
   sectors: z.array(z.string()).default([]),
   job_suggestions: JobSuggestionsSchema.optional(),
   target_countries: z.array(z.string()).default([]),
+  search_areas: SearchAreasSchema.optional(),
+  include_unknown_locations: z.boolean().optional(),
   sources_enabled: z.array(z.string()).default([]),
   preferred_contracts: z
     .array(z.enum(["cdi", "cdd", "vie", "stage", "alternance"]))

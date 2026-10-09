@@ -7,7 +7,9 @@ import { WorkloadRangeSchema } from "@/lib/workload";
 export function getProfile(): ProfileFull | null {
   const db = getDb();
   const profile = db.prepare("SELECT * FROM profile ORDER BY id ASC LIMIT 1").get() as
-    | (Omit<Profile, "job_suggestions" | "sectors" | "target_countries" | "sources_enabled" | "preferred_contracts" | "work_permit" | "workload_range"> & {
+    | (Omit<Profile, "search_areas" | "include_unknown_locations" | "job_suggestions" | "sectors" | "target_countries" | "sources_enabled" | "preferred_contracts" | "work_permit" | "workload_range"> & {
+        search_areas: string;
+        include_unknown_locations: number;
         job_suggestions: string;
         work_permit: string | null;
         workload_range: string | null;
@@ -48,6 +50,8 @@ export function getProfile(): ProfileFull | null {
     sectors: parseJson(profile.sectors, []),
     job_suggestions: parseJson(profile.job_suggestions, []),
     target_countries: parseJson(profile.target_countries, []),
+    search_areas: parseJson(profile.search_areas, []),
+    include_unknown_locations: !!profile.include_unknown_locations,
     sources_enabled: parseJson(profile.sources_enabled, []),
     preferred_contracts: parseJson(profile.preferred_contracts, ["cdi", "cdd"]),
     work_permit: WORK_PERMITS.includes(profile.work_permit as WorkPermit) ? (profile.work_permit as WorkPermit) : null,
@@ -77,8 +81,8 @@ export function saveProfile(input: Omit<ProfileFull, "id" | "created_at" | "upda
     db.prepare("DELETE FROM profile").run();
     const result = db
       .prepare(
-        `INSERT INTO profile (full_name, email, phone, location, linkedin_url, portfolio_url, summary, raw_cv_text, sectors, target_countries, sources_enabled, preferred_contracts, work_permit, workload_range, extraction_confidence, photo, job_suggestions)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO profile (full_name, email, phone, location, linkedin_url, portfolio_url, summary, raw_cv_text, sectors, target_countries, sources_enabled, preferred_contracts, work_permit, workload_range, extraction_confidence, photo, job_suggestions, search_areas, include_unknown_locations)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         input.full_name ?? null,
@@ -97,7 +101,9 @@ export function saveProfile(input: Omit<ProfileFull, "id" | "created_at" | "upda
         input.workload_range ? asJson(input.workload_range) : null,
         input.extraction_confidence ?? 0,
         input.photo ?? null,
-        asJson(input.job_suggestions ?? [])
+        asJson(input.job_suggestions ?? []),
+        asJson(input.search_areas ?? []),
+        input.include_unknown_locations ? 1 : 0
       );
     const profileId = Number(result.lastInsertRowid);
 

@@ -7,6 +7,7 @@ import { resolveSwissCanton } from "@/lib/swiss-geography";
 import { detectVie } from "@/lib/vie";
 import { indeedSearchUrl } from "@/lib/indeed";
 import { sourceFetch } from "./source-fetch";
+import { searchLocations, matchesSearchAreas } from "@/lib/search-areas";
 
 const SOURCE = "indeedch";
 const HOST = "https://ch.indeed.com";
@@ -130,15 +131,17 @@ export function createIndeedScraper(readHtml: (url: string) => Promise<string>):
     let blocked: string | null = null;
     let lastError: Error | null = null;
     search: for (const query of queries) {
+      for (const location of searchLocations(criteria.search_areas, "Suisse")) {
       for (let page = 0; page < 3 && found.size < max; page++) {
         try {
-          const { cards, hasNext } = parseIndeedSearch(await readHtml(indeedSearchUrl(query, "Suisse", page * 10)));
+          const { cards, hasNext } = parseIndeedSearch(await readHtml(indeedSearchUrl(query, location, page * 10)));
           succeeded = true;
           let added = 0;
           for (const card of cards) {
+            if (!matchesSearchAreas({ country: "Suisse", location: card.location }, criteria.search_areas, criteria.include_unknown_locations)) continue;
             if (!found.has(card.id) && found.size < max) { found.set(card.id, card); added++; }
           }
-          if (!hasNext || !added || found.size >= max) break;
+          if (!hasNext || (!added && !criteria.search_areas?.length) || found.size >= max) break;
           await sleep(1200);
         } catch (e) {
           lastError = e instanceof Error ? e : new Error(String(e));
@@ -151,6 +154,7 @@ export function createIndeedScraper(readHtml: (url: string) => Promise<string>):
           onEvent({ kind: "error", source: SOURCE, message: `Recherche « ${query} », page ${page + 1} : ${lastError.message}` });
           break;
         }
+      }
       }
       if (found.size >= max) break;
       await sleep(1200);

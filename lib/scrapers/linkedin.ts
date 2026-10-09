@@ -3,6 +3,7 @@ import type { Scraper, ScrapedOffre, ScrapeCriteria, ProgressEvent } from "./bas
 import { htmlToText, newContext } from "./base";
 import { detectVie } from "@/lib/vie";
 import { normalizeCountryName, strictCountryName } from "@/lib/countries";
+import { searchLocations } from "@/lib/search-areas";
 
 const SOURCE = "linkedin";
 
@@ -27,7 +28,7 @@ export const linkedinScraper: Scraper = {
       const seen = new Set<string>();
       const cards: ListingCard[] = [];
 
-      const countries = criteria.countries.length ? criteria.countries : [""];
+      const countries = (criteria.countries.length ? criteria.countries : [""]).flatMap(country => searchLocations(criteria.search_areas, country));
       // 2 pages max par combinaison secteur×pays : avec une liste de pays large
       // (ex. francophonie), on couvre chaque pays au lieu d'épuiser le budget
       // sur la première combinaison.

@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS profile (
   sectors TEXT NOT NULL DEFAULT '[]',
   job_suggestions TEXT NOT NULL DEFAULT '[]',
   target_countries TEXT NOT NULL DEFAULT '[]',
+  search_areas TEXT NOT NULL DEFAULT '[]',
+  include_unknown_locations INTEGER NOT NULL DEFAULT 0,
   sources_enabled TEXT NOT NULL DEFAULT '[]',
   preferred_contracts TEXT NOT NULL DEFAULT '["cdi","cdd"]',
   work_permit TEXT,

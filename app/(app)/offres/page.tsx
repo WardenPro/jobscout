@@ -5,6 +5,8 @@ import { ScanButton } from "./scan-button";
 import { getProfile } from "@/lib/db/queries";
 import { IndeedSearch } from "@/components/app/indeed-search";
 import { countryMatcher } from "@/lib/countries";
+import Link from "next/link";
+import { areaLabel } from "@/lib/search-areas";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +43,7 @@ export default async function OffresPage({ searchParams }: { searchParams: Promi
         actions={<ScanButton />}
       />
       {targetsSwitzerland && <IndeedSearch sectors={profile?.sectors ?? []} />}
+      {!!profile?.search_areas?.length && <p className="mb-4 text-small text-textSecondary">Zones du profil : {profile.search_areas.map(area => `${area.country} · ${areaLabel(area)}`).join(" ; ")}. <Link className="text-accent hover:underline" href="/profile#recherche">Modifier les zones</Link></p>}
       <OffresList initialResult={initial} initialVieOnly={vieOnly} initialMinScore={minScore} targetCountries={countries} />
     </>
   );
