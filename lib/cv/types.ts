@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { WORK_PERMITS } from "@/lib/work-permit";
 import { WorkloadRangeSchema } from "@/lib/workload";
+import { JobSuggestionsSchema } from "./job-suggestions";
 
 export const ExperienceSchema = z.object({
   id: z.number().optional(),
@@ -55,6 +56,7 @@ export const ProfileSchema = z.object({
   summary: z.string().nullable().optional(),
   raw_cv_text: z.string().nullable().optional(),
   sectors: z.array(z.string()).default([]),
+  job_suggestions: JobSuggestionsSchema.optional(),
   target_countries: z.array(z.string()).default([]),
   sources_enabled: z.array(z.string()).default([]),
   preferred_contracts: z
@@ -79,6 +81,7 @@ export type ProfileFull = z.infer<typeof ProfileFullSchema>;
 
 // Schema returned by Claude tool call
 export const ExtractedCVSchema = z.object({
+  job_suggestions: JobSuggestionsSchema.optional(),
   identity: z.object({
     full_name: z.string().nullable(),
     email: z.string().nullable(),

@@ -4,6 +4,7 @@ import path from "node:path";
 import { callStructured, type StructuredTool } from "@/lib/ai/llm";
 import { AiContentError, assertNotTruncated } from "@/lib/ai/errors";
 import { ExtractedCVSchema, type ExtractedCV } from "./types";
+import { JOB_SUGGESTIONS_INSTRUCTIONS, JOB_SUGGESTIONS_TOOL_SCHEMA } from "./job-suggestions";
 
 /**
  * Cap applicatif sur le texte CV envoyé à l'IA — aligné sur
@@ -18,6 +19,7 @@ const EXTRACT_TOOL = {
   input_schema: {
     type: "object",
     properties: {
+      job_suggestions: JOB_SUGGESTIONS_TOOL_SCHEMA,
       identity: {
         type: "object",
         properties: {
@@ -127,7 +129,7 @@ const EXTRACT_TOOL = {
         },
       },
     },
-    required: ["identity", "summary", "experiences", "educations", "skills", "languages", "certifications"],
+    required: ["identity", "summary", "experiences", "educations", "skills", "languages", "certifications", "job_suggestions"],
   },
 } as const;
 
@@ -149,7 +151,7 @@ export async function extractCV(text: string): Promise<ExtractedCV> {
   const message = await callStructured({
     role: "writer",
     maxTokens: 8000,
-    system: [{ text: getSystemPrompt(), cache: true }],
+    system: [{ text: `${getSystemPrompt()}\n\nSuggestions de recherche (job_suggestions) : ${JOB_SUGGESTIONS_INSTRUCTIONS}`, cache: true }],
     tool: EXTRACT_TOOL as unknown as StructuredTool,
     user: `Voici le texte brut extrait d'un CV. Extrais toutes les informations dans l'outil extract_cv selon les règles fournies dans le system prompt.\n\n<cv_text>\n${text}\n</cv_text>`,
   });

@@ -12,6 +12,7 @@ import { COUNTRY_GROUPS, FRANCOPHONIE } from "@/lib/countries";
 import { SOURCES_META, DEFAULT_SOURCE_IDS } from "@/lib/sources-meta";
 import { EngineNotice } from "@/components/app/engine-notice";
 import { SwissSettings } from "@/components/app/swiss-settings";
+import { JobSuggestions } from "@/components/app/job-suggestions";
 const SOURCES = SOURCES_META;
 
 export function PreferencesForm() {
@@ -35,7 +36,7 @@ export function PreferencesForm() {
 
   if (!profile) return null;
 
-  const update = (patch: Partial<ProfileFull>) => setProfile({ ...profile, ...patch });
+  const update = (patch: Partial<ProfileFull>) => setProfile(current => current ? { ...current, ...patch } : current);
 
   const toggleCountry = (c: string) => {
     const has = profile.target_countries.includes(c);
@@ -100,10 +101,11 @@ export function PreferencesForm() {
   return (
     <div className="space-y-5">
       <Card>
-        <h2 className="text-h3 mb-1">Secteurs cibles</h2>
+        <h2 className="text-h3 mb-1">Secteurs et intitulés cibles</h2>
         <p className="text-small text-textSecondary mb-4">
-          Mots-clés des secteurs / branches qui vous intéressent.
+          Métiers, intitulés de postes et secteurs qui vous intéressent.
         </p>
+        <JobSuggestions profile={profile} update={update} />
         <div className="flex flex-wrap gap-2 mb-3">
           {profile.sectors.map((s) => (
             <Chip

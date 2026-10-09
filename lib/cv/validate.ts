@@ -1,6 +1,7 @@
 import "server-only";
 import type { ExtractedCV } from "./types";
 import type { ProfileFull } from "./types";
+import { uniqueJobSuggestions } from "./job-suggestions";
 
 /**
  * Convertit la sortie Claude → ProfileFull, en :
@@ -101,6 +102,7 @@ export function buildProfileFromExtraction(
     summary: ex.summary,
     raw_cv_text: rawCvText,
     sectors: [],
+    job_suggestions: uniqueJobSuggestions(ex.job_suggestions ?? []),
     target_countries: [],
     sources_enabled: [],
     // Même défaut que le schéma zod, la colonne SQL et l'écran de préférences.

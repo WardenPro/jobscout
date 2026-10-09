@@ -28,6 +28,7 @@ import { EngineNotice } from "@/components/app/engine-notice";
 import { SwissSettings } from "@/components/app/swiss-settings";
 import type { ProfileFull, Experience, Education, Skill, Language } from "@/lib/cv/types";
 import { ProfilePhoto } from "@/components/app/profile-photo";
+import { JobSuggestions } from "@/components/app/job-suggestions";
 
 const SOURCES = SOURCES_META;
 const PROFILE_SECTIONS = [["#identite", "Identité"], ["#recherche", "Recherche"], ["#experiences", "Expériences"], ["#formations", "Formations"], ["#competences", "Compétences"], ["#langues", "Langues"], ["#parametres", "Paramètres"]] as const;
@@ -300,7 +301,8 @@ function SearchCard({
     <Card id="recherche" className="scroll-mt-28">
       <SectionHead icon={<Globe className="h-4 w-4" />} title="Recherche" />
 
-      <p className="text-caption uppercase text-textSecondary mb-2">Secteurs</p>
+      <p className="text-caption uppercase text-textSecondary mb-2">Secteurs et intitulés cibles</p>
+      <JobSuggestions profile={profile} update={update} />
       <div className="flex flex-wrap gap-1.5 mb-2">
         {profile.sectors.map((s) => (
           <Chip

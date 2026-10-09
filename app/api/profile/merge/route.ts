@@ -6,6 +6,7 @@ import { planMerge, applyMerge, fillMissingIdentity } from "@/lib/cv/merge";
 import { getProfile, saveProfile } from "@/lib/db/queries";
 import { setSetting } from "@/lib/db";
 import { ProfileFullSchema } from "@/lib/cv/types";
+import { uniqueJobSuggestions } from "@/lib/cv/job-suggestions";
 import { getLlmConfig, LlmNotConfiguredError } from "@/lib/ai/client";
 import { genericFailure, translateAiError } from "@/lib/ai/errors";
 
@@ -55,6 +56,7 @@ async function handleMerge(req: NextRequest) {
     const { profile: merged, filled: filledIdentity } = fillMissingIdentity(mergedRaw, parsed.data);
     saveProfile({
       ...merged,
+      job_suggestions: uniqueJobSuggestions([...(parsed.data.job_suggestions ?? []), ...(current.job_suggestions ?? [])]),
       raw_cv_text: [current.raw_cv_text, parsed.data.raw_cv_text].filter(Boolean).join("\n\n---\n\n"),
     });
     setSetting("has_completed_onboarding", "true");

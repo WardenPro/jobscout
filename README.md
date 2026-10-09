@@ -85,6 +85,8 @@ L'app démarre sur http://127.0.0.1:3000 (écoute limitée à la machine locale,
 
 **Indeed Suisse** : comme LinkedIn, la recherche nécessite un navigateur. Installez Google Chrome et lancez JobScout dans une session graphique locale : le scan ouvre une fenêtre Chrome temporaire, sans proxy ni profil personnel. La source est disponible sur activation explicite. Les fiches peuvent rester bloquées ; leurs descriptions sont alors signalées comme incomplètes et les appels aux fiches suivantes sont arrêtés. Dans **Offres › Rechercher sur Indeed Suisse**, un lien ouvre la recherche par mots-clés et ville dans votre navigateur ; il ne rapatrie pas les offres dans JobScout. Les diagnostics sont décrits dans [le guide des tests réels](tests/live/README.md).
 
+**Idées de postes d'après le CV** : lors de l'import, l'IA propose des intitulés de recherche avec une justification fondée sur le parcours, dans le même appel que l'extraction. Les suggestions sont affichées dans les préférences et dans **Profil › Recherche › Secteurs et intitulés cibles**. Cliquez sur **Ajouter à mes cibles**, puis enregistrez pour les utiliser. Pour un profil existant, **Analyser mon profil** ou **Actualiser les idées** lance une analyse avec le fournisseur IA configuré ; ce bouton effectue un appel IA supplémentaire. Les suggestions ne remplacent pas les cibles déjà choisies.
+
 WTTJ est interrogée avec la clé de recherche (lecture seule) qu'utilise l'interface du site. Si elle cesse de fonctionner, décochez la source.
 
 ### Relais Bright Data (optionnel)
