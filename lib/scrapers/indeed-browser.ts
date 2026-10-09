@@ -1,7 +1,29 @@
 import "server-only";
 import type { Page } from "playwright";
-import type { ScrapedOffre } from "./base";
+import { htmlToText, type ScrapedOffre } from "./base";
 import { indeedCardToOffre } from "./indeed";
+import { detectVie } from "@/lib/vie";
+
+/** Diagnostic interactif : Chrome installé, visible, sans identité falsifiée.
+ * Contexte jetable : aucun profil ni cookie du navigateur personnel n'est utilisé.
+ * Le moteur headless de LinkedIn reste inchangé.
+ */
+export async function openIndeedDiagnosticBrowser() {
+  const { chromium } = await import("playwright");
+  let browser;
+  try {
+    browser = await chromium.launch({ channel: "chrome", headless: false });
+  } catch {
+    throw new Error("Impossible de lancer Chrome pour le diagnostic Indeed. Installez Google Chrome et utilisez une session graphique locale.");
+  }
+  try {
+    const context = await browser.newContext({ locale: "fr-CH", viewport: { width: 1366, height: 900 } });
+    return { browser, context };
+  } catch (error) {
+    await browser.close();
+    throw error;
+  }
+}
 
 export type IndeedBrowserStatus = "ok" | "blocked" | "expired" | "timeout" | "navigation_error" | "http_error" | "missing_description" | "incomplete" | "outside_switzerland";
 export type IndeedBrowserResult = {
@@ -24,9 +46,12 @@ function inspectPage(wait: boolean) {
   if (/job (?:has expired|is no longer available)|this job has closed|cette offre.*(?:expir|plus disponible)|annonce.*(?:expir|plus disponible)|stellenangebot.*(?:abgelaufen|nicht mehr)/i.test(document.body?.innerText ?? "")) return { state: "expired" as const };
 
   let selector: string | undefined;
+  let descriptionHtml: string | undefined;
   for (const candidate of ["#jobDescriptionText", "[data-testid='jobDescriptionText']", ".simple-job-description-html"]) {
-    if (Array.from(document.querySelectorAll(candidate)).some(el => visible(el) && (el.textContent?.trim().length ?? 0) >= 100)) {
+    const element = Array.from(document.querySelectorAll<HTMLElement>(candidate)).find(el => visible(el) && (el.innerText?.trim().length ?? 0) >= 100);
+    if (element) {
       selector = candidate;
+      descriptionHtml = element.innerHTML;
       break;
     }
   }
@@ -43,6 +68,7 @@ function inspectPage(wait: boolean) {
   return {
     state: selector ? "ready" as const : "waiting" as const,
     selector,
+    descriptionHtml,
     title: text("[data-testid='jobsearch-JobInfoHeader-title'], .jobsearch-JobInfoHeader-title, h1"),
     company: text("[data-testid='inlineHeader-companyName'], [data-testid='company-name'], #companyName, .jobsearch-JobInfoHeader-companyName, .jobsearch-CompanyInfoContainer a"),
     location: text("[data-testid='inlineHeader-companyLocation'], [data-testid='job-location'], #jobLocationText, .jobsearch-JobInfoHeader-companyLocation"),
@@ -85,6 +111,14 @@ export async function probeIndeedDetail(page: Page, input: string, options: { na
     if (html.length > 3_000_000) return result("incomplete", "Page trop volumineuse pour ce diagnostic.");
     const offer = indeedCardToOffre({ id: key, url: canonical, title: state.title ?? "", company: state.company ?? "", location: state.location || null, salary: null, contract: null, snippet: "" }, html);
     if (!offer) return result("outside_switzerland", "Les données structurées indiquent un poste hors de Suisse.");
+    // La description affichée peut être plus riche que l'extrait du JSON-LD.
+    // Elle vient du bloc visible sélectionné, jamais d'un conteneur masqué.
+    if (state.descriptionHtml) {
+      offer.description_html = state.descriptionHtml;
+      offer.description_text = htmlToText(state.descriptionHtml);
+      offer.description_status = offer.description_text.length >= 100 ? "ok" : "partial";
+      offer.is_vie = detectVie({ source: "indeedch", title: offer.title, description: offer.description_text, url: canonical });
+    }
     if (offer.description_status !== "ok" || !offer.title || !offer.company) return result("incomplete", "Description ou identité du poste incomplète ; la récupération n'est pas validée.");
     return { ...result("ok", "Fiche complète récupérée dans Chromium."), selector: state.selector, offer };
   } catch (error) {

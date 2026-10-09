@@ -3,14 +3,14 @@ import type { BrowserContext } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
 import { getBrowser, newContext } from "@/lib/scrapers/base";
-import { probeIndeedDetail } from "@/lib/scrapers/indeed-browser";
+import { openIndeedDiagnosticBrowser, probeIndeedDetail } from "@/lib/scrapers/indeed-browser";
 
 let context: BrowserContext;
 const target = "https://ch.indeed.com/viewjob?jk=0123456789abcdef";
 const description = "Vous administrez les systèmes Windows et Linux, assurez la sécurité du réseau, gérez les sauvegardes et accompagnez les utilisateurs de notre équipe informatique à Genève.";
 const identity = "<h1>Ingénieur systèmes</h1><div data-testid='inlineHeader-companyName'>Entreprise de test</div><div id='jobLocationText'>Genève</div>";
 
-describe.skipIf(process.env.JOBSCOUT_INDEED_BROWSER !== "1")("Indeed avec le contexte Chromium de LinkedIn", () => {
+describe.skipIf(process.env.JOBSCOUT_INDEED_BROWSER !== "1")("Indeed : fixtures Chromium et fiche réelle dans Chrome visible", () => {
   beforeAll(async () => { context = await newContext(); });
   afterAll(async () => {
     await context?.close();
@@ -41,6 +41,13 @@ describe.skipIf(process.env.JOBSCOUT_INDEED_BROWSER !== "1")("Indeed avec le con
     expect(result.offer?.company).toBe("Entreprise structurée");
   });
 
+  it("conserve la description affichée quand le JSON-LD ne contient qu'un extrait", async () => {
+    const ld = { "@type": "JobPosting", title: "Ingénieur systèmes", description: "Résumé structuré. ".repeat(8), hiringOrganization: { name: "Entreprise de test" } };
+    const result = await fixture(`${identity}<script type='application/ld+json'>${JSON.stringify(ld)}</script><div class='simple-job-description-html'>${description}</div>`);
+    expect(result.status).toBe("ok");
+    expect(result.offer?.description_text).toBe(description);
+  });
+
   it("signale une structure inconnue sans récupérer toute la page comme description", async () => {
     expect((await fixture(`${identity}<article>${description}</article>`)).status).toBe("missing_description");
   });
@@ -57,23 +64,28 @@ describe.skipIf(process.env.JOBSCOUT_INDEED_BROWSER !== "1")("Indeed avec le con
     expect((await fixture("<h1>This job is no longer available</h1>")).status).toBe("expired");
   });
 
-  it.skipIf(!process.env.JOBSCOUT_INDEED_URL)("récupère une fiche réelle sans proxy ni session utilisateur", async () => {
-    const page = await context.newPage();
+  it.skipIf(!process.env.JOBSCOUT_INDEED_URL)("récupère une fiche réelle dans Chrome visible sans proxy ni session utilisateur", async () => {
+    const session = await openIndeedDiagnosticBrowser();
+    const page = await session.context.newPage();
     const dir = path.join(process.cwd(), "test-results", "indeed-browser");
     fs.mkdirSync(dir, { recursive: true });
     const deadline = setTimeout(() => { void page.close().catch(() => {}); }, 60_000);
     try {
       const result = await probeIndeedDetail(page, process.env.JOBSCOUT_INDEED_URL!);
       const { offer, ...diagnostic } = result;
-      fs.writeFileSync(path.join(dir, "result.json"), JSON.stringify({ ...diagnostic, url: offer?.url, title: offer?.title, company: offer?.company, location: offer?.location, descriptionLength: offer?.description_text.length ?? 0 }, null, 2));
-      console.info(`[Indeed Chromium] ${JSON.stringify(diagnostic)}`);
+      fs.writeFileSync(path.join(dir, "result.json"), JSON.stringify({ mode: "chrome-visible", browserVersion: session.browser.version(), ...diagnostic, url: offer?.url, title: offer?.title, company: offer?.company, location: offer?.location, descriptionLength: offer?.description_text.length ?? 0 }, null, 2));
+      if (offer) fs.writeFileSync(path.join(dir, "offer.json"), JSON.stringify(offer, null, 2));
+      console.info(`[Indeed Chrome visible] ${JSON.stringify(diagnostic)}`);
       await page.screenshot({ path: path.join(dir, "page.png"), timeout: 3000 }).catch(() => {});
       expect(result.status, result.message).toBe("ok");
       expect(offer?.description_status).toBe("ok");
       expect(offer?.description_text.length).toBeGreaterThanOrEqual(100);
+      expect(offer?.title).toBeTruthy();
+      expect(offer?.company).toBeTruthy();
     } finally {
       clearTimeout(deadline);
-      await page.close();
+      await session.context.close();
+      await session.browser.close();
     }
   }, 70_000);
 });

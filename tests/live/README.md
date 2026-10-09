@@ -11,6 +11,12 @@ Le module LinkedIn est `lib/scrapers/linkedin.ts`, en TypeScript/Node.js. Il uti
 locale française et viewport 1366 × 900. La version verrouillée de Playwright est
 1.59.1. Le moteur se gère dans `lib/scrapers/browser-engine.ts`.
 
+Le diagnostic réel utilise désormais `openIndeedDiagnosticBrowser()` : Google
+Chrome installé sur le poste, en mode visible, avec son user-agent natif et un
+contexte neuf `fr-CH`. Il n'utilise pas le profil personnel de Chrome. Le mode
+headless de LinkedIn et son fonctionnement restent inchangés. Une session
+graphique et Google Chrome installé sont nécessaires pour ce test réel.
+
 Contrairement au transport HTTP du scraper Indeed, Playwright exécute le
 JavaScript de la page. Il peut donc récupérer une description injectée après
 le chargement initial. Il ne garantit pas l'accès : un navigateur automatisé
@@ -23,7 +29,8 @@ fiche publique suisse. Il suit l'approche de LinkedIn : `page.goto` avec
 contenu plutôt que par une pause fixe. Trois sélecteurs sont reconnus :
 `#jobDescriptionText`, `[data-testid='jobDescriptionText']` et
 `.simple-job-description-html`. Le JSON-LD `JobPosting` sert de repli lorsque
-la structure visuelle change. Le parseur Indeed existant extrait ensuite titre,
+la structure visuelle change. La description affichée est prioritaire sur un
+extrait JSON-LD, et le parseur Indeed existant extrait ensuite titre,
 entreprise, lieu, contrat, salaire et date quand ils sont présents.
 
 Le diagnostic exige une description d'au moins 100 caractères, un titre et une
@@ -41,7 +48,9 @@ personnelle, connexion à un compte ou résolution de captcha.
 
 ### Rejouer le test
 
-Installez le moteur Chromium avant le test. Pour le dossier de développement,
+Installez Google Chrome pour le test réel et le moteur Chromium pour les
+fixtures locales. Une fenêtre Chrome temporaire sera ouverte puis fermée.
+Pour le dossier de développement,
 sous PowerShell :
 
 ```powershell
@@ -59,10 +68,11 @@ try {
 }
 ```
 
-Utilisez une fiche encore active pour une nouvelle évaluation. Huit fixtures
+Utilisez une fiche encore active pour une nouvelle évaluation. Neuf fixtures
 navigateur interceptent tous les accès réseau : injection JavaScript retardée,
 anciens/nouveaux sélecteurs, JSON-LD, changement de structure, description masquée,
-extrait court, protection HTTP 200 et offre expirée. Les tests ordinaires
+extrait court, protection HTTP 200, offre expirée et priorité de la description
+affichée sur un extrait JSON-LD. Les tests ordinaires
 `tests/indeed-browser.test.ts` vérifient aussi les HTTP 401/403/429, 404/410,
 500/502, les URL interdites, redirections et délais de navigation sans Chromium.
 
@@ -74,13 +84,21 @@ pas transformé en succès ou en test ignoré.
 
 ### Résultat mesuré
 
-Les huit fixtures navigateur passent. Sur la fiche testée la veille
-(`jk=0f4b81843b423ef2`), une navigation réelle avec le contexte LinkedIn a renvoyé
-**HTTP 401** après environ 2,8 s, sans description récupérée. Le test réel échoue
-donc avec le statut `blocked`. Ce résultat démontre un refus d'accès dans cette
-configuration ; il n'établit pas à lui seul la cause exacte du refus ni une
-impossibilité générale avec tout navigateur. Les résultats, les recherches et
-les fiches d'autres annonces n'ont pas été validés par cet essai unique.
+Le navigateur charge correctement une page de contrôle (`example.com`). Sur
+la fiche `jk=0f4b81843b423ef2`, le contexte headless de LinkedIn a reçu HTTP 401,
+et Chromium headless 147 avec son user-agent natif a reçu HTTP 403 avec une
+page « Requête bloquée ». Cela distingue le refus d'Indeed d'une panne de
+lancement ou d'exécution JavaScript du navigateur.
+
+Google Chrome 154 installé, en mode visible et sans user-agent personnalisé,
+a ensuite reçu **HTTP 200**. Le test principal récupère « IT Support » chez
+« Cantor Fitzgerald » à Genève, canton GE, contrat FULL_TIME et les 339
+caractères de la description affichée dans `.simple-job-description-html`.
+La lecture a réussi lors de plusieurs navigations indépendantes avec des
+contextes neufs, sans connexion à un compte ni intervention sur un captcha.
+Les neuf fixtures et le test réel passent. Cette validation porte sur cette
+fiche et ce poste Windows ; elle ne valide pas la recherche Indeed, les autres
+fiches, les autres systèmes ou le mode headless. L'accès du site peut changer.
 
 Indeed reste suspendu dans l'application. Ce prototype est uniquement un outil
 de diagnostic : il ne modifie pas les paramètres, ne remplit pas la base des
