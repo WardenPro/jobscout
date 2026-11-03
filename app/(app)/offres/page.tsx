@@ -1,4 +1,5 @@
 import { offresCounts, parseMinScore, searchOffres } from "@/lib/db/offres";
+import { getDistanceHome, suggestedDistanceHome } from "@/lib/distance/home";
 import { PageHeader } from "@/components/app/page-header";
 import { OffresList } from "./list";
 import { ScanButton } from "./scan-button";
@@ -25,7 +26,10 @@ export default async function OffresPage({ searchParams }: { searchParams: Promi
   const countries = profile?.target_countries ?? [];
   const targetsSwitzerland = !countries.length || countries.some(countryMatcher(["Suisse"]));
   // Même requête que celle de la liste côté navigateur : ?vie=1 coche la puce contrat « V.I.E ».
-  const initial = searchOffres({ contracts: vieOnly ? ["vie"] : [], minScore });
+  const home = getDistanceHome();
+  const initial = searchOffres({ contracts: vieOnly ? ["vie"] : [], minScore, home });
+  // Ville du profil proposée (jamais enregistrée d'office) ; le sélecteur la masque tant qu'une ville est choisie.
+  const homeSuggestion = suggestedDistanceHome();
   // Total et V.I.E lus dans les facettes (sans le filtre de score, pour décrire la base) : mêmes chiffres que la liste et la puce « V.I.E ».
   const { total, contractCounts } = initial.facets;
   const subtitle = [
@@ -44,7 +48,7 @@ export default async function OffresPage({ searchParams }: { searchParams: Promi
       />
       {targetsSwitzerland && <IndeedSearch sectors={profile?.sectors ?? []} />}
       {!!profile?.search_areas?.length && <p className="mb-4 text-small text-textSecondary">Zones du profil : {profile.search_areas.map(area => `${area.country} · ${areaLabel(area)}`).join(" ; ")}. <Link className="text-accent hover:underline" href="/profile#recherche">Modifier les zones</Link></p>}
-      <OffresList initialResult={initial} initialVieOnly={vieOnly} initialMinScore={minScore} targetCountries={countries} />
+      <OffresList initialResult={initial} initialVieOnly={vieOnly} initialMinScore={minScore} targetCountries={countries} homeSuggestion={homeSuggestion} />
     </>
   );
 }

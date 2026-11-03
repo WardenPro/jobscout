@@ -4,6 +4,7 @@ import { htmlToText } from "./base";
 import { detectVie } from "@/lib/vie";
 import { sourceFetch } from "./source-fetch";
 import { FRENCH_DEPARTMENTS, frenchDepartment, matchesSearchAreas } from "@/lib/search-areas";
+import { snippetToHtml } from "@/lib/text/entities";
 import {
   parseDocument,
   firstMatchHtml,
@@ -132,7 +133,7 @@ async function fetchApi(keywords: string, start: number, size: number, departmen
   return (data.resultats ?? []) as FtApiJob[];
 }
 
-type HtmlCard = {
+export type HtmlCard = {
   id: string;
   title: string;
   company: string;
@@ -192,7 +193,7 @@ async function fetchHtmlPage(keywords: string, page: number, department?: string
   return parseHtmlSearch(await res.text());
 }
 
-async function enrichCard(card: HtmlCard): Promise<ScrapedOffre> {
+export async function enrichCard(card: HtmlCard): Promise<ScrapedOffre> {
   const url = `https://candidat.francetravail.fr/offres/recherche/detail/${card.id}`;
   let descHtml: string | null = null;
   try {
@@ -209,7 +210,8 @@ async function enrichCard(card: HtmlCard): Promise<ScrapedOffre> {
     // détail indisponible — on retombe sur le snippet
   }
 
-  const description_html = descHtml ?? (card.snippet ? `<p>${card.snippet}</p>` : "");
+  // Snippet = texte (textContent) : échappé avant d'être inséré dans du HTML.
+  const description_html = descHtml ?? snippetToHtml(card.snippet);
   const description_text = descHtml ? htmlToText(descHtml) : card.snippet;
   const okStatus = description_text.length >= 100;
   return {
