@@ -125,6 +125,21 @@ export function decodeHtmlEntitiesOrNull(s: string | null, opts?: DecodeOptions)
   return s == null ? s : decodeHtmlEntities(s, opts);
 }
 
+/**
+ * Décodage répété (jusqu'à 3 passes) pour les champs servis doublement encodés
+ * par Algolia (« 6&amp;#xa0;ans »). Le décodeur standard reste volontairement à
+ * une passe : « &amp;lt; » ne doit pas devenir « < » dans un texte brut.
+ */
+export function decodeHtmlEntitiesDeep(s: string, opts: DecodeOptions = {}): string {
+  let out = s;
+  for (let i = 0; i < 3 && out.includes("&"); i++) {
+    const next = decodeHtmlEntities(out, opts);
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+}
+
 /** Échappe un texte brut pour l'insérer dans du HTML. */
 export function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

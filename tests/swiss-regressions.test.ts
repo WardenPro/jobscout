@@ -22,7 +22,7 @@ const { renderToStaticMarkup } = createRequire(import.meta.url)("react-dom/serve
 };
 const DESCRIPTION = "Vous participez à la gestion comptable, à la préparation des rapports et au suivi des dossiers administratifs de notre entreprise.";
 const offer = (id: string, status: "ok" | "failed" | "partial"): ScrapedOffre => ({
-  source_id: id, url: "https://example.org/offre", title: "Comptable", company: "Exemple",
+  source_id: id, url: "https://example.org/offre", title: "Comptable", company: `Exemple ${id}`,
   country: "Suisse", location: null, contract_type: null, salary: null,
   description_html: "", description_text: status === "ok" ? DESCRIPTION : "",
   description_status: status, posted_at: null, is_vie: false, raw_payload: {},

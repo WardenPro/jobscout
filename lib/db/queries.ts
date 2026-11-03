@@ -1,22 +1,24 @@
 import "server-only";
 import { getDb, parseJson, asJson, transaction } from "./index";
-import type { ProfileFull, Profile, Experience, Education, Skill, Language } from "@/lib/cv/types";
+import type { ProfileFull, Profile, Experience, Education, Skill, Language, Certification } from "@/lib/cv/types";
 import { WORK_PERMITS, type WorkPermit } from "@/lib/work-permit";
 import { WorkloadRangeSchema } from "@/lib/workload";
 
 export function getProfile(): ProfileFull | null {
   const db = getDb();
   const profile = db.prepare("SELECT * FROM profile ORDER BY id ASC LIMIT 1").get() as
-    | (Omit<Profile, "search_areas" | "include_unknown_locations" | "job_suggestions" | "sectors" | "target_countries" | "sources_enabled" | "preferred_contracts" | "work_permit" | "workload_range"> & {
+    | (Omit<Profile, "search_areas" | "include_unknown_locations" | "job_suggestions" | "sectors" | "target_titles" | "target_countries" | "sources_enabled" | "preferred_contracts" | "work_permit" | "workload_range" | "remote"> & {
         search_areas: string;
         include_unknown_locations: number;
         job_suggestions: string;
-        work_permit: string | null;
-        workload_range: string | null;
         sectors: string;
+        target_titles: string;
         target_countries: string;
         sources_enabled: string;
         preferred_contracts: string;
+        work_permit: string | null;
+        workload_range: string | null;
+        remote: string;
       })
     | undefined;
   if (!profile) return null;
@@ -44,18 +46,24 @@ export function getProfile(): ProfileFull | null {
   const languages = (
     db.prepare("SELECT * FROM languages WHERE profile_id = ?").all(id) as Language[]
   ).map((l) => ({ ...l }));
+  const certifications = (
+    db.prepare("SELECT id, name, issuer, date FROM certifications WHERE profile_id = ? ORDER BY id").all(id) as Certification[]
+  ).map((c) => ({ ...c }));
 
   return {
     ...profile,
     sectors: parseJson(profile.sectors, []),
     job_suggestions: parseJson(profile.job_suggestions, []),
+    target_titles: parseJson(profile.target_titles, []),
     target_countries: parseJson(profile.target_countries, []),
     search_areas: parseJson(profile.search_areas, []),
     include_unknown_locations: !!profile.include_unknown_locations,
+    search_area: profile.search_area ?? "",
     sources_enabled: parseJson(profile.sources_enabled, []),
     preferred_contracts: parseJson(profile.preferred_contracts, ["cdi", "cdd"]),
     work_permit: WORK_PERMITS.includes(profile.work_permit as WorkPermit) ? (profile.work_permit as WorkPermit) : null,
     workload_range: parseWorkloadRange(profile.workload_range),
+    remote: profile.remote === "full" ? "full" : "",
     experiences: experiences.map((e) => ({
       ...e,
       bullet_points: parseJson(e.bullet_points, []),
@@ -67,6 +75,7 @@ export function getProfile(): ProfileFull | null {
       evidence_experience_ids: parseJson(s.evidence_experience_ids, []),
     })),
     languages,
+    certifications,
   };
 }
 
@@ -81,8 +90,8 @@ export function saveProfile(input: Omit<ProfileFull, "id" | "created_at" | "upda
     db.prepare("DELETE FROM profile").run();
     const result = db
       .prepare(
-        `INSERT INTO profile (full_name, email, phone, location, linkedin_url, portfolio_url, summary, raw_cv_text, sectors, target_countries, sources_enabled, preferred_contracts, work_permit, workload_range, extraction_confidence, photo, job_suggestions, search_areas, include_unknown_locations)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO profile (full_name, email, phone, location, linkedin_url, portfolio_url, summary, raw_cv_text, sectors, job_suggestions, target_titles, target_countries, search_areas, search_area, include_unknown_locations, sources_enabled, preferred_contracts, work_permit, workload_range, remote, extraction_confidence, photo)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         input.full_name ?? null,
@@ -94,16 +103,19 @@ export function saveProfile(input: Omit<ProfileFull, "id" | "created_at" | "upda
         input.summary ?? null,
         input.raw_cv_text ?? null,
         asJson(input.sectors ?? []),
+        asJson(input.job_suggestions ?? []),
+        asJson(input.target_titles ?? []),
         asJson(input.target_countries ?? []),
+        asJson(input.search_areas ?? []),
+        input.search_area ?? "",
+        input.include_unknown_locations ? 1 : 0,
         asJson(input.sources_enabled ?? []),
         asJson(input.preferred_contracts ?? ["cdi", "cdd"]),
         input.work_permit ?? null,
         input.workload_range ? asJson(input.workload_range) : null,
+        input.remote === "full" ? "full" : "",
         input.extraction_confidence ?? 0,
-        input.photo ?? null,
-        asJson(input.job_suggestions ?? []),
-        asJson(input.search_areas ?? []),
-        input.include_unknown_locations ? 1 : 0
+        input.photo ?? null
       );
     const profileId = Number(result.lastInsertRowid);
 
@@ -160,6 +172,9 @@ export function saveProfile(input: Omit<ProfileFull, "id" | "created_at" | "upda
 
     const insLang = db.prepare(`INSERT INTO languages (profile_id, name, level) VALUES (?, ?, ?)`);
     input.languages.forEach((l) => insLang.run(profileId, l.name, l.level ?? null));
+
+    const insCert = db.prepare(`INSERT INTO certifications (profile_id, name, issuer, date) VALUES (?, ?, ?, ?)`);
+    (input.certifications ?? []).forEach((c) => insCert.run(profileId, c.name, c.issuer ?? null, c.date ?? null));
 
     return profileId;
   });

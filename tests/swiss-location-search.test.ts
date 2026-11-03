@@ -10,7 +10,8 @@ import { NextRequest } from "next/server";
 
 let seq = 0;
 function add(location: string | null, over: Partial<ScrapedOffre> = {}, source = "jobroom") {
-  return upsertOffreFromSource(source, { source_id: `geo-${++seq}`, url: "https://example.org/offre", title: "Comptable", company: "Exemple", country: "Suisse", location, contract_type: "CDI", salary: null, description_text: "Offre de comptable", description_html: "", description_status: "ok", posted_at: null, is_vie: false, raw_payload: {}, ...over });
+  const n = ++seq;
+  return upsertOffreFromSource(source, { source_id: `geo-${n}`, url: "https://example.org/offre", title: "Comptable", company: `Exemple ${n}`, country: "Suisse", location, contract_type: "CDI", salary: null, description_text: "Offre de comptable", description_html: "", description_status: "ok", posted_at: null, is_vie: false, raw_payload: {}, ...over });
 }
 beforeEach(() => { getDb().exec("DELETE FROM documents; DELETE FROM offres; DELETE FROM profile"); });
 

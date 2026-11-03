@@ -1,12 +1,13 @@
+import type { SearchArea as GeoSearchArea } from "@/lib/geo/fr";
+import type { SearchArea as ProfileSearchArea } from "@/lib/search-areas";
+import { decodeHtmlEntities, decodeHtmlEntitiesDeep } from "@/lib/text/entities";
 import "server-only";
 import type { Browser, BrowserContext } from "playwright";
-import type { SearchArea } from "@/lib/search-areas";
 import {
   applyBrowsersPath,
   isEngineInstalled,
   ENGINE_MISSING_MESSAGE,
 } from "./browser-engine";
-import { decodeHtmlEntities } from "@/lib/text/entities";
 
 export type ScrapedOffre = {
   source_id: string;
@@ -15,7 +16,6 @@ export type ScrapedOffre = {
   company: string;
   country: string | null;
   location: string | null;
-  canton?: string | null;
   contract_type: string | null;
   salary: string | null;
   description_html: string;
@@ -23,16 +23,25 @@ export type ScrapedOffre = {
   description_status: "ok" | "failed" | "partial";
   posted_at: string | null;
   is_vie: boolean;
+  canton?: string | null;
   raw_payload: Record<string, unknown>;
   scrape_errors?: string;
+  /** Rempli par le contrôle de qualité du scan, pas par les collecteurs. */
+  quality_issues?: string[];
 };
 
 export type ScrapeCriteria = {
+  /** Requêtes envoyées aux sources : les postes visés (voir lib/scan/search-plan.ts). */
+  queries?: string[];
+  /** Secteurs du profil : Civiweb s'en sert comme filtre ; les autres sources cherchent `queries`. */
   sectors: string[];
   countries: string[];
-  maxOffres?: number;
-  search_areas?: SearchArea[];
+  /** Zone de recherche en France ; null = tout le pays. Appliquée par les sources qui la vérifient. */
+  area?: GeoSearchArea | null;
+  /** Zones du profil (France et Suisse) : filtre géographique du fork suisse. */
+  search_areas?: ProfileSearchArea[];
   include_unknown_locations?: boolean;
+  maxOffres?: number;
 };
 
 export type ProgressEvent =
@@ -57,7 +66,13 @@ export async function getBrowser(): Promise<Browser> {
   applyBrowsersPath();
   if (!isEngineInstalled()) throw new Error(ENGINE_MISSING_MESSAGE);
   const { chromium } = await import("playwright");
-  _browser = await chromium.launch({ headless: true });
+  try {
+    _browser = await chromium.launch({ headless: true });
+  } catch (e) {
+    // Moteur d'une autre version de Playwright : même remède qu'un moteur absent.
+    if (e instanceof Error && /Executable doesn't exist/i.test(e.message)) throw new Error(ENGINE_MISSING_MESSAGE);
+    throw e;
+  }
   return _browser;
 }
 
@@ -71,6 +86,19 @@ export async function newContext(): Promise<BrowserContext> {
   });
 }
 
+/**
+ * Délai d'une requête vers un site d'offres. Sans lui, un site qui garde la
+ * connexion ouverte sans répondre faisait attendre chaque requête jusqu'à
+ * 5 minutes : des recherches de test du 19 octobre 2026 sont restées bloquées
+ * une heure sur France Travail, HelloWork ou Welcome to the Jungle.
+ */
+export const SOURCE_TIMEOUT_MS = 20_000;
+
+/** fetch vers un site d'offres, abandonné après SOURCE_TIMEOUT_MS (lecture du corps comprise). */
+export function sourceFetch(input: string | URL, init: RequestInit = {}): Promise<Response> {
+  return fetch(input, { ...init, signal: init.signal ?? AbortSignal.timeout(SOURCE_TIMEOUT_MS) });
+}
+
 export function htmlToText(html: string): string {
   const stripped = html
     .replace(/<style[\s\S]*?<\/style>/gi, "")
@@ -79,10 +107,14 @@ export function htmlToText(html: string): string {
     .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
     .replace(/<[^>]+>/g, "");
   // Entités décodées APRÈS le retrait des balises (un « &lt;div&gt; » du texte reste du
-  // texte) et en une seule passe : l'ancienne chaîne de .replace ne connaissait que six
-  // entités (« &eacute; », « &rsquo; », « &#43; » restaient en clair) et décodait
+  // texte) : l'ancienne chaîne de .replace ne connaissait que six entités
+  // (« &eacute; », « &rsquo; », « &#43; » restaient en clair) et décodait
   // « &amp;lt; » deux fois. L'espace insécable en entité devient une espace simple.
-  return decodeHtmlEntities(stripped, { nbspToSpace: true })
+  // Une référence numérique encore échappée (« &amp;#xa0; ») vient d'un champ
+  // doublement encodé : on la décode en profondeur. « &amp;lt; » reste une
+  // comparaison citée, pas une balise.
+  const decode = /&amp;#/.test(stripped) ? decodeHtmlEntitiesDeep : decodeHtmlEntities;
+  return decode(stripped, { nbspToSpace: true })
     .replace(/[ \t]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

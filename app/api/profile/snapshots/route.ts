@@ -67,7 +67,9 @@ export async function POST(req: NextRequest) {
     }
     saveProfile(check.data);
 
-    // Re-score immédiat de toutes les offres avec le profil chargé (local, gratuit)
+    // Même recalcul qu'à l'enregistrement du profil : rareté des mots sur toute
+    // la base, lieu, descriptions écartées et relectures IA encore valables. La
+    // boucle d'avant notait chaque offre seule, sans son lieu ni sa relecture.
     const rescored = rescoreAllOffres(getProfile()!);
     return NextResponse.json({ ok: true, loaded: name, rescored });
   }

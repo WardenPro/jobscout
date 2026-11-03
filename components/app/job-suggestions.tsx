@@ -38,11 +38,11 @@ export function JobSuggestions({ profile, update }: { profile: ProfileFull; upda
     {!hasContent && <p className="mt-2 text-small text-textSecondary">Importez un CV ou renseignez votre parcours pour obtenir des idées.</p>}
     <div className="mt-3 grid gap-2 sm:grid-cols-2">
       {suggestions.map(suggestion => {
-        const selected = profile.sectors.some(sector => sector.trim().toLocaleLowerCase() === suggestion.title.toLocaleLowerCase());
+        const selected = (profile.target_titles ?? []).some(title => title.trim().toLocaleLowerCase() === suggestion.title.toLocaleLowerCase());
         return <div key={suggestion.title} className="rounded-md border border-border p-3">
           <p className="text-small font-medium">{suggestion.title}</p>
           <p className="mt-1 text-caption text-textSecondary">{suggestion.reason}</p>
-          <Button type="button" size="sm" variant="secondary" className="mt-2" disabled={selected} onClick={() => update({ sectors: [...profile.sectors, suggestion.title] })} aria-label={`${selected ? "Ajouté" : "Ajouter"} : ${suggestion.title}`}>
+          <Button type="button" size="sm" variant="secondary" className="mt-2" disabled={selected} onClick={() => update({ target_titles: [...(profile.target_titles ?? []), suggestion.title] })} aria-label={`${selected ? "Ajouté" : "Ajouter"} : ${suggestion.title}`}>
             {selected ? <><Check className="h-3 w-3" /> Ajouté</> : <><Plus className="h-3 w-3" /> Ajouter à mes cibles</>}
           </Button>
         </div>;

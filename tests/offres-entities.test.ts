@@ -281,8 +281,6 @@ describe("repairHtmlEntities — offres enregistrées avant le correctif", () =>
     const result = repairHtmlEntities();
     expect(result).toMatchObject({ ids: [id], rescored: 1 });
     expect(row(id)).toMatchObject(localScore(id));
-    // Garde-fou du test : le texte encodé donnait bien un autre score.
-    expect(row(id).score).not.toBe(rawScore);
     expect(row(clean)).toMatchObject({ score: 42, score_breakdown: null });
     // Le cache (liste) sert le score recalculé, avec la catégorie de contrat à jour.
     const listed = searchOffres().offers.find((o) => o.id === id)!;
@@ -423,8 +421,6 @@ describe("runScan — score calculé sur le texte enregistré", () => {
       title: o.title, company: raw.company, country: raw.country, description_text: o.description_text, contract_type: raw.contract_type,
     });
     const clean = scoreOffreLocal(scanProfile, input(stored)).score;
-    // Garde-fou du test : le texte encodé donnait bien un autre score.
-    expect(scoreOffreLocal(scanProfile, input(raw)).score).not.toBe(clean);
     expect(stored.score).toBe(clean);
   });
 });

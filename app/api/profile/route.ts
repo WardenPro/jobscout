@@ -27,7 +27,15 @@ export async function POST(req: NextRequest) {
   }
   const id = saveProfile(parsed.data);
   setSetting("has_completed_onboarding", "true");
-  // Contrats, pays, taux d'activité… : les scores des offres déjà en base suivent le profil.
-  const rescored = rescoreAllOffres(getProfile()!);
+  // Postes visés, compétences, pays, contrats, taux d'activité… : les notes en
+  // dépendent. Recalcul local et immédiat, plutôt que d'attendre le prochain scan.
+  // Une note périmée ne doit pas faire échouer l'enregistrement du profil.
+  let rescored = 0;
+  const saved = getProfile();
+  if (saved) {
+    try {
+      rescored = rescoreAllOffres(saved);
+    } catch {}
+  }
   return NextResponse.json({ id, ok: true, rescored });
 }

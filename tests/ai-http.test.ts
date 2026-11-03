@@ -55,7 +55,9 @@ describe("transport des fournisseurs compatibles OpenAI", () => {
     const port = (closed.address() as AddressInfo).port;
     await new Promise<void>((r) => closed.close(() => r()));
     const err = await providerFetch(`http://127.0.0.1:${port}/v1/models`).catch((e) => e);
-    expect(networkCode(err)).toBe("ECONNREFUSED");
+    // Selon la pile réseau de la machine, un port fermé répond ECONNREFUSED
+    // ou ECONNRESET ; les deux disent qu'aucun serveur n'écoute.
+    expect(["ECONNREFUSED", "ECONNRESET"]).toContain(networkCode(err));
     expect(isTimeoutError(err)).toBe(false);
   });
 });

@@ -51,7 +51,7 @@ export const SOURCES_META: SourceMeta[] = [
   },
   { id: "hellowork", label: "HelloWork", sublabel: "Ex-RegionsJob (France) · à activer vous-même", scope: "fr", optIn: true },
   { id: "francetravail", label: "France Travail", sublabel: "Ex-Pôle Emploi (France)", scope: "fr" },
-  { id: "talent", label: "Talent.com", sublabel: "Francophonie · Canada · USA · à activer vous-même", scope: "world", optIn: true },
+  { id: "talent", label: "Talent.com", sublabel: "64 pays · à activer vous-même", scope: "world", optIn: true },
   { id: "jobup", label: "jobup.ch", sublabel: "Suisse romande · à activer vous-même", scope: "ch", optIn: true },
   { id: "jobsch", label: "jobs.ch", sublabel: "Toute la Suisse · à activer vous-même", scope: "ch", optIn: true },
   { id: "indeedch", label: "Indeed Suisse", sublabel: "Nécessite Google Chrome installé et visible · sans proxy · fiches parfois bloquées", scope: "ch", optIn: true },

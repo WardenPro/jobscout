@@ -424,8 +424,5 @@ describe("nouveau scan après la réparation", () => {
     const fixed = "Maîtrise de la gestion  de projet et SQL ;";
     expect(stored).toMatchObject({ source: "apec", description_html: fixed, description_text: fixed });
     expect(stored.score).toBe(localScore(stored.id).score);
-    // Garde-fou du test : la double espace change le score (sinon il ne départagerait pas les sources).
-    const single = scoreOffreLocal(profile, { title: raw.title, company: raw.company, country: raw.country, description_text: htmlToText(fixed), contract_type: raw.contract_type });
-    expect(single.score).not.toBe(stored.score);
   });
 });

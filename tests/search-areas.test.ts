@@ -45,11 +45,11 @@ it("refuse les zones incompatibles et les codes inexistants", () => {
 it("persiste les zones et filtre aussi les anciennes offres, les compteurs et les suggestions", () => {
   saveProfile({ ...profile, target_countries: ["France", "Suisse"], search_areas: [geneva, ara], include_unknown_locations: false });
   expect(getProfile()?.search_areas).toEqual([geneva, ara]);
-  const base: ScrapedOffre = { source_id: "geneva", url: "https://example.org/geneva", title: offre.title, company: "Test", country: "Suisse", location: "Genève", contract_type: "CDI", salary: null, description_html: "", description_text: "Test", description_status: "ok", posted_at: null, is_vie: false, raw_payload: {} };
+  const base: ScrapedOffre = { source_id: "geneva", url: "https://example.org/geneva", title: offre.title, company: "Test geneva", country: "Suisse", location: "Genève", contract_type: "CDI", salary: null, description_html: "", description_text: "Test", description_status: "ok", posted_at: null, is_vie: false, raw_payload: {} };
   upsertOffreFromSource("jobup", base);
-  upsertOffreFromSource("jobup", { ...base, source_id: "zurich", location: "Zurich" });
-  upsertOffreFromSource("francetravail", { ...base, source_id: "annecy", country: "France", location: "Annecy", raw_payload: { department: "74" } });
-  upsertOffreFromSource("francetravail", { ...base, source_id: "paris", country: "France", location: "Paris", raw_payload: { department: "75" } });
+  upsertOffreFromSource("jobup", { ...base, source_id: "zurich", company: "Test zurich", location: "Zurich" });
+  upsertOffreFromSource("francetravail", { ...base, source_id: "annecy", company: "Test annecy", country: "France", location: "Annecy", raw_payload: { department: "74" } });
+  upsertOffreFromSource("francetravail", { ...base, source_id: "paris", company: "Test paris", country: "France", location: "Paris", raw_payload: { department: "75" } });
   expect(searchOffres().offers.map(offer => offer.location).sort()).toEqual(["Annecy", "Genève"]);
   expect(offresCounts().total).toBe(2);
   expect(suggestedOffres(6)).toHaveLength(2);
